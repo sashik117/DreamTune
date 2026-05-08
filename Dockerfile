@@ -11,7 +11,6 @@ RUN npm ci --omit=dev
 
 COPY server ./server
 COPY db ./db
-COPY public ./public
 
 RUN mkdir -p public/uploads public/media .tmp_uploads
 
