@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dreamtune-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dreamtune
+      POSTGRES_USER: dreamtune
+      POSTGRES_PASSWORD: dreamtune
+    ports:
+      - "5433:5432"
+    volumes:
+      - dreamtune-postgres-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dreamtune -d dreamtune"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dreamtune-postgres-data:

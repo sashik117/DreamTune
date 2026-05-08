@@ -1,0 +1,24 @@
+{
+  "name": "Playlist",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "\u041d\u0430\u0437\u0432\u0430"
+    },
+    "song_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "\u041f\u0456\u0441\u043d\u0456"
+    },
+    "cover_url": {
+      "type": "string",
+      "title": "\u041e\u0431\u043a\u043b\u0430\u0434\u0438\u043d\u043a\u0430"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

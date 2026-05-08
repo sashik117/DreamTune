@@ -1,0 +1,892 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Nunito', sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bottom-nav-height: 64px;
+    --mini-player-height: 82px;
+    --music-pulse-scale: 1;
+    --music-pulse-intensity: 0;
+    --music-voice-intensity: 0;
+
+    /* Cozy Light — cream & peach pastels */
+    --background: 30 60% 97%;
+    --foreground: 20 20% 18%;
+    --card: 30 50% 99%;
+    --card-foreground: 20 20% 18%;
+    --popover: 30 50% 99%;
+    --popover-foreground: 20 20% 18%;
+    --primary: 330 65% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 60% 94%;
+    --secondary-foreground: 20 20% 25%;
+    --muted: 40 40% 92%;
+    --muted-foreground: 20 15% 48%;
+    --accent: 260 45% 78%;
+    --accent-foreground: 260 30% 20%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 35 40% 88%;
+    --input: 35 40% 88%;
+    --ring: 330 65% 60%;
+    --radius: 1rem;
+
+    --sidebar-background: 35 55% 95%;
+    --sidebar-foreground: 20 20% 25%;
+    --sidebar-primary: 330 65% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 55% 90%;
+    --sidebar-accent-foreground: 20 20% 25%;
+    --sidebar-border: 35 40% 88%;
+    --sidebar-ring: 330 65% 60%;
+  }
+
+  .dark {
+    /* Cozy Dark — soft plum/charcoal */
+    --background: 262 41% 5%;
+    --foreground: 220 20% 96%;
+    --card: 260 28% 11%;
+    --card-foreground: 220 20% 96%;
+    --popover: 260 30% 10%;
+    --popover-foreground: 220 20% 96%;
+    --primary: 326 82% 72%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 257 24% 17%;
+    --secondary-foreground: 235 28% 86%;
+    --muted: 257 22% 15%;
+    --muted-foreground: 242 24% 74%;
+    --accent: 188 76% 72%;
+    --accent-foreground: 262 41% 7%;
+    --destructive: 0 55% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 258 22% 24%;
+    --input: 258 22% 24%;
+    --ring: 326 82% 72%;
+
+    --sidebar-background: 262 41% 5%;
+    --sidebar-foreground: 235 28% 86%;
+    --sidebar-primary: 326 82% 72%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 257 24% 17%;
+    --sidebar-accent-foreground: 220 20% 96%;
+    --sidebar-border: 258 22% 24%;
+    --sidebar-ring: 326 82% 72%;
+  }
+
+  html[data-theme-accent="violet"] {
+    --primary: 266 92% 76%;
+    --ring: 266 92% 76%;
+    --accent: 190 90% 72%;
+  }
+
+  html[data-theme-accent="blue"] {
+    --primary: 210 95% 68%;
+    --ring: 210 95% 68%;
+    --accent: 176 78% 62%;
+  }
+
+
+
+  html[data-theme-accent="ruby"] {
+    --primary: 350 86% 66%;
+    --ring: 350 86% 66%;
+    --accent: 28 92% 65%;
+  }
+
+  html[data-theme-accent="mint"] {
+    --primary: 168 74% 58%;
+    --ring: 168 74% 58%;
+    --accent: 285 78% 76%;
+  }
+
+  html[data-theme-accent="mono"] {
+    --primary: 0 0% 88%;
+    --ring: 0 0% 88%;
+    --accent: 220 18% 72%;
+  }
+
+
+  html[data-theme-accent="lime"] {
+    --primary: 84 82% 56%;
+    --ring: 84 82% 56%;
+    --accent: 190 76% 70%;
+  }
+
+  html[data-theme-accent="peach"] {
+    --primary: 20 92% 70%;
+    --ring: 20 92% 70%;
+    --accent: 330 78% 74%;
+  }
+
+  html[data-theme-accent="ice"] {
+    --primary: 185 84% 72%;
+    --ring: 185 84% 72%;
+    --accent: 220 90% 78%;
+  }
+
+
+
+
+  html[data-theme-accent="gold"] {
+    --primary: 45 92% 58%;
+    --ring: 45 92% 58%;
+    --accent: 20 90% 68%;
+  }
+
+
+  html[data-theme-accent="graphite"] {
+    --primary: 220 16% 72%;
+    --ring: 220 16% 72%;
+    --accent: 180 18% 68%;
+  }
+
+
+
+  html[data-theme-accent="sage"] {
+    --primary: 142 42% 55%;
+    --ring: 142 42% 55%;
+    --accent: 178 48% 64%;
+  }
+
+
+  html[data-theme-accent="velvet"] {
+    --primary: 336 74% 58%;
+    --ring: 336 74% 58%;
+    --accent: 18 78% 66%;
+  }
+
+  html[data-theme-accent="burgundy"] {
+    --primary: 348 78% 50%;
+    --ring: 348 78% 50%;
+    --accent: 12 82% 64%;
+  }
+
+  html[data-theme-accent="midnight"] {
+    --primary: 218 78% 66%;
+    --ring: 218 78% 66%;
+    --accent: 188 72% 62%;
+  }
+
+  html[data-theme-accent="ember"] {
+    --primary: 16 95% 58%;
+    --ring: 16 95% 58%;
+    --accent: 45 96% 62%;
+  }
+
+  html[data-theme-accent="neon"] {
+    --primary: 292 92% 64%;
+    --ring: 292 92% 64%;
+    --accent: 174 92% 54%;
+  }
+
+  html[data-theme-accent="citrus"] {
+    --primary: 74 86% 52%;
+    --ring: 74 86% 52%;
+    --accent: 32 96% 58%;
+  }
+
+  html[data-theme-accent="berry"] {
+    --primary: 335 82% 56%;
+    --ring: 335 82% 56%;
+    --accent: 268 84% 66%;
+  }
+
+  html[data-theme-mode="custom"] {
+    --background: 260 41% 5%;
+    --foreground: 220 20% 98%;
+    --card: 260 28% 11%;
+    --card-foreground: 220 20% 98%;
+    --popover: 260 30% 10%;
+    --popover-foreground: 220 20% 98%;
+    --secondary: 257 24% 17%;
+    --secondary-foreground: 235 28% 92%;
+    --muted: 257 22% 15%;
+    --muted-foreground: 242 24% 86%;
+    --border: 258 22% 28%;
+    --input: 258 22% 28%;
+  }
+
+  html[data-theme-surface="light"][data-theme-mode="custom"] {
+    --background: 335 64% 96%;
+    --foreground: 236 24% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 236 24% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 236 24% 18%;
+    --secondary: 330 48% 92%;
+    --secondary-foreground: 236 24% 22%;
+    --muted: 330 34% 90%;
+    --muted-foreground: 235 16% 40%;
+    --border: 330 28% 82%;
+    --input: 330 28% 82%;
+    --sidebar-background: 335 64% 96%;
+    --sidebar-foreground: 236 24% 18%;
+    --sidebar-accent: 330 48% 92%;
+    --sidebar-accent-foreground: 236 24% 22%;
+    --sidebar-border: 330 28% 82%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground font-inter;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    transition: background-color 260ms ease, color 260ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+}
+
+.app-shell {
+  min-height: 100dvh;
+  isolation: isolate;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.app-background-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.26), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(103, 232, 249, 0.18), transparent 30%),
+    radial-gradient(circle at 45% 100%, rgba(168, 85, 247, 0.14), transparent 34%),
+    linear-gradient(145deg, #0b0813 0%, #130f20 44%, #121212 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+  transition: background 320ms ease, opacity 320ms ease, filter 320ms ease;
+}
+
+html:not(.dark) .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(251, 207, 232, 0.72), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(186, 230, 253, 0.62), transparent 30%),
+    radial-gradient(circle at 45% 100%, rgba(221, 214, 254, 0.52), transparent 34%),
+    linear-gradient(145deg, #fff7ed 0%, #fff1f2 44%, #f8fafc 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+.app-scroll {
+  position: relative;
+  z-index: 2;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.capacitor-native body {
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+.capacitor-native .app-shell,
+.capacitor-native .app-scroll {
+  min-height: 100dvh;
+}
+
+.app-scroll.has-mini-player {
+  padding-bottom: calc(var(--bottom-nav-height) + var(--mini-player-height) + var(--safe-bottom) + 24px);
+}
+
+.bottom-navbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(var(--bottom-nav-height) + var(--safe-bottom));
+  z-index: 80;
+  padding-bottom: var(--safe-bottom);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.mini-player-shell {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-height) + var(--safe-bottom));
+  width: 100%;
+  z-index: 60;
+  min-height: var(--mini-player-height);
+  display: flex;
+  align-items: flex-end;
+}
+
+.mini-player-shell > * {
+  width: 100%;
+}
+
+.mini-player-progress-line {
+  height: 3px;
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--border) / 0.5);
+  transition: border-radius 160ms ease, height 160ms ease;
+}
+
+.mini-player-progress-line.circle {
+  height: 4px;
+  margin-inline: 8px;
+  margin-top: 5px;
+  border-radius: 9999px;
+}
+
+.mini-player-progress-line.square {
+  width: 100%;
+  border-radius: 0;
+}
+
+.mini-player-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.mini-cover-progress {
+  --mini-progress: 0%;
+  position: relative;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 3rem;
+  padding: 2px;
+  background:
+    conic-gradient(from -90deg, hsl(var(--primary)) var(--mini-progress), hsl(var(--border) / 0.52) 0),
+    linear-gradient(135deg, hsl(var(--primary) / 0.22), hsl(var(--accent) / 0.18));
+  box-shadow: 0 0 18px hsl(var(--primary) / 0.2);
+  border-radius: 9999px;
+}
+
+.mini-cover-progress .mini-cover-art {
+  width: 100%;
+  height: 100%;
+  border: 2px solid hsl(var(--card) / 0.94);
+  border-radius: 9999px;
+}
+
+.full-player-safe-bottom {
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
+}
+
+.music-pulse-avatar {
+  transform: scale(var(--music-pulse-scale, 1));
+  transform-origin: center;
+  transition: transform 50ms ease-out, box-shadow 50ms ease-out, filter 50ms ease-out;
+  will-change: transform;
+}
+
+.music-pulse-wave {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(calc(1 + (var(--music-pulse-intensity, 0) * 0.08)));
+  opacity: calc(0.72 + (var(--music-voice-intensity, 0) * 0.28));
+  transition: transform 50ms ease-out, opacity 50ms ease-out;
+  will-change: transform, opacity;
+}
+
+.lyric-line-active {
+  color: hsl(var(--foreground));
+  font-weight: 800;
+  transform: scale(var(--music-pulse-scale, 1));
+  transform-origin: center;
+  text-shadow: 0 0 calc(4px + (var(--music-pulse-intensity, 0) * 18px)) hsl(var(--primary) / 0.68);
+  transition: transform 50ms ease-out, text-shadow 50ms ease-out, color 50ms ease-out;
+  will-change: transform;
+}
+
+/* Animated gradient background */
+.cozy-gradient-bg {
+  background: linear-gradient(135deg, #FFF5EE 0%, #FFE4E1 25%, #F5E6FA 50%, #E8F5E9 75%, #FFF9C4 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+.dark body,
+.dark .cozy-gradient-bg {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.26), transparent 32%),
+    radial-gradient(circle at 85% 12%, rgba(103, 232, 249, 0.18), transparent 30%),
+    radial-gradient(circle at 45% 100%, rgba(168, 85, 247, 0.14), transparent 34%),
+    linear-gradient(145deg, #0b0813 0%, #130f20 44%, #121212 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-mode="custom"] body,
+html[data-theme-mode="custom"] .cozy-gradient-bg {
+  background:
+    var(--user-bg-image),
+    radial-gradient(circle at 14% 0%, hsl(var(--primary) / 0.42), transparent 34%),
+    radial-gradient(circle at 88% 16%, hsl(var(--accent) / 0.30), transparent 32%),
+    radial-gradient(circle at 50% 95%, hsl(var(--primary) / 0.18), transparent 34%),
+    linear-gradient(145deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 58%, #111 100%);
+  background-size: cover, 400% 400%, 400% 400%, 400% 400%, 400% 400%;
+  background-position: center;
+  background-attachment: fixed, scroll, scroll, scroll, scroll;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="plum"] body,
+html[data-theme-background="plum"] .cozy-gradient-bg,
+html[data-theme-background="plum"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(124, 58, 237, 0.52), transparent 36%),
+    radial-gradient(circle at 85% 16%, rgba(236, 72, 153, 0.30), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.12), transparent 34%),
+    linear-gradient(145deg, #090511 0%, #1c1230 55%, #0d0916 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="rose"] body,
+html[data-theme-background="rose"] .cozy-gradient-bg,
+html[data-theme-background="rose"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.54), transparent 36%),
+    radial-gradient(circle at 85% 16%, rgba(251, 113, 133, 0.30), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.14), transparent 34%),
+    linear-gradient(145deg, #120711 0%, #24101c 55%, #10080f 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="ocean"] body,
+html[data-theme-background="ocean"] .cozy-gradient-bg,
+html[data-theme-background="ocean"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(34, 211, 238, 0.52), transparent 36%),
+    radial-gradient(circle at 12% 16%, rgba(59, 130, 246, 0.34), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.14), transparent 34%),
+    linear-gradient(145deg, #04121d 0%, #0b2235 55%, #041018 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="forest"] body,
+html[data-theme-background="forest"] .cozy-gradient-bg,
+html[data-theme-background="forest"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(52, 211, 153, 0.50), transparent 36%),
+    radial-gradient(circle at 85% 16%, rgba(132, 204, 22, 0.28), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(34, 197, 94, 0.16), transparent 34%),
+    linear-gradient(145deg, #04140e 0%, #10251b 55%, #06110d 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="sunset"] body,
+html[data-theme-background="sunset"] .cozy-gradient-bg,
+html[data-theme-background="sunset"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(249, 115, 22, 0.56), transparent 36%),
+    radial-gradient(circle at 85% 16%, rgba(244, 63, 94, 0.34), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(251, 191, 36, 0.16), transparent 34%),
+    linear-gradient(145deg, #170a07 0%, #2a1710 55%, #120906 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="midnight"] body,
+html[data-theme-background="midnight"] .cozy-gradient-bg,
+html[data-theme-background="midnight"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 10%, rgba(96, 165, 250, 0.50), transparent 36%),
+    radial-gradient(circle at 16% 18%, rgba(129, 140, 248, 0.32), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(14, 165, 233, 0.16), transparent 34%),
+    linear-gradient(145deg, #030712 0%, #111827 55%, #050816 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+
+
+html[data-theme-background="velvet"] body,
+html[data-theme-background="velvet"] .cozy-gradient-bg,
+html[data-theme-background="velvet"] .app-background-layer {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(190, 24, 93, 0.44), transparent 36%),
+    radial-gradient(circle at 84% 16%, rgba(249, 115, 22, 0.28), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(244, 114, 182, 0.14), transparent 34%),
+    linear-gradient(145deg, #13070d 0%, #25101a 55%, #10070c 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="noir"] body,
+html[data-theme-background="noir"] .cozy-gradient-bg,
+html[data-theme-background="noir"] .app-background-layer {
+  background:
+    radial-gradient(circle at 78% 8%, rgba(148, 163, 184, 0.30), transparent 36%),
+    radial-gradient(circle at 18% 20%, rgba(100, 116, 139, 0.22), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(59, 130, 246, 0.10), transparent 34%),
+    linear-gradient(145deg, #05070b 0%, #171923 55%, #07080d 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="cyber"] body,
+html[data-theme-background="cyber"] .cozy-gradient-bg,
+html[data-theme-background="cyber"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(34, 211, 238, 0.46), transparent 36%),
+    radial-gradient(circle at 14% 18%, rgba(168, 85, 247, 0.46), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(236, 72, 153, 0.12), transparent 34%),
+    linear-gradient(145deg, #030712 0%, #0b1024 55%, #050716 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="wine"] body,
+html[data-theme-background="wine"] .cozy-gradient-bg,
+html[data-theme-background="wine"] .app-background-layer {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(225, 29, 72, 0.42), transparent 36%),
+    radial-gradient(circle at 82% 18%, rgba(127, 29, 29, 0.48), transparent 32%),
+    radial-gradient(circle at 52% 98%, rgba(251, 113, 133, 0.14), transparent 34%),
+    linear-gradient(145deg, #140407 0%, #2a0f14 55%, #100407 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="deepsea"] body,
+html[data-theme-background="deepsea"] .cozy-gradient-bg,
+html[data-theme-background="deepsea"] .app-background-layer {
+  background:
+    radial-gradient(circle at 84% 8%, rgba(14, 165, 233, 0.44), transparent 36%),
+    radial-gradient(circle at 12% 18%, rgba(20, 184, 166, 0.34), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(34, 211, 238, 0.12), transparent 34%),
+    linear-gradient(145deg, #021018 0%, #08202d 55%, #031017 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="sky"] body,
+html[data-theme-background="sky"] .cozy-gradient-bg,
+html[data-theme-background="sky"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(56, 189, 248, 0.52), transparent 36%),
+    radial-gradient(circle at 12% 16%, rgba(147, 197, 253, 0.34), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(196, 181, 253, 0.18), transparent 34%),
+    linear-gradient(145deg, #061625 0%, #102a43 55%, #07131f 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="peach"] body,
+html[data-theme-background="peach"] .cozy-gradient-bg,
+html[data-theme-background="peach"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(251, 113, 133, 0.52), transparent 36%),
+    radial-gradient(circle at 85% 16%, rgba(245, 158, 11, 0.30), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(244, 114, 182, 0.14), transparent 34%),
+    linear-gradient(145deg, #1c0b0a 0%, #2a1510 55%, #140907 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="ice"] body,
+html[data-theme-background="ice"] .cozy-gradient-bg,
+html[data-theme-background="ice"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(103, 232, 249, 0.52), transparent 36%),
+    radial-gradient(circle at 12% 16%, rgba(96, 165, 250, 0.30), transparent 32%),
+    radial-gradient(circle at 50% 100%, rgba(221, 214, 254, 0.16), transparent 34%),
+    linear-gradient(145deg, #06141a 0%, #10202a 55%, #071015 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="light-blush"] body,
+html[data-theme-background="light-blush"] .cozy-gradient-bg,
+html[data-theme-background="light-blush"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(244, 183, 213, 0.62), transparent 34%),
+    radial-gradient(circle at 85% 16%, rgba(246, 204, 175, 0.46), transparent 32%),
+    linear-gradient(145deg, #f9dfe9 0%, #f6edf5 56%, #e9f3f6 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="light-sky"] body,
+html[data-theme-background="light-sky"] .cozy-gradient-bg,
+html[data-theme-background="light-sky"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(151, 213, 239, 0.58), transparent 34%),
+    radial-gradient(circle at 12% 16%, rgba(201, 194, 242, 0.44), transparent 32%),
+    linear-gradient(145deg, #dcedf7 0%, #edf1fa 58%, #f5e8f3 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="light-mint"] body,
+html[data-theme-background="light-mint"] .cozy-gradient-bg,
+html[data-theme-background="light-mint"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(156, 219, 183, 0.58), transparent 34%),
+    radial-gradient(circle at 85% 16%, rgba(147, 216, 224, 0.42), transparent 32%),
+    linear-gradient(145deg, #dff2e7 0%, #e6f3f0 58%, #f5ecef 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="light-lavender"] body,
+html[data-theme-background="light-lavender"] .cozy-gradient-bg,
+html[data-theme-background="light-lavender"] .app-background-layer {
+  background:
+    radial-gradient(circle at 85% 8%, rgba(202, 190, 237, 0.62), transparent 34%),
+    radial-gradient(circle at 12% 16%, rgba(236, 190, 217, 0.42), transparent 32%),
+    linear-gradient(145deg, #eee4f6 0%, #f4eaf4 58%, #e8f0f6 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="pastel-rose"] body,
+html[data-theme-background="pastel-rose"] .cozy-gradient-bg,
+html[data-theme-background="pastel-rose"] .app-background-layer {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(232, 155, 188, 0.58), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(197, 177, 228, 0.38), transparent 32%),
+    linear-gradient(145deg, #efd3df 0%, #f3e6ef 56%, #e4eef4 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="pastel-sky"] body,
+html[data-theme-background="pastel-sky"] .cozy-gradient-bg,
+html[data-theme-background="pastel-sky"] .app-background-layer {
+  background:
+    radial-gradient(circle at 82% 8%, rgba(124, 190, 221, 0.52), transparent 34%),
+    radial-gradient(circle at 12% 18%, rgba(226, 171, 204, 0.34), transparent 32%),
+    linear-gradient(145deg, #d6eaf4 0%, #e9edf7 58%, #f0e2ed 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="pastel-mint"] body,
+html[data-theme-background="pastel-mint"] .cozy-gradient-bg,
+html[data-theme-background="pastel-mint"] .app-background-layer {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(133, 205, 172, 0.52), transparent 34%),
+    radial-gradient(circle at 86% 16%, rgba(218, 181, 130, 0.34), transparent 32%),
+    linear-gradient(145deg, #d8eee3 0%, #e8f0e7 58%, #f1e5ed 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="pastel-lilac"] body,
+html[data-theme-background="pastel-lilac"] .cozy-gradient-bg,
+html[data-theme-background="pastel-lilac"] .app-background-layer {
+  background:
+    radial-gradient(circle at 84% 8%, rgba(177, 158, 225, 0.58), transparent 34%),
+    radial-gradient(circle at 12% 16%, rgba(143, 198, 219, 0.34), transparent 32%),
+    linear-gradient(145deg, #e4d9f2 0%, #eee8f5 58%, #e4edf4 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="pastel-peach"] body,
+html[data-theme-background="pastel-peach"] .cozy-gradient-bg,
+html[data-theme-background="pastel-peach"] .app-background-layer {
+  background:
+    radial-gradient(circle at 16% 0%, rgba(232, 171, 137, 0.56), transparent 34%),
+    radial-gradient(circle at 86% 16%, rgba(226, 158, 190, 0.38), transparent 32%),
+    linear-gradient(145deg, #f1d9cd 0%, #f3e5dc 58%, #e8edf4 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+html[data-theme-background="photo"] body,
+html[data-theme-background="photo"] .cozy-gradient-bg,
+html[data-theme-background="photo"] .app-background-layer {
+  background:
+    linear-gradient(hsl(var(--background) / 0.58), hsl(var(--background) / 0.86)),
+    var(--user-bg-image),
+    radial-gradient(circle at 14% 0%, hsl(var(--primary) / 0.18), transparent 30%),
+    linear-gradient(145deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 58%, #111 100%);
+  background-size: cover, cover, 400% 400%, 400% 400%;
+  background-position: center, center, center, center;
+  background-repeat: no-repeat;
+  background-attachment: fixed, fixed, scroll, scroll;
+  animation: none;
+}
+
+.text-muted-foreground\/40,
+.text-muted-foreground\/50,
+.text-muted-foreground\/55,
+.text-muted-foreground\/60,
+.text-muted-foreground\/70,
+.text-muted-foreground\/80 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.text-foreground\/70,
+.text-foreground\/80,
+.text-foreground\/90 {
+  color: hsl(var(--foreground)) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.42);
+  font-weight: 600;
+}
+
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: hsl(var(--muted-foreground) / 0.28);
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+.dream-scroll-row {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scroll-behavior: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.25rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x pan-y;
+  user-select: none;
+  cursor: grab;
+  width: 100%;
+  min-width: 0;
+  contain: layout paint;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.dream-scroll-row::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.dream-scroll-row > * {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  flex: 0 0 auto;
+}
+
+.dream-scroll-row:active {
+  cursor: grabbing;
+}
+
+.dark .bg-card\/80,
+.dark .bg-card\/90,
+.dark .bg-card\/70 {
+  box-shadow: 0 18px 60px -28px hsl(var(--primary) / 0.55), inset 0 1px 0 hsl(0 0% 100% / 0.08);
+}
+
+.dark .border-border\/60,
+.dark .border-border\/50 {
+  border-color: hsl(var(--border) / 0.78);
+}
+
+html[data-theme-surface="light"] .bg-card\/95,
+html[data-theme-surface="light"] .bg-card\/90,
+html[data-theme-surface="light"] .bg-card\/85,
+html[data-theme-surface="light"] .bg-card\/80,
+html[data-theme-surface="light"] .bg-card\/70 {
+  background-color: hsl(var(--card) / 0.88);
+  box-shadow: 0 18px 50px -30px hsl(var(--primary) / 0.32), inset 0 1px 0 hsl(0 0% 100% / 0.62);
+}
+
+html[data-theme-surface="light"] .bg-secondary,
+html[data-theme-surface="light"] .bg-secondary\/70,
+html[data-theme-surface="light"] .bg-secondary\/60 {
+  background-color: hsl(var(--secondary) / 0.78);
+}
+
+html[data-theme-surface="light"] .border-border\/60,
+html[data-theme-surface="light"] .border-border\/50 {
+  border-color: hsl(var(--border) / 0.92);
+}
+
+.sleep-dim {
+  animation: sleepDim 10s ease forwards;
+}
+
+@keyframes sleepDim {
+  from { filter: brightness(1); }
+  to { filter: brightness(0.55) saturate(0.75); }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Fluffy card hover */
+.fluffy-card {
+  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease;
+}
+.fluffy-card:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 12px 36px -8px hsl(330 65% 60% / 0.18);
+}
+
+/* Custom scrollbar — pastel pink */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(330 60% 82%); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(330 60% 70%); }
+.dark ::-webkit-scrollbar-thumb { background: hsl(270 20% 35%); }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.5; }
+  50% { transform: translateY(-18px) scale(1.08); opacity: 0.8; }
+}

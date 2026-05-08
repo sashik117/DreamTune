@@ -1,0 +1,11 @@
+{
+  "name": "DreamTune",
+  "short_name": "DreamTune",
+  "description": "Music player with playlists, friends and offline listening.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0813",
+  "theme_color": "#0b0813",
+  "icons": []
+}

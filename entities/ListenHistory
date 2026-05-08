@@ -1,0 +1,36 @@
+{
+  "name": "ListenHistory",
+  "type": "object",
+  "properties": {
+    "song_id": {
+      "type": "string",
+      "title": "ID \u043f\u0456\u0441\u043d\u0456"
+    },
+    "song_title": {
+      "type": "string",
+      "title": "\u041d\u0430\u0437\u0432\u0430"
+    },
+    "song_artist": {
+      "type": "string",
+      "title": "\u0412\u0438\u043a\u043e\u043d\u0430\u0432\u0435\u0446\u044c"
+    },
+    "listened_at": {
+      "type": "number",
+      "title": "\u0427\u0430\u0441 \u043f\u0440\u043e\u0441\u043b\u0443\u0445\u043e\u0432\u0443\u0432\u0430\u043d\u043d\u044f"
+    },
+    "mood": {
+      "type": "string",
+      "title": "\u041d\u0430\u0441\u0442\u0440\u0456\u0439",
+      "enum": [
+        "energetic",
+        "chill",
+        "happy",
+        "melancholic",
+        "focus"
+      ]
+    }
+  },
+  "required": [
+    "song_id"
+  ]
+}
