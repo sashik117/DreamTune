@@ -1,6 +1,6 @@
 ---
 title: DreamTune API
-emoji: DreamTune
+emoji: 🎧
 colorFrom: pink
 colorTo: purple
 sdk: docker
