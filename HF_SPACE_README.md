@@ -23,8 +23,5 @@ Required secrets:
 - `PUBLIC_API_URL`
 - `CLOUDINARY_URL`
 - `SMTP_PASS`
-
-Optional secrets:
-
 - `SPOTIFY_CLIENT_ID`
 - `SPOTIFY_CLIENT_SECRET`

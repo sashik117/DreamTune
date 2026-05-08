@@ -1,6 +1,7 @@
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const AUTH_TOKEN_KEY = 'dreamtune-auth-token';
+const API_WAKE_EVENT = 'dreamtune-api-wake';
 let nativePreferencesPromise = null;
 
 function isNativeApp() {
@@ -53,23 +54,39 @@ function emitLocalEntityChange(event) {
 
 async function request(path, options = {}) {
   const token = getAuthToken();
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  let wakeShown = false;
+  const wakeTimer = typeof window !== 'undefined'
+    ? window.setTimeout(() => {
+      wakeShown = true;
+      window.dispatchEvent(new CustomEvent(API_WAKE_EVENT, { detail: { id: requestId, active: true } }));
+    }, 1400)
+    : null;
 
-  const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json') ? await response.json() : await response.text();
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(data?.error || data || 'API request failed');
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+    if (!response.ok) {
+      throw new Error(data?.error || data || 'API request failed');
+    }
+
+    return data;
+  } finally {
+    if (wakeTimer) window.clearTimeout(wakeTimer);
+    if (wakeShown && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(API_WAKE_EVENT, { detail: { id: requestId, active: false } }));
+    }
   }
-
-  return data;
 }
 
 function makeEntity(table) {

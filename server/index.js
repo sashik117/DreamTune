@@ -92,6 +92,7 @@ async function removeTempFile(filePath) {
 async function uploadToCloudinary(filePath, folder, originalName = '') {
   const ext = path.extname(originalName || filePath).replace('.', '').toLowerCase();
   const isAudio = /^(mp3|m4a|aac|wav|ogg|webm|flac)$/i.test(ext);
+  const isImage = /^(jpg|jpeg|png|gif|webp|avif)$/i.test(ext);
   const result = await cloudinary.uploader.upload(filePath, {
     folder: `dreamtune/${folder}`,
     resource_type: isAudio ? 'video' : 'auto',
@@ -99,6 +100,14 @@ async function uploadToCloudinary(filePath, folder, originalName = '') {
     unique_filename: true,
     overwrite: false,
   });
+  if (isImage && result.public_id) {
+    return cloudinary.url(result.public_id, {
+      secure: true,
+      resource_type: 'image',
+      fetch_format: 'auto',
+      quality: 'auto',
+    });
+  }
   return result.secure_url;
 }
 

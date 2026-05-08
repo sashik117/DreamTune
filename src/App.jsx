@@ -18,6 +18,7 @@ import MusicAwardsWrapper from './pages/MusicAwardsWrapper';
 import AuthPage from './pages/AuthPage';
 import FriendProfile from './pages/FriendProfile';
 import AdminPage from './pages/AdminPage';
+import ApiWakeLoader from './components/ApiWakeLoader';
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
           <Route path="*" element={<PageNotFound />} />
         </Routes>
       </Router>
+      <ApiWakeLoader />
       <Toaster position="top-center" richColors closeButton style={{ zIndex: 9999 }} />
     </QueryClientProvider>
   )
