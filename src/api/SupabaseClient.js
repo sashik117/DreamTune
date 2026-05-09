@@ -81,7 +81,9 @@ async function request(path, options = {}) {
     const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
     if (!response.ok) {
-      throw new Error(data?.error || data || 'API request failed');
+      const error = new Error(data?.error || data || 'API request failed');
+      if (data && typeof data === 'object') Object.assign(error, data);
+      throw error;
     }
 
     return data;

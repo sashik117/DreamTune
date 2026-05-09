@@ -74,6 +74,17 @@ export default function AuthPage() {
       setMode('verify');
       toast.success('\u041a\u043e\u0434 \u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u044f \u0432\u0456\u0434\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043d\u0430 \u043f\u043e\u0448\u0442\u0443');
     } catch (err) {
+      if (err.needs_verification) {
+        if (err.email) setEmail(err.email);
+        if (err.nickname) {
+          setNickname(err.nickname);
+          setLogin(err.nickname);
+        }
+        if (err.verification_code) setDevCode(err.verification_code);
+        setMode('verify');
+        toast.message('Введи код підтвердження пошти');
+        return;
+      }
       toast.error(err.message || '\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e');
     } finally {
       setLoading(false);

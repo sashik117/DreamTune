@@ -540,7 +540,21 @@ app.post('/api/auth/login', async (req, res, next) => {
     );
     const user = rows[0];
     if (!user || !verifyPassword(password, user.password_hash)) return res.status(401).json({ error: 'Invalid login or password' });
-    if (!user.email_verified) return res.status(403).json({ error: 'Email is not verified' });
+    if (!user.email_verified) {
+      const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+      await pool.query(
+        `UPDATE users SET verification_token = $1, updated_at = now() WHERE id = $2`,
+        [verificationCode, user.id]
+      );
+      sendVerificationEmail({ email: user.email, nickname: user.nickname, code: verificationCode }).catch(() => {});
+      return res.status(403).json({
+        error: 'Пошта ще не підтверджена. Введи код підтвердження.',
+        needs_verification: true,
+        verification_code: verificationCode,
+        email: user.email,
+        nickname: user.nickname,
+      });
+    }
     if (user.blocked_at) return res.status(403).json({ error: 'Account is blocked' });
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query(
