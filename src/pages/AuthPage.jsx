@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Eye, EyeOff, Lock, LogIn, Mail, Music2, ShieldCheck, User } from 'lucide-react';
-import { auth, getAuthToken } from '@/api/SupabaseClient';
+import { auth } from '@/api/SupabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -37,8 +36,6 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  if (getAuthToken()) return <Navigate to="/" replace />;
 
   const submit = async (event) => {
     event.preventDefault();

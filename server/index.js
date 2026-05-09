@@ -318,13 +318,18 @@ async function sendVerificationEmail({ email, nickname, code }) {
     return false;
   }
 
-  await mailer.sendMail({
-    from: `"DreamTune Team" <${SUPPORT_EMAIL}>`,
-    to: email,
-    subject,
-    text,
-  });
-  return true;
+  try {
+    await mailer.sendMail({
+      from: `"DreamTune Team" <${SUPPORT_EMAIL}>`,
+      to: email,
+      subject,
+      text,
+    });
+    return true;
+  } catch (err) {
+    console.warn(`DreamTune email delivery failed for ${email}. Verification code: ${code}`, err);
+    return false;
+  }
 }
 
 async function getSessionUser(req) {
@@ -443,10 +448,11 @@ app.post('/api/auth/register', async (req, res, next) => {
        RETURNING *`,
       [email, nickname, hashPassword(password), verificationCode]
     );
-    await sendVerificationEmail({ email, nickname, code: verificationCode });
+    const emailSent = await sendVerificationEmail({ email, nickname, code: verificationCode });
     res.status(201).json({
       user: publicUser(rows[0]),
-      verification_code: mailer ? undefined : verificationCode,
+      verification_code: emailSent ? undefined : verificationCode,
+      email_sent: emailSent,
     });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email or nickname already exists' });

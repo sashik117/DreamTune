@@ -22,7 +22,7 @@ export function getAuthToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY) || '';
 }
 
-function setAuthToken(token) {
+export function setAuthToken(token) {
   if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
   else localStorage.removeItem(AUTH_TOKEN_KEY);
   const preferences = getNativePreferences();
@@ -55,6 +55,9 @@ function emitLocalEntityChange(event) {
 async function request(path, options = {}) {
   const token = getAuthToken();
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const controller = new AbortController();
+  const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_MS || 30000);
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   let wakeShown = false;
   const wakeTimer = typeof window !== 'undefined'
     ? window.setTimeout(() => {
@@ -66,6 +69,7 @@ async function request(path, options = {}) {
   try {
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
+      signal: options.signal || controller.signal,
       headers: {
         ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -82,6 +86,7 @@ async function request(path, options = {}) {
 
     return data;
   } finally {
+    window.clearTimeout(timeout);
     if (wakeTimer) window.clearTimeout(wakeTimer);
     if (wakeShown && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(API_WAKE_EVENT, { detail: { id: requestId, active: false } }));

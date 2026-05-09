@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { auth, entities, hydrateAuthToken, supabase, social } from '@/api/SupabaseClient';
+import { auth, entities, hydrateAuthToken, setAuthToken, supabase, social } from '@/api/SupabaseClient';
 import useAudioPlayer from '../hooks/useAudioPlayer';
 import MiniPlayer from '../components/player/MiniPlayer';
 import FullPlayer from '../components/player/FullPlayer';
@@ -69,8 +69,16 @@ export default function AppShell() {
 
   useEffect(() => {
     hydrateAuthToken()
-      .then(() => auth.me())
+      .then((token) => {
+        if (!token) {
+          navigate('/auth', { replace: true });
+          setLoading(false);
+          return null;
+        }
+        return auth.me();
+      })
       .then(user => {
+        if (!user) return;
         setCurrentUser(user);
         if (user?.nickname) setProfileNickname(user.nickname);
         loadSongs();
@@ -84,10 +92,21 @@ export default function AppShell() {
           setLoading(false);
           return;
         }
+        setAuthToken('');
         navigate('/auth', { replace: true });
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+    const timer = window.setTimeout(() => {
+      setAuthToken('');
+      setLoading(false);
+      navigate('/auth', { replace: true });
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [loading, navigate]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -328,8 +347,14 @@ export default function AppShell() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+      <div className="fixed inset-0 flex items-center justify-center bg-background px-6">
+        <div className="max-w-[300px] text-center">
+          <div className="mx-auto mb-4 h-9 w-9 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+          <p className="text-sm font-semibold text-foreground">DreamTune завантажується...</p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Якщо сервер прокидається, це може зайняти кілька секунд.
+          </p>
+        </div>
       </div>
     );
   }
