@@ -85,6 +85,11 @@ async function request(path, options = {}) {
     }
 
     return data;
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+    }
+    throw err;
   } finally {
     window.clearTimeout(timeout);
     if (wakeTimer) window.clearTimeout(wakeTimer);

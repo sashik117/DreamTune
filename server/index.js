@@ -441,6 +441,36 @@ app.post('/api/auth/register', async (req, res, next) => {
     if (!nickname || nickname.length < 3) return res.status(400).json({ error: 'Nickname must be at least 3 characters' });
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
+    const existing = await pool.query(
+      `SELECT * FROM users WHERE lower(email) = $1 OR lower(nickname) = $2 LIMIT 1`,
+      [email, nickname.toLowerCase()]
+    );
+
+    if (existing.rows[0]) {
+      const user = existing.rows[0];
+      const sameEmail = String(user.email || '').toLowerCase() === email;
+      const sameNickname = String(user.nickname || '').toLowerCase() === nickname.toLowerCase();
+      if (user.email_verified || user.is_verified || !sameEmail || !sameNickname) {
+        return res.status(409).json({ error: 'Email or nickname already exists' });
+      }
+
+      const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+      const { rows } = await pool.query(
+        `UPDATE users
+         SET password_hash = $1, verification_token = $2, updated_at = now()
+         WHERE id = $3
+         RETURNING *`,
+        [hashPassword(password), verificationCode, user.id]
+      );
+      sendVerificationEmail({ email, nickname, code: verificationCode }).catch(() => {});
+      return res.status(200).json({
+        user: publicUser(rows[0]),
+        verification_code: verificationCode,
+        email_sent: Boolean(mailer),
+        needs_verification: true,
+      });
+    }
+
     const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
     const { rows } = await pool.query(
       `INSERT INTO users (email, nickname, password_hash, verification_token)
@@ -448,11 +478,12 @@ app.post('/api/auth/register', async (req, res, next) => {
        RETURNING *`,
       [email, nickname, hashPassword(password), verificationCode]
     );
-    const emailSent = await sendVerificationEmail({ email, nickname, code: verificationCode });
+    sendVerificationEmail({ email, nickname, code: verificationCode }).catch(() => {});
     res.status(201).json({
       user: publicUser(rows[0]),
-      verification_code: emailSent ? undefined : verificationCode,
-      email_sent: emailSent,
+      verification_code: verificationCode,
+      email_sent: Boolean(mailer),
+      needs_verification: true,
     });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email or nickname already exists' });
