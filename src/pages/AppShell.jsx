@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 import { getDownloadedSongsMeta } from '../utils/audioCache';
 
 export default function AppShell() {
+  const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const [songs, setSongs]               = useState([]);
   const [playlists, setPlaylists]       = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -40,6 +41,14 @@ export default function AppShell() {
   const navigate = useNavigate();
   useEffect(() => {
     const root = document.documentElement;
+    const safeSetLocalStorage = (key, value) => {
+      try {
+        if (value === undefined || value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      } catch (error) {
+        console.warn(`Could not save ${key} locally:`, error);
+      }
+    };
     const customLightBackgrounds = new Set(['light-blush', 'light-sky', 'light-mint', 'light-lavender', 'pastel-rose', 'pastel-sky', 'pastel-mint', 'pastel-lilac', 'pastel-peach']);
     const removedBackgrounds = new Set(['aurora', 'nebula']);
     const validAccents = new Set(['rose', 'violet', 'blue', 'ruby', 'mint', 'peach', 'ice', 'gold', 'graphite', 'sage', 'velvet', 'burgundy', 'midnight', 'ember', 'neon', 'citrus', 'berry']);
@@ -55,17 +64,27 @@ export default function AppShell() {
     root.dataset.themeBackground = activeThemeBackground || 'default';
     root.dataset.coverShape = 'square';
     root.style.setProperty('--user-bg-image', themePhoto ? `url("${themePhoto}")` : 'none');
-    localStorage.setItem('theme-mode', themeMode);
-    localStorage.setItem('theme-accent', activeThemeAccent);
-    localStorage.setItem('theme-background', activeThemeBackground);
-    localStorage.setItem('theme-photo', themePhoto);
-    localStorage.setItem('profile-avatar', profileAvatar);
-    localStorage.setItem('profile-nickname', profileNickname);
+    safeSetLocalStorage('theme-mode', themeMode);
+    safeSetLocalStorage('theme-accent', activeThemeAccent);
+    safeSetLocalStorage('theme-background', activeThemeBackground);
+    safeSetLocalStorage('theme-photo', themePhoto);
+    safeSetLocalStorage('profile-avatar', profileAvatar);
+    safeSetLocalStorage('profile-nickname', profileNickname);
     localStorage.removeItem('cover-shape');
     document.body.dataset.coverShape = 'square';
   }, [themeMode, themeAccent, themeBackground, themePhoto, profileAvatar, profileNickname]);
 
   const player = useAudioPlayer(songs, showFullPlayer);
+
+  const handleProfileNicknameChange = useCallback((nickname) => {
+    setProfileNickname(nickname);
+    setCurrentUser(prev => prev ? { ...prev, nickname } : prev);
+  }, []);
+
+  const handleProfileAvatarChange = useCallback((avatar) => {
+    setProfileAvatar(avatar);
+    setCurrentUser(prev => prev ? { ...prev, avatar_url: avatar } : prev);
+  }, []);
 
   useEffect(() => {
     hydrateAuthToken()
@@ -81,6 +100,7 @@ export default function AppShell() {
         if (!user) return;
         setCurrentUser(user);
         if (user?.nickname) setProfileNickname(user.nickname);
+        if (user?.avatar_url) setProfileAvatar(user.avatar_url);
         loadSongs();
         loadPlaylists();
         loadFriendRequestCount();
@@ -119,7 +139,7 @@ export default function AppShell() {
           setSongs(prev => prev.some(s => s.id === payload.new.id) ? prev : [payload.new, ...prev]);
         }
         if (payload.event === 'UPDATE' && payload.new) {
-          setSongs(prev => prev.map(s => s.id === payload.new.id ? payload.new : s));
+          setSongs(prev => prev.map(s => s.id === payload.new.id ? { ...s, ...payload.new } : s));
         }
         if (payload.event === 'DELETE' && payload.old) {
           setSongs(prev => prev.filter(s => s.id !== payload.old.id));
@@ -128,6 +148,56 @@ export default function AppShell() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return undefined;
+
+    const handleLocalEntityChange = (event) => {
+      const payload = event.detail || {};
+      const table = payload.table;
+      const row = payload.new || payload.old;
+
+      if (table === 'songs') {
+        if (row?.user_id && row.user_id !== currentUser.id) return;
+        if (payload.event === 'INSERT' && payload.new) {
+          setSongs(prev => prev.some(song => song.id === payload.new.id) ? prev : [payload.new, ...prev]);
+        }
+        if (payload.event === 'UPDATE' && payload.new) {
+          setSongs(prev => prev.map(song => song.id === payload.new.id ? { ...song, ...payload.new } : song));
+          setEditingSong(prev => prev?.id === payload.new.id ? { ...prev, ...payload.new } : prev);
+        }
+        if (payload.event === 'DELETE' && payload.old) {
+          setSongs(prev => prev.filter(song => song.id !== payload.old.id));
+          setPlaylists(prev => prev.map(playlist => ({
+            ...playlist,
+            song_ids: (playlist.song_ids || []).filter(id => id !== payload.old.id),
+          })));
+        }
+      }
+
+      if (table === 'playlists') {
+        if (row?.user_id && row.user_id !== currentUser.id) return;
+        if (payload.event === 'INSERT' && payload.new) {
+          setPlaylists(prev => prev.some(playlist => playlist.id === payload.new.id) ? prev : [payload.new, ...prev]);
+        }
+        if (payload.event === 'UPDATE' && payload.new) {
+          setPlaylists(prev => prev.map(playlist => playlist.id === payload.new.id ? { ...playlist, ...payload.new } : playlist));
+        }
+        if (payload.event === 'DELETE' && payload.old) {
+          setPlaylists(prev => prev.filter(playlist => playlist.id !== payload.old.id));
+        }
+      }
+
+      if (table === 'users' && payload.new?.id === currentUser.id) {
+        setCurrentUser(prev => prev ? { ...prev, ...payload.new } : payload.new);
+        if (payload.new.nickname) setProfileNickname(payload.new.nickname);
+        if (payload.new.avatar_url) setProfileAvatar(payload.new.avatar_url);
+      }
+    };
+
+    window.addEventListener('dreamtune-entity-change', handleLocalEntityChange);
+    return () => window.removeEventListener('dreamtune-entity-change', handleLocalEntityChange);
   }, [currentUser?.id]);
 
   useEffect(() => {
@@ -282,11 +352,21 @@ export default function AppShell() {
   const handleToggleFavorite = useCallback(async (song, forcedFavorite) => {
     if (song?.user_id && currentUser?.id && song.user_id !== currentUser.id) return;
     const nextFavorite = typeof forcedFavorite === 'boolean' ? forcedFavorite : !song.is_favorite;
-    setSongs(prev => prev.map(s => s.id === song.id ? { ...s, is_favorite: nextFavorite } : s));
+    const optimisticSong = { ...song, is_favorite: nextFavorite };
+    setSongs(prev => {
+      const exists = prev.some(s => s.id === song.id);
+      if (!exists) return [optimisticSong, ...prev];
+      return prev.map(s => s.id === song.id ? { ...s, is_favorite: nextFavorite } : s);
+    });
+    window.dispatchEvent(new CustomEvent('dreamtune-favorite-change', { detail: { song: optimisticSong } }));
     try {
-      await entities.Song.update(song.id, { is_favorite: nextFavorite });
+      const updated = await entities.Song.update(song.id, { is_favorite: nextFavorite });
+      const mergedSong = { ...song, ...updated, is_favorite: nextFavorite };
+      setSongs(prev => prev.map(s => s.id === song.id ? { ...s, ...mergedSong } : s));
+      window.dispatchEvent(new CustomEvent('dreamtune-favorite-change', { detail: { song: mergedSong } }));
     } catch (err) {
       setSongs(prev => prev.map(s => s.id === song.id ? { ...s, is_favorite: song.is_favorite } : s));
+      window.dispatchEvent(new CustomEvent('dreamtune-favorite-change', { detail: { song } }));
       throw err;
     }
   }, [currentUser?.id]);
@@ -329,7 +409,8 @@ export default function AppShell() {
   }, []);
 
   const handleSongUpdated = useCallback((updatedSong) => {
-    setSongs(prev => prev.map(s => s.id === updatedSong.id ? updatedSong : s));
+    setSongs(prev => prev.map(s => s.id === updatedSong.id ? { ...s, ...updatedSong } : s));
+    setEditingSong(prev => prev?.id === updatedSong.id ? { ...prev, ...updatedSong } : prev);
   }, []);
 
   const handleAddSongsToPlaylist = useCallback(async (songIds, playlistId) => {
@@ -352,7 +433,7 @@ export default function AppShell() {
           <div className="mx-auto mb-4 h-9 w-9 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
           <p className="text-sm font-semibold text-foreground">DreamTune завантажується...</p>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Якщо сервер прокидається, це може зайняти кілька секунд.
+            Підтягуємо музику, профіль і плейлисти.
           </p>
         </div>
       </div>
@@ -392,8 +473,8 @@ export default function AppShell() {
     onThemeAccentChange: setThemeAccent,
     onThemeBackgroundChange: setThemeBackground,
     onThemePhotoChange: setThemePhoto,
-    onProfileAvatarChange: setProfileAvatar,
-    onProfileNicknameChange: setProfileNickname,
+    onProfileAvatarChange: handleProfileAvatarChange,
+    onProfileNicknameChange: handleProfileNicknameChange,
     onSignOut: async () => {
       try {
         await auth.signOut();
@@ -416,7 +497,7 @@ export default function AppShell() {
   return (
     <div className="app-shell cozy-gradient-bg max-w-screen-lg mx-auto relative">
       <div className="app-background-layer" aria-hidden="true" />
-      <FloatingParticles />
+      {!isNativeApp && <FloatingParticles />}
       <OfflineBanner />
       {!showFullPlayer && !hideProfileEntry && (
         <motion.button

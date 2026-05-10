@@ -14,6 +14,79 @@ async function searchSpotifyTracks(query) {
   return data.tracks || [];
 }
 
+async function fetchJson(url, timeout = 9000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { accept: 'application/json' } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function searchYouTubeDirect(query) {
+  const bases = ['https://pipedapi.adminforge.de', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.syncpundit.io'];
+  for (const base of bases) {
+    try {
+      const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      const found = items.map(item => {
+        const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
+        return id ? { video_id: id, title: item.title, thumbnail: item.thumbnail } : null;
+      }).filter(Boolean).slice(0, 8);
+      if (found.length) return found;
+    } catch {}
+  }
+  const invidious = ['https://yewtu.be', 'https://inv.nadeko.net', 'https://invidious.fdn.fr', 'https://invidious.nerdvpn.de', 'https://iv.datura.network'];
+  for (const base of invidious) {
+    try {
+      const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+      const found = (Array.isArray(data) ? data : []).filter(item => item?.type === 'video' && item.videoId).map(item => ({
+        video_id: item.videoId,
+        title: item.title,
+        thumbnail: item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`,
+      })).slice(0, 8);
+      if (found.length) return found;
+    } catch {}
+  }
+  try {
+    const data = await fetchJson(`https://yt.lemnoslife.com/search?part=snippet&q=${encodeURIComponent(query)}&type=video`);
+    const found = (data.items || []).map(item => {
+      const id = item?.id?.videoId || item?.videoId;
+      return id ? {
+        video_id: id,
+        title: item.snippet?.title,
+        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      } : null;
+    }).filter(Boolean).slice(0, 8);
+    if (found.length) return found;
+  } catch {}
+  return [];
+}
+
+async function resolveDirectAudioUrl(videoId) {
+  const bases = ['https://pipedapi.adminforge.de', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.syncpundit.io'];
+  for (const base of bases) {
+    try {
+      const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
+      const audio = (data.audioStreams || []).filter(item => item?.url).sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+  const invidious = ['https://yewtu.be', 'https://inv.nadeko.net', 'https://invidious.fdn.fr', 'https://invidious.nerdvpn.de', 'https://iv.datura.network'];
+  for (const base of invidious) {
+    try {
+      const data = await fetchJson(`${base}/api/v1/videos/${videoId}`, 10000);
+      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
+      const audio = formats.filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio')).sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+  return '';
+}
+
 async function getAudioForTrack(track) {
   const baseQuery = `${track.artist || ''} ${track.title || ''}`.trim();
   const queries = Array.from(new Set([
@@ -35,6 +108,12 @@ async function getAudioForTrack(track) {
       }
     } catch (error) {
       console.warn('YouTube search failed:', query, error);
+      const directResults = await searchYouTubeDirect(query);
+      for (const result of directResults) {
+        if (result?.video_id && !candidates.some(item => item.video_id === result.video_id)) {
+          candidates.push(result);
+        }
+      }
     }
     if (candidates.length >= 8) break;
   }
@@ -48,9 +127,19 @@ async function getAudioForTrack(track) {
       break;
     } catch (error) {
       console.warn('YouTube candidate failed:', candidate.title || candidate.video_id, error);
+      const directUrl = await resolveDirectAudioUrl(candidate.video_id);
+      if (directUrl) {
+        audio = { file_url: directUrl, cover_url: candidate.thumbnail };
+        result = candidate;
+        break;
+      }
     }
   }
-  if (!audio?.file_url || !result?.video_id) return null;
+  if (!audio?.file_url && track.preview_url) {
+    audio = { file_url: track.preview_url, cover_url: track.cover_url };
+    result = { video_id: '', thumbnail: track.cover_url };
+  }
+  if (!audio?.file_url) return null;
   let spotifyCoverUrl = track.cover_url || '';
   if (!spotifyCoverUrl && track.source_url) {
     try {
@@ -61,7 +150,7 @@ async function getAudioForTrack(track) {
   const fallbackCoverUrl = audio.cover_url || result.thumbnail || `https://img.youtube.com/vi/${result.video_id}/hqdefault.jpg`;
   return {
     fileUrl: audio.file_url,
-    videoId: result.video_id,
+    videoId: result?.video_id || '',
     coverUrl: spotifyCoverUrl || fallbackCoverUrl,
     spotifyCoverUrl,
     fallbackCoverUrl,
@@ -80,8 +169,8 @@ function BusyWarning() {
 }
 
 export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylistUpdated, onClose }) {
-  const [mode, setMode] = useState('playlist');
-  const [query, setQuery] = useState('');
+  const [mode, setMode] = useState(() => localStorage.getItem('dreamtune-spotify-mode') || sessionStorage.getItem('dreamtune-spotify-mode') || 'playlist');
+  const [query, setQuery] = useState(() => localStorage.getItem('dreamtune-spotify-query') || sessionStorage.getItem('dreamtune-spotify-query') || '');
   const [step, setStep] = useState('idle');
   const [tracks, setTracks] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -90,6 +179,8 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   const [importRows, setImportRows] = useState([]);
   const [error, setError] = useState('');
   const busy = step === 'fetching' || step === 'searching' || step === 'importing';
+  const cleanQuery = query.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  const canSubmit = Boolean(cleanQuery) && !busy;
 
   useEffect(() => {
     if (!busy) return undefined;
@@ -110,6 +201,21 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
     setStep('idle');
   };
 
+  const updateQuery = (value) => {
+    const next = String(value || '').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
+    setQuery(next);
+    sessionStorage.setItem('dreamtune-spotify-query', next);
+    localStorage.setItem('dreamtune-spotify-query', next);
+    setError('');
+  };
+
+  const updateMode = (value) => {
+    setMode(value);
+    sessionStorage.setItem('dreamtune-spotify-mode', value);
+    localStorage.setItem('dreamtune-spotify-mode', value);
+    resetResults();
+  };
+
   const toggleTrack = (index) => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -120,12 +226,12 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   };
 
   const handleFetchPlaylist = async () => {
-    if (!query.trim()) return;
+    if (!cleanQuery) return;
     setError('');
     setStep('fetching');
 
     try {
-      const { name, tracks: found } = await fetchSpotifyTracks(query.trim());
+      const { name, tracks: found } = await fetchSpotifyTracks(cleanQuery);
       if (!found.length) {
         setError('Не вдалося отримати треки. Перевір, що плейлист публічний або посилання правильне.');
         setStep('idle');
@@ -144,12 +250,12 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   };
 
   const handleSearchTracks = async () => {
-    if (!query.trim()) return;
+    if (!cleanQuery) return;
     setError('');
     setStep('searching');
 
     try {
-      const found = await searchSpotifyTracks(query.trim());
+      const found = await searchSpotifyTracks(cleanQuery);
       if (!found.length) {
         setError('Трек не знайдено. Спробуй точнішу назву або Spotify-посилання на трек.');
         setStep('idle');
@@ -275,7 +381,7 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
               <button
                 key={key}
                 type="button"
-                onClick={() => { setMode(key); resetResults(); }}
+                onClick={() => updateMode(key)}
                 className={`rounded-2xl px-3 py-2 text-sm font-black transition ${mode === key ? 'bg-primary/15 text-primary ring-2 ring-primary/20' : 'bg-secondary text-foreground'}`}
               >
                 {label}
@@ -291,7 +397,9 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
 
           <Input
             value={query}
-            onChange={e => { setQuery(e.target.value); setError(''); }}
+            onChange={e => updateQuery(e.target.value)}
+            onInput={e => updateQuery(e.currentTarget.value)}
+            onPaste={e => window.setTimeout(() => updateQuery(e.currentTarget.value), 0)}
             placeholder={mode === 'playlist' ? 'https://open.spotify.com/playlist/...' : 'Billie Eilish Birds of a Feather'}
             className="bg-secondary border-border"
             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
@@ -303,7 +411,7 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
             </p>
           )}
 
-          <Button onClick={handleSubmit} disabled={!query.trim() || busy} className="w-full bg-primary hover:brightness-110">
+          <Button onClick={handleSubmit} disabled={!canSubmit} className={`w-full bg-primary hover:brightness-110 ${canSubmit ? 'shadow-lg shadow-primary/25 opacity-100' : 'opacity-55'}`}>
             {busy ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{mode === 'playlist' ? 'Отримую треки...' : 'Шукаю трек...'}</>
             ) : (

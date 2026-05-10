@@ -2,13 +2,18 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import express from 'express';
 import fs from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
+import dns from 'node:dns';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import multer from 'multer';
 import pg from 'pg';
 import crypto from 'node:crypto';
-import youtubedl from 'youtube-dl-exec';
+import youtubedlExec from 'youtube-dl-exec';
+import ytdl from '@distube/ytdl-core';
 import spotifyUrlInfo from 'spotify-url-info';
 import { WebSocketServer } from 'ws';
 import nodemailer from 'nodemailer';
@@ -16,7 +21,9 @@ import { v2 as cloudinary } from 'cloudinary';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+dns.setDefaultResultOrder?.('ipv4first');
 const rootDir = path.resolve(__dirname, '..');
+const youtubedl = process.env.YT_DLP_PATH ? youtubedlExec.create(process.env.YT_DLP_PATH) : youtubedlExec;
 dotenv.config({ path: path.join(rootDir, '.env'), override: true });
 const uploadRoot = path.join(rootDir, 'public', 'uploads');
 const mediaRoot = path.join(rootDir, 'public', 'media');
@@ -428,6 +435,35 @@ app.get('/api/auth/me', async (req, res, next) => {
     if (user.blocked_at) return res.status(403).json({ error: 'Account is blocked' });
     res.json(publicUser(user));
   } catch (err) {
+    next(err);
+  }
+});
+
+app.patch('/api/users/me', async (req, res, next) => {
+  try {
+    const user = await requireSessionUser(req);
+    if (user.blocked_at) return res.status(403).json({ error: 'Account is blocked' });
+    const patch = {};
+    if (req.body.nickname !== undefined) {
+      const nickname = repairMojibake(String(req.body.nickname || '').trim().replace(/^@/, ''));
+      if (nickname.length < 2) return res.status(400).json({ error: 'Nickname is too short' });
+      patch.nickname = nickname;
+    }
+    if (req.body.avatar_url !== undefined) {
+      patch.avatar_url = String(req.body.avatar_url || '').slice(0, 2000000);
+    }
+    const keys = Object.keys(patch);
+    if (!keys.length) return res.json({ user: publicUser(user) });
+    const values = Object.values(patch);
+    const setSql = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
+    const { rows } = await pool.query(
+      `UPDATE users SET ${setSql}, updated_at = now() WHERE id = $${keys.length + 1} RETURNING *`,
+      [...values, user.id]
+    );
+    broadcast({ table: 'users', event: 'UPDATE', new: publicUser(rows[0]) });
+    res.json({ user: publicUser(rows[0]) });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Nickname already exists' });
     next(err);
   }
 });
@@ -1312,6 +1348,372 @@ app.post('/api/upload', upload.single('file'), async (req, res, next) => {
   }
 });
 
+async function searchYouTubeByPage(query, limit = 6) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+      'accept-language': 'en-US,en;q=0.8,uk;q=0.6',
+    },
+  });
+  if (!response.ok) return [];
+  const html = await response.text();
+  const ids = [];
+  for (const match of html.matchAll(/"videoId":"([\w-]{11})"/g)) {
+    const id = match[1];
+    if (!ids.includes(id)) ids.push(id);
+    if (ids.length >= limit) break;
+  }
+
+  const entries = await Promise.all(ids.map(async (id) => {
+    const fallback = {
+      title: query,
+      artist: 'YouTube',
+      uploader: 'YouTube',
+      video_id: id,
+      thumbnail: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      duration: null,
+    };
+    try {
+      const metaResponse = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`, {
+        headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0' },
+      });
+      if (!metaResponse.ok) return fallback;
+      const meta = await metaResponse.json();
+      return {
+        ...fallback,
+        title: repairMojibake(meta.title || fallback.title),
+        artist: repairMojibake(meta.author_name || fallback.artist),
+        uploader: repairMojibake(meta.author_name || fallback.uploader),
+        thumbnail: meta.thumbnail_url || fallback.thumbnail,
+      };
+    } catch {
+      return fallback;
+    }
+  }));
+
+  return entries.filter(entry => entry.video_id);
+}
+
+async function searchYouTubeViaPiped(query, limit = 6) {
+  const instances = [
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.syncpundit.io',
+  ];
+
+  for (const base of instances) {
+    try {
+      const response = await withTimeout(
+        fetch(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`, {
+          headers: {
+            'user-agent': 'Mozilla/5.0 DreamTune/1.0',
+            accept: 'application/json',
+          },
+        }),
+        8000,
+        'Piped search timed out'
+      );
+      if (!response.ok) continue;
+      const data = await response.json();
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      const entries = items
+        .filter(item => item?.url?.includes('/watch?v=') || item?.url?.startsWith('/watch?v='))
+        .map(item => {
+          const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
+          if (!id) return null;
+          return {
+            title: repairMojibake(item.title || query),
+            artist: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
+            uploader: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
+            video_id: id,
+            thumbnail: item.thumbnail || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+            duration: item.duration || null,
+          };
+        })
+        .filter(Boolean)
+        .slice(0, limit);
+      if (entries.length) return entries;
+    } catch (error) {
+      console.warn('Piped search failed:', base, error.message || error);
+    }
+  }
+
+  return [];
+}
+
+async function searchYouTubeViaInvidious(query, limit = 6) {
+  const instances = [
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://invidious.nerdvpn.de',
+    'https://iv.datura.network',
+  ];
+
+  for (const base of instances) {
+    try {
+      const response = await withTimeout(
+        fetch(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`, {
+          headers: {
+            'user-agent': 'Mozilla/5.0 DreamTune/1.0',
+            accept: 'application/json',
+          },
+        }),
+        8500,
+        'Invidious search timed out'
+      );
+      if (!response.ok) continue;
+      const data = await response.json();
+      const entries = (Array.isArray(data) ? data : [])
+        .filter(item => item?.type === 'video' && item?.videoId)
+        .map(item => {
+          const thumb =
+            item.videoThumbnails?.find?.(image => image?.quality === 'medium')?.url ||
+            item.videoThumbnails?.[0]?.url ||
+            `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+          return {
+            title: repairMojibake(item.title || query),
+            artist: repairMojibake(item.author || 'YouTube'),
+            uploader: repairMojibake(item.author || 'YouTube'),
+            video_id: item.videoId,
+            thumbnail: thumb.startsWith('//') ? `https:${thumb}` : thumb,
+            duration: item.lengthSeconds || null,
+          };
+        })
+        .slice(0, limit);
+      if (entries.length) return entries;
+    } catch (error) {
+      console.warn('Invidious search failed:', base, error.message || error);
+    }
+  }
+
+  return [];
+}
+
+async function searchYouTubeViaLemnosLife(query, limit = 6) {
+  const response = await withTimeout(
+    fetch(`https://yt.lemnoslife.com/search?part=snippet&q=${encodeURIComponent(query)}&type=video`, {
+      headers: {
+        'user-agent': 'Mozilla/5.0 DreamTune/1.0',
+        accept: 'application/json',
+      },
+    }),
+    8500,
+    'LemnosLife search timed out'
+  );
+  if (!response.ok) return [];
+  const data = await response.json();
+  return (data.items || [])
+    .map(item => {
+      const id = item?.id?.videoId || item?.videoId;
+      if (!id) return null;
+      return {
+        title: repairMojibake(item.snippet?.title || query),
+        artist: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
+        uploader: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
+        video_id: id,
+        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+        duration: null,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+async function searchYouTubeViaDuckDuckGo(query, limit = 6) {
+  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(`${query} site:youtube.com/watch`)}`;
+  const response = await fetch(url, {
+    headers: {
+      'user-agent': 'Mozilla/5.0 (DreamTune music search)',
+      accept: 'text/html,*/*',
+    },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!response.ok) throw new Error(`DuckDuckGo search failed: ${response.status}`);
+  const html = await response.text();
+  const ids = [];
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/g,
+    /uddg=([^"&]+)/g,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(html)) && ids.length < limit * 2) {
+      let value = match[1];
+      if (pattern.source.includes('uddg=')) {
+        try {
+          value = decodeURIComponent(value);
+        } catch {}
+        const idMatch = value.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})/);
+        value = idMatch?.[1] || '';
+      }
+      if (/^[\w-]{11}$/.test(value) && !ids.includes(value)) ids.push(value);
+    }
+  }
+
+  const entries = [];
+  for (const id of ids.slice(0, limit)) {
+    let meta = {};
+    try {
+      const oembed = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}`, {
+        headers: { 'user-agent': 'Mozilla/5.0 (DreamTune)' },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (oembed.ok) meta = await oembed.json();
+    } catch {}
+    entries.push({
+      title: repairMojibake(meta.title || query),
+      artist: repairMojibake(meta.author_name || ''),
+      uploader: repairMojibake(meta.author_name || ''),
+      video_id: id,
+      thumbnail: meta.thumbnail_url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+      duration: null,
+    });
+  }
+  return entries;
+}
+
+function audioExtensionFromType(type = '') {
+  const value = String(type).toLowerCase();
+  if (value.includes('mp4') || value.includes('m4a')) return 'm4a';
+  if (value.includes('mpeg') || value.includes('mp3')) return 'mp3';
+  if (value.includes('webm')) return 'webm';
+  if (value.includes('ogg')) return 'ogg';
+  return 'm4a';
+}
+
+async function saveRemoteAudio(url, dir, baseName, extension, headers = {}) {
+  const filePath = path.join(dir, `${baseName}.${extension || 'm4a'}`);
+  const response = await withTimeout(
+    fetch(url, {
+      headers: {
+        'user-agent': 'Mozilla/5.0 DreamTune/1.0',
+        accept: '*/*',
+        ...headers,
+      },
+    }),
+    20000,
+    'Remote audio stream timed out'
+  );
+  if (!response.ok || !response.body) {
+    throw new Error(`Remote audio stream failed: ${response.status}`);
+  }
+  await withTimeout(
+    pipeline(Readable.fromWeb(response.body), createWriteStream(filePath)),
+    90000,
+    'Remote audio save timed out'
+  );
+  return filePath;
+}
+
+async function downloadYouTubeFromPipedOrInvidious(videoId, dir, baseName) {
+  const pipedInstances = [
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.syncpundit.io',
+  ];
+  for (const base of pipedInstances) {
+    try {
+      const response = await withTimeout(
+        fetch(`${base}/streams/${videoId}`, {
+          headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0', accept: 'application/json' },
+        }),
+        10000,
+        'Piped stream lookup timed out'
+      );
+      if (!response.ok) continue;
+      const data = await response.json();
+      const audio = (data.audioStreams || [])
+        .filter(item => item?.url)
+        .sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
+      if (!audio?.url) continue;
+      const ext = audioExtensionFromType(audio.mimeType || audio.format);
+      return await saveRemoteAudio(audio.url, dir, `${baseName}-piped`, ext);
+    } catch (error) {
+      console.warn('Piped audio fallback failed:', base, error.message || error);
+    }
+  }
+
+  const invidiousInstances = [
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://invidious.nerdvpn.de',
+    'https://iv.datura.network',
+  ];
+  for (const base of invidiousInstances) {
+    try {
+      const response = await withTimeout(
+        fetch(`${base}/api/v1/videos/${videoId}`, {
+          headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0', accept: 'application/json' },
+        }),
+        10000,
+        'Invidious stream lookup timed out'
+      );
+      if (!response.ok) continue;
+      const data = await response.json();
+      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
+      const audio = formats
+        .filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio'))
+        .sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
+      if (!audio?.url) continue;
+      const ext = audioExtensionFromType(audio.type || audio.mimeType);
+      return await saveRemoteAudio(audio.url, dir, `${baseName}-iv`, ext);
+    } catch (error) {
+      console.warn('Invidious audio fallback failed:', base, error.message || error);
+    }
+  }
+
+  throw new Error('No fallback audio stream found');
+}
+
+async function downloadYouTubeWithNode(videoId, dir, baseName) {
+  const url = `https://www.youtube.com/watch?v=${videoId}`;
+  const info = await withTimeout(
+    ytdl.getInfo(url, {
+      requestOptions: {
+        family: 4,
+        headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0' },
+      },
+    }),
+    25000,
+    'YouTube metadata timed out'
+  );
+  const format = ytdl.chooseFormat(info.formats, {
+    quality: 'highestaudio',
+    filter: 'audioonly',
+  });
+  if (!format?.url) throw new Error('No playable YouTube audio stream found');
+  const ext = String(format.container || 'webm').replace(/[^a-z0-9]/gi, '') || 'webm';
+  const filePath = path.join(dir, `${baseName}.${ext}`);
+  await withTimeout(
+    pipeline(
+      ytdl.downloadFromInfo(info, {
+        format,
+        requestOptions: {
+          family: 4,
+          headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0' },
+        },
+      }),
+      createWriteStream(filePath)
+    ),
+    90000,
+    'YouTube audio download timed out'
+  );
+  return filePath;
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 app.get('/api/youtube/search', async (req, res, next) => {
   try {
     const query = repairMojibake(String(req.query.q || '').trim());
@@ -1320,11 +1722,17 @@ app.get('/api/youtube/search', async (req, res, next) => {
     const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 10);
     let info;
     try {
-      info = await youtubedl(`ytsearch${limit}:${query}`, {
-        dumpSingleJson: true,
-        skipDownload: true,
-        noWarnings: true,
-      });
+      info = await withTimeout(
+        youtubedl(`ytsearch${limit}:${query}`, {
+          dumpSingleJson: true,
+          skipDownload: true,
+          noWarnings: true,
+          forceIpv4: true,
+          socketTimeout: 8,
+        }),
+        9000,
+        'YouTube search timed out'
+      );
     } catch (error) {
       const stdout = String(error?.stdout || '').trim();
       if (stdout) {
@@ -1334,13 +1742,11 @@ app.get('/api/youtube/search', async (req, res, next) => {
         try {
           info = JSON.parse(jsonText);
         } catch {
-          throw error;
+          info = null;
         }
-      } else {
-        throw error;
       }
     }
-    const entries = (info.entries?.length ? info.entries : [info])
+    let entries = (info?.entries?.length ? info.entries : info ? [info] : [])
       .filter(entry => entry?.id && !entry.is_live && entry.duration !== 0)
       .slice(0, limit)
       .map(entry => ({
@@ -1351,7 +1757,47 @@ app.get('/api/youtube/search', async (req, res, next) => {
         thumbnail: entry.thumbnail || `https://img.youtube.com/vi/${entry.id}/hqdefault.jpg`,
         duration: entry.duration || null,
       }));
-    if (!entries.length) return res.status(404).json({ error: 'No video found' });
+
+    if (!entries.length) {
+      try {
+        entries = await searchYouTubeViaPiped(query, limit);
+      } catch (pipedError) {
+        console.warn('YouTube Piped fallback failed:', pipedError.message || pipedError);
+      }
+    }
+    if (!entries.length) {
+      try {
+        entries = await searchYouTubeViaInvidious(query, limit);
+      } catch (invidiousError) {
+        console.warn('YouTube Invidious fallback failed:', invidiousError.message || invidiousError);
+      }
+    }
+    if (!entries.length) {
+      try {
+        entries = await searchYouTubeViaLemnosLife(query, limit);
+      } catch (lemnosError) {
+        console.warn('YouTube LemnosLife fallback failed:', lemnosError.message || lemnosError);
+      }
+    }
+    if (!entries.length) {
+      try {
+        entries = await searchYouTubeByPage(query, limit);
+      } catch (fallbackError) {
+        console.warn('YouTube page fallback failed:', fallbackError.message || fallbackError);
+      }
+    }
+    if (!entries.length) {
+      try {
+        entries = await searchYouTubeViaDuckDuckGo(query, limit);
+      } catch (duckError) {
+        console.warn('YouTube DuckDuckGo fallback failed:', duckError.message || duckError);
+      }
+    }
+    if (!entries.length) {
+      return res.status(503).json({
+        error: 'YouTube зараз блокує пошук на цьому сервері. Спробуй ще раз трохи пізніше або додай аудіофайл з телефона.',
+      });
+    }
 
     res.json({ results: entries, ...entries[0] });
   } catch (err) {
@@ -1369,22 +1815,53 @@ app.post('/api/youtube/download', async (req, res, next) => {
     const baseName = `${Date.now()}-${videoId}`;
     const outputTemplate = path.join(dir, `${baseName}.%(ext)s`);
 
-    await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {
-      output: outputTemplate,
-      format: 'bestaudio[ext=m4a]/bestaudio/best',
-      noPlaylist: true,
-      noWarnings: true,
-      restrictFilenames: true,
-      quiet: true,
-    });
+    let filePath = '';
+    let downloadedFile = '';
+    try {
+      await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {
+        output: outputTemplate,
+        format: 'bestaudio/best',
+        noPlaylist: true,
+        noWarnings: true,
+        restrictFilenames: true,
+        quiet: true,
+        forceIpv4: true,
+        noCheckCertificates: true,
+        geoBypass: true,
+        socketTimeout: 15,
+        retries: 2,
+        fragmentRetries: 2,
+        extractorArgs: 'youtube:player_client=web',
+      });
 
-    const files = await fs.readdir(dir);
-    const file = files.find(item => item.startsWith(baseName + '.'));
-    if (!file) throw new Error('Audio file was not created');
-    const filePath = path.join(dir, file);
+      const files = await fs.readdir(dir);
+      const file = files.find(item => item.startsWith(baseName + '.'));
+      if (!file) throw new Error('Audio file was not created');
+      downloadedFile = file;
+      filePath = path.join(dir, file);
+    } catch (error) {
+      console.warn('yt-dlp download failed, trying node fallback:', error.message || error);
+      try {
+        filePath = await downloadYouTubeWithNode(videoId, dir, baseName);
+      } catch (fallbackError) {
+        console.warn('node YouTube fallback failed, trying public stream fallback:', fallbackError.message || fallbackError);
+        try {
+          filePath = await downloadYouTubeFromPipedOrInvidious(videoId, dir, baseName);
+        } catch (streamError) {
+          const message = `${error.message || ''} ${fallbackError.message || ''} ${streamError.message || ''}`;
+          if (/not a bot|Sign in|confirm|TLS|SSL|EOF|No fallback/i.test(message)) {
+            return res.status(503).json({
+              error: 'YouTube блокує скачування на безкоштовному сервері. Спробуй інший трек, Spotify-метадані або додай файл з телефона.',
+            });
+          }
+          throw streamError;
+        }
+      }
+      downloadedFile = path.basename(filePath);
+    }
 
     if (CLOUDINARY_ENABLED) {
-      const fileUrl = await uploadToCloudinary(filePath, 'youtube', file);
+      const fileUrl = await uploadToCloudinary(filePath, 'youtube', downloadedFile);
       await removeTempFile(filePath);
       return res.json({
         file_url: fileUrl,
@@ -1393,7 +1870,7 @@ app.post('/api/youtube/download', async (req, res, next) => {
     }
 
     res.json({
-      file_url: `${PUBLIC_BASE_URL}/media/youtube/${file}`,
+      file_url: `${PUBLIC_BASE_URL}/media/youtube/${downloadedFile}`,
       cover_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
     });
   } catch (err) {
@@ -1441,6 +1918,7 @@ function spotifyTrackToChart(track, index) {
     artist: artistName,
     cover_url: image,
     source_url: track.external_urls?.spotify || '',
+    preview_url: track.preview_url || '',
     youtube_query: `${title} ${artistName}`.trim(),
   };
 }
@@ -1496,7 +1974,7 @@ app.get('/api/spotify/playlist', async (req, res, next) => {
       const meta = await metaResponse.json();
 
       const tracks = [];
-      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&fields=next,items(track(name,artists(name),album(images(url,width,height)),external_urls(spotify)))`;
+      let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&fields=next,items(track(name,preview_url,artists(name),album(images(url,width,height)),external_urls(spotify)))`;
       while (nextUrl) {
         const pageResponse = await fetch(nextUrl, { headers });
         if (!pageResponse.ok) throw new Error('Failed to fetch Spotify tracks');
@@ -1510,6 +1988,7 @@ app.get('/api/spotify/playlist', async (req, res, next) => {
             artist,
             cover_url: pickLargestSpotifyImage(item.track.album?.images),
             source_url: item.track.external_urls?.spotify || '',
+            preview_url: item.track.preview_url || '',
             youtube_query: `${title} ${artist}`.trim(),
           });
         }
@@ -1527,6 +2006,7 @@ app.get('/api/spotify/playlist', async (req, res, next) => {
       artist: cleanSearchText((item.artists || []).map(artist => artist.name).join(', ') || item.artist || ''),
       cover_url: pickLargestSpotifyImage(item.album?.images) || item.coverArt?.sources?.[0]?.url || '',
       source_url: item.uri ? `https://open.spotify.com/track/${String(item.uri).split(':').pop()}` : item.external_urls?.spotify || item.externalUrl || '',
+      preview_url: item.preview_url || item.previewUrl || '',
     })).filter(track => track.title);
     res.json({
       name: data?.name || data?.title || 'Spotify Playlist',

@@ -7,6 +7,9 @@ const variants = {
 };
 
 export default function PageTransition({ children }) {
+  const isNative = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+  if (isNative) return <>{children}</>;
+
   return (
     <motion.div
       variants={variants}

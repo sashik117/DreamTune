@@ -272,6 +272,15 @@ export const auth = {
     setAuthToken(data.token);
     return data;
   },
+  async updateProfile(payload) {
+    const data = await request('/api/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    const user = data.user || data;
+    if (user?.id) emitLocalEntityChange({ table: 'users', event: 'UPDATE', new: user, source: 'local' });
+    return user;
+  },
   async signOut() {
     try {
       await request('/api/auth/logout', { method: 'POST' });

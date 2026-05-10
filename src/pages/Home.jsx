@@ -47,6 +47,7 @@ export default function Home({
   onPlayNext,
   onAddSongsToPlaylist,
 }) {
+  const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const [recDownload, setRecDownload] = useState(null);
   const [showAllRecent, setShowAllRecent] = useState(false);
   const [showAllFavorites, setShowAllFavorites] = useState(false);
@@ -56,14 +57,18 @@ export default function Home({
   const [spotifyChart, setSpotifyChart] = useState([]);
   const [chartError, setChartError] = useState('');
   const [spotifyChartError, setSpotifyChartError] = useState('');
+  const [favoriteOverlay, setFavoriteOverlay] = useState({});
 
   const allRecent = useMemo(
     () => [...songs].sort((a, b) => Number(new Date(b.created_at || b.created_date || 0)) - Number(new Date(a.created_at || a.created_date || 0))),
     [songs]
   );
   const favoriteSongs = useMemo(
-    () => songs.filter(song => song.is_favorite).sort((a, b) => (a.title || '').localeCompare(b.title || '', 'uk')),
-    [songs]
+    () => songs
+      .map(song => favoriteOverlay[song.id] ? { ...song, ...favoriteOverlay[song.id] } : song)
+      .filter(song => song.is_favorite)
+      .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'uk')),
+    [songs, favoriteOverlay]
   );
   const [favoritesRef] = useHorizontalOverflow(favoriteSongs);
   const [recentRef] = useHorizontalOverflow(recentSongs);
@@ -85,6 +90,16 @@ export default function Home({
   }, []);
 
   useEffect(() => {
+    const handleFavoriteChange = (event) => {
+      const song = event.detail?.song;
+      if (!song?.id) return;
+      setFavoriteOverlay(prev => ({ ...prev, [song.id]: song }));
+    };
+    window.addEventListener('dreamtune-favorite-change', handleFavoriteChange);
+    return () => window.removeEventListener('dreamtune-favorite-change', handleFavoriteChange);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     media.getSpotifyChart(20)
       .then(data => {
@@ -102,9 +117,9 @@ export default function Home({
     <motion.button
       key={song.id}
       type="button"
-      initial={{ opacity: 0, x: 14 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: i * 0.035 }}
+      initial={isNativeApp ? false : { opacity: 0, x: 14 }}
+      animate={isNativeApp ? undefined : { opacity: 1, x: 0 }}
+      transition={isNativeApp ? undefined : { delay: i * 0.035 }}
       onClick={() => onPlay(song)}
       className="flex-shrink-0 w-24 xs:w-28 sm:w-32 text-left group snap-start"
     >
@@ -198,7 +213,7 @@ export default function Home({
     const target = event.currentTarget;
     if (!target || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     event.preventDefault();
-    target.scrollBy({ left: event.deltaY * 0.72, behavior: 'auto' });
+    target.scrollBy({ left: event.deltaY * 0.55, behavior: 'smooth' });
   };
 
   const renderChartDialog = (title, open, setOpen, tracks) => (
@@ -292,8 +307,8 @@ export default function Home({
   return (
     <div className="px-3 sm:px-4 pb-4">
       <motion.div
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={isNativeApp ? false : { opacity: 0, y: -14 }}
+        animate={isNativeApp ? undefined : { opacity: 1, y: 0 }}
         className="sticky top-0 z-50 pt-3 pb-3 mb-6 bg-background/92 backdrop-blur-xl border-b border-border/60"
       >
         <div className="pl-16">
@@ -326,7 +341,7 @@ export default function Home({
       <Recommendations songs={songs} onDownloadRecommendation={setRecDownload} />
 
       {songs.length === 0 && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="text-center py-16">
+        <motion.div initial={isNativeApp ? false : { opacity: 0 }} animate={isNativeApp ? undefined : { opacity: 1 }} transition={isNativeApp ? undefined : { delay: 0.4 }} className="text-center py-16">
           <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
             <Music className="w-10 h-10 text-muted-foreground" />
           </div>

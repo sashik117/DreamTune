@@ -28,6 +28,7 @@ export default function UploadModal({ open, onOpenChange, onSongAdded, onSongsAd
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [filePreviewUrl, setFilePreviewUrl] = useState('');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('dreamtune-upload-tab') || 'search');
   const fileInputRef = useRef(null);
 
   useEffect(() => () => {
@@ -90,7 +91,14 @@ export default function UploadModal({ open, onOpenChange, onSongAdded, onSongsAd
           <DialogTitle className="text-foreground">Додати пісню</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="search" className="pt-2">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value);
+            localStorage.setItem('dreamtune-upload-tab', value);
+          }}
+          className="pt-2"
+        >
           <TabsList className="w-full bg-secondary">
             <TabsTrigger value="search" className="flex-1 text-xs sm:text-sm">Пошук</TabsTrigger>
             <TabsTrigger value="spotify" className="flex-1 text-xs sm:text-sm">Spotify</TabsTrigger>
@@ -104,7 +112,7 @@ export default function UploadModal({ open, onOpenChange, onSongAdded, onSongsAd
             />
           </TabsContent>
 
-          <TabsContent value="spotify" className="pt-4">
+          <TabsContent value="spotify" forceMount className="pt-4 data-[state=inactive]:hidden">
             <SpotifyImport
               onSongsAdded={(songs) => onSongsAdded?.(songs)}
               onPlaylistAdded={onPlaylistAdded}

@@ -168,13 +168,20 @@ export default function SongCard({
           {canFavorite && onToggleFavorite && (
             <FavoriteButton active={Boolean(song.is_favorite)} onClick={(_, nextFavorite) => onToggleFavorite(song, nextFavorite)} />
           )}
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <motion.button whileTap={{ scale: 0.82 }} className="p-2 hover:bg-muted rounded-full transition-colors">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.82 }}
+                onPointerDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                className="relative z-20 p-2 hover:bg-muted rounded-full transition-colors"
+              >
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </motion.button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-card border-border rounded-2xl shadow-xl min-w-52">
+            <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52">
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(song)} className="rounded-xl">
                   <Pencil className="w-4 h-4 mr-2" /> Редагувати

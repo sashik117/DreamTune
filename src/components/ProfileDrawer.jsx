@@ -18,6 +18,7 @@ export default function ProfileDrawer({
   const location = useLocation();
   const { t } = useTranslation();
   const publicPlaylists = playlists.filter(playlist => playlist.is_public);
+  const isNative = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
 
   const menu = [
     { path: '/profile', labelKey: 'profile.title', icon: UserCircle },
@@ -38,6 +39,66 @@ export default function ProfileDrawer({
       toast.error(err.message || 'Could not sign out');
     }
   };
+
+  const content = (
+    <>
+      <button
+        aria-label="Close profile menu"
+        className="fixed inset-0 z-[105] bg-black/45"
+        onClick={() => onOpenChange(false)}
+      />
+      <aside className="fixed left-0 top-0 bottom-0 z-[110] w-[min(88vw,340px)] bg-card border-r border-border shadow-2xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-border flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden">
+            {profileAvatar ? <img src={profileAvatar} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-7 h-7 text-white" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-black text-foreground truncate">{profileNickname || t('app.name')}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {songs.length} {t('profile.songs')} · {publicPlaylists.length} {t('profile.public')}
+            </p>
+          </div>
+          <button onClick={() => onOpenChange(false)} className="p-2 rounded-full hover:bg-secondary">
+            <X className="w-5 h-5 text-foreground" />
+          </button>
+        </div>
+
+        <nav className="p-3 space-y-1 overflow-y-auto">
+          {menu.map(item => {
+            const active = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => onNavigate?.(location.pathname)}
+                className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition ${active ? 'bg-primary/15 text-primary' : 'text-foreground hover:bg-secondary'}`}
+              >
+                <span className="relative shrink-0">
+                  <item.icon className="w-5 h-5" />
+                  {item.path === '/profile/friends' && notificationCount > 0 && (
+                    <span className="absolute -right-2.5 -top-2.5 z-[2] min-w-4 h-4 rounded-full bg-red-500 px-1 text-center text-[9px] font-black leading-4 text-white ring-2 ring-card">
+                      {notificationCount > 9 ? '9+' : notificationCount}
+                    </span>
+                  )}
+                </span>
+                <span className="flex-1">{t(item.labelKey)}</span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto p-3 border-t border-border">
+          <button onClick={signOut} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-foreground hover:bg-secondary">
+            <LogOut className="w-5 h-5" />
+            {t('profile.signOut')}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+
+  if (isNative) return open ? content : null;
 
   return (
     <AnimatePresence>

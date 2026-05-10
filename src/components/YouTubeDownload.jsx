@@ -8,13 +8,158 @@ import { toast } from 'sonner';
 import { repairMojibake } from '@/utils/text';
 
 async function findYouTubeResults(query) {
-  const data = await media.searchYouTube(query);
-  return data.results?.length ? data.results : data.video_id ? [data] : [];
+  try {
+    const data = await media.searchYouTube(query);
+    const serverResults = data.results?.length ? data.results : data.video_id ? [data] : [];
+    if (serverResults.length) return serverResults;
+  } catch (error) {
+    console.warn('Server YouTube search failed, trying direct fallback:', error.message || error);
+  }
+  return searchYouTubeDirect(query);
 }
 
 async function getAudioUrl(videoId) {
-  const data = await media.downloadYouTube(videoId);
-  return data.file_url;
+  try {
+    const data = await media.downloadYouTube(videoId);
+    if (data.file_url) return data.file_url;
+  } catch (error) {
+    console.warn('Server YouTube download failed, trying direct stream fallback:', error.message || error);
+  }
+  return resolveDirectAudioUrl(videoId);
+}
+
+async function fetchJson(url, timeout = 9000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function searchYouTubeDirect(query) {
+  const pipedInstances = [
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.syncpundit.io',
+  ];
+  for (const base of pipedInstances) {
+    try {
+      const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
+      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      const results = items
+        .map(item => {
+          const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
+          if (!id) return null;
+          return {
+            title: repairMojibake(item.title || query),
+            artist: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
+            uploader: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
+            video_id: id,
+            thumbnail: item.thumbnail || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+            duration: item.duration || null,
+          };
+        })
+        .filter(Boolean)
+        .slice(0, 8);
+      if (results.length) return results;
+    } catch {}
+  }
+
+  const invidiousInstances = [
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://invidious.nerdvpn.de',
+    'https://iv.datura.network',
+  ];
+  for (const base of invidiousInstances) {
+    try {
+      const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
+      const results = (Array.isArray(data) ? data : [])
+        .filter(item => item?.type === 'video' && item?.videoId)
+        .map(item => {
+          const thumb =
+            item.videoThumbnails?.find?.(image => image?.quality === 'medium')?.url ||
+            item.videoThumbnails?.[0]?.url ||
+            `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+          return {
+            title: repairMojibake(item.title || query),
+            artist: repairMojibake(item.author || 'YouTube'),
+            uploader: repairMojibake(item.author || 'YouTube'),
+            video_id: item.videoId,
+            thumbnail: thumb.startsWith('//') ? `https:${thumb}` : thumb,
+            duration: item.lengthSeconds || null,
+          };
+        })
+        .slice(0, 8);
+      if (results.length) return results;
+    } catch {}
+  }
+  try {
+    const data = await fetchJson(`https://yt.lemnoslife.com/search?part=snippet&q=${encodeURIComponent(query)}&type=video`);
+    const results = (data.items || [])
+      .map(item => {
+        const id = item?.id?.videoId || item?.videoId;
+        if (!id) return null;
+        return {
+          title: repairMojibake(item.snippet?.title || query),
+          artist: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
+          uploader: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
+          video_id: id,
+          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+          duration: null,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 8);
+    if (results.length) return results;
+  } catch {}
+  return [];
+}
+
+async function resolveDirectAudioUrl(videoId) {
+  const pipedInstances = [
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.syncpundit.io',
+  ];
+  for (const base of pipedInstances) {
+    try {
+      const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
+      const audio = (data.audioStreams || [])
+        .filter(item => item?.url)
+        .sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+
+  const invidiousInstances = [
+    'https://yewtu.be',
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://invidious.nerdvpn.de',
+    'https://iv.datura.network',
+  ];
+  for (const base of invidiousInstances) {
+    try {
+      const data = await fetchJson(`${base}/api/v1/videos/${videoId}`, 10000);
+      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
+      const audio = formats
+        .filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio'))
+        .sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+  return '';
 }
 
 function formatDuration(seconds) {
@@ -73,7 +218,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       setStep('results');
     } catch (err) {
       console.error(err);
-      setError('\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u043f\u043e\u0448\u0443\u043a\u0443. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0449\u0435 \u0440\u0430\u0437.');
+      setError(err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u043f\u043e\u0448\u0443\u043a\u0443. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0449\u0435 \u0440\u0430\u0437.');
       setStep('idle');
     }
   }
@@ -108,7 +253,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       return fileUrl;
     } catch (err) {
       console.error(err);
-      setError('\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.');
+      setError(err?.message || '\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.');
       return '';
     } finally {
       setPreviewLoading(false);
@@ -146,6 +291,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       onClose();
     } catch (err) {
       console.error(err);
+      setError(err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f');
       toast.error('\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f');
       setStep('found');
     }

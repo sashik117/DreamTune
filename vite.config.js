@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   logLevel: 'error',
+  publicDir: 'public-app',
   server: {
     port: 5175,
     strictPort: true,

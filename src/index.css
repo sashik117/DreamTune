@@ -331,6 +331,43 @@ html:not(.dark) .app-background-layer {
   min-height: 100dvh;
 }
 
+.capacitor-native body,
+.capacitor-native .cozy-gradient-bg,
+.capacitor-native .app-background-layer {
+  background-attachment: scroll !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.capacitor-native .app-background-layer {
+  transform: translateZ(0);
+  will-change: auto;
+}
+
+.capacitor-native .mini-player-card,
+.capacitor-native .bottom-navbar,
+.capacitor-native [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.capacitor-native .app-scroll .sticky[class*="bg-background"],
+.capacitor-native .fixed[class*="bg-background"] {
+  background-color: hsl(var(--background) / 0.36) !important;
+  backdrop-filter: blur(18px) saturate(1.18) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.18) !important;
+}
+
+.capacitor-native .mini-player-card {
+  background-color: hsl(var(--card) / 0.98) !important;
+}
+
+.capacitor-native .mini-player-shell,
+.capacitor-native .bottom-navbar {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 .app-scroll.has-mini-player {
   padding-bottom: calc(var(--bottom-nav-height) + var(--mini-player-height) + var(--safe-bottom) + 24px);
 }
@@ -744,7 +781,7 @@ html[data-theme-background="photo"] body,
 html[data-theme-background="photo"] .cozy-gradient-bg,
 html[data-theme-background="photo"] .app-background-layer {
   background:
-    linear-gradient(hsl(var(--background) / 0.58), hsl(var(--background) / 0.86)),
+    linear-gradient(hsl(var(--background) / 0.34), hsl(var(--background) / 0.62)),
     var(--user-bg-image),
     radial-gradient(circle at 14% 0%, hsl(var(--primary) / 0.18), transparent 30%),
     linear-gradient(145deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 58%, #111 100%);
@@ -790,9 +827,9 @@ input[type="password"]::-ms-clear {
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
-  scroll-behavior: auto;
+  scroll-behavior: smooth;
   scroll-snap-type: x proximity;
-  scroll-padding-inline: 0.25rem;
+  scroll-padding-inline: 0.75rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
   touch-action: pan-x pan-y;
@@ -800,7 +837,7 @@ input[type="password"]::-ms-clear {
   cursor: grab;
   width: 100%;
   min-width: 0;
-  contain: layout paint;
+  contain: layout;
   transform: translateZ(0);
   will-change: transform;
 }
@@ -853,6 +890,27 @@ html[data-theme-surface="light"] .bg-secondary\/60 {
 html[data-theme-surface="light"] .border-border\/60,
 html[data-theme-surface="light"] .border-border\/50 {
   border-color: hsl(var(--border) / 0.92);
+}
+
+.bg-background\/70,
+.bg-background\/90,
+.bg-background\/92,
+.bg-background\/96 {
+  background-color: hsl(var(--background) / 0.38) !important;
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+}
+
+.sticky[class*="bg-background"] {
+  color: hsl(var(--foreground));
+}
+
+.app-scroll .sticky[class*="bg-background"] {
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: calc(100% + 2rem);
 }
 
 .sleep-dim {

@@ -1,5 +1,5 @@
 ﻿import { Link, useParams } from 'react-router-dom';
-import { entities, storage, social } from '@/api/SupabaseClient';
+import { auth, entities, social, storage } from '@/api/SupabaseClient';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -135,6 +135,7 @@ export default function Profile({
   const { t } = useTranslation();
   const [showBackgrounds, setShowBackgrounds] = useState(themeMode === 'custom');
   const [showPalettes, setShowPalettes] = useState(false);
+  const [localThemeMode, setLocalThemeMode] = useState(themeMode || 'dark');
   const [openSetting, setOpenSetting] = useState(null);
   const [friendQuery, setFriendQuery] = useState('');
   const [userResults, setUserResults] = useState([]);
@@ -146,14 +147,27 @@ export default function Profile({
   const [friendRequests, setFriendRequests] = useState([]);
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState(profileNickname);
+  const [localProfileNickname, setLocalProfileNickname] = useState(profileNickname || currentUser?.nickname || 'DreamTune');
+  const [localProfileAvatar, setLocalProfileAvatar] = useState(profileAvatar || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [language, setLanguage] = useState(() => i18n.resolvedLanguage || localStorage.getItem('dreamtune-language') || 'en');
   const avatarInputRef = useRef(null);
   const bgInputRef = useRef(null);
 
   useEffect(() => {
+    setLocalThemeMode(themeMode || 'dark');
     if (themeMode === 'custom') setShowBackgrounds(true);
   }, [themeMode]);
+
+  useEffect(() => {
+    setLocalProfileAvatar(profileAvatar || '');
+  }, [profileAvatar]);
+
+  useEffect(() => {
+    const next = profileNickname || currentUser?.nickname || 'DreamTune';
+    setLocalProfileNickname(next);
+    if (!editingNickname) setNicknameDraft(next);
+  }, [profileNickname, currentUser?.nickname, editingNickname]);
 
   const email = currentUser?.email || 'local@dreamtune.app';
   const publicPlaylists = playlists.filter(playlist => playlist.is_public);
@@ -189,13 +203,19 @@ export default function Profile({
       .catch(() => setListenHistory([]));
   }, [section]);
 
-  const saveNickname = () => {
+  const saveNickname = async () => {
     const next = nicknameDraft.trim().replace(/^@/, '');
     if (next.length < 2) return toast.error('Нікнейм має бути довший');
+    setLocalProfileNickname(next);
     onProfileNicknameChange?.(next);
     setNicknameDraft(next);
     setEditingNickname(false);
-    toast.success('Нікнейм оновлено');
+    try {
+      await auth.updateProfile?.({ nickname: next });
+      toast.success('Нікнейм оновлено');
+    } catch {
+      toast.success('Нікнейм оновлено на цьому пристрої');
+    }
   };
 
   useEffect(() => {
@@ -321,30 +341,81 @@ export default function Profile({
     }
   };
 
-  const handleAvatarSelect = (event) => {
+  const imageFileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const originalDataUrl = reader.result;
+      const img = new Image();
+      img.onerror = () => resolve(originalDataUrl);
+      img.onload = () => {
+        const maxSide = 420;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          resolve(canvas.toDataURL('image/jpeg', 0.74));
+        } catch {
+          resolve(originalDataUrl);
+        }
+      };
+      img.src = originalDataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const handleAvatarSelect = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onProfileAvatarChange?.(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      const previewUrl = await imageFileToDataUrl(file);
+      setLocalProfileAvatar(previewUrl);
+      onProfileAvatarChange?.(previewUrl);
+      try {
+        const publicUrl = await storage.uploadFile(file, 'avatars');
+        setLocalProfileAvatar(publicUrl);
+        onProfileAvatarChange?.(publicUrl);
+        await auth.updateProfile?.({ avatar_url: publicUrl });
+      } catch {
+        await auth.updateProfile?.({ avatar_url: previewUrl }).catch(() => {});
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Не вийшло відкрити фото');
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const handleThemePhotoSelect = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const url = await storage.uploadFile(file, 'backgrounds');
+      const previewUrl = await imageFileToDataUrl(file);
       onThemeModeChange?.('custom');
-      onThemePhotoChange?.(url);
+      onThemePhotoChange?.(previewUrl);
       onThemeBackgroundChange?.('photo');
+      setLocalThemeMode('custom');
+      setShowBackgrounds(true);
+      storage.uploadFile(file, 'backgrounds')
+        .then(url => onThemePhotoChange?.(url))
+        .catch(() => {});
       toast.success('\u0424\u043e\u043d \u043e\u043d\u043e\u0432\u043b\u0435\u043d\u043e');
     } catch (error) {
       console.error(error);
       toast.error('\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438 \u0444\u043e\u0442\u043e');
+    } finally {
+      event.target.value = '';
     }
   };
 
   const chooseMode = (mode) => {
+    setLocalThemeMode(mode);
     onThemeModeChange(mode);
     if (mode === 'light') {
       onThemeBackgroundChange('pastel-rose');
@@ -377,6 +448,7 @@ export default function Profile({
     localStorage.removeItem('profile-avatar');
     localStorage.removeItem('profile-nickname');
     localStorage.removeItem('dreamtune-friends');
+    setLocalProfileAvatar('');
     onProfileAvatarChange?.('');
     onProfileNicknameChange?.('DreamTune');
     setFriends([]);
@@ -436,7 +508,7 @@ export default function Profile({
           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-border bg-card/95 p-5 shadow-lg shadow-primary/10">
             <div className="flex items-center gap-5">
               <button type="button" onClick={() => avatarInputRef.current?.click()} className="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden shrink-0">
-                {profileAvatar ? <img src={profileAvatar} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-11 h-11 text-white" />}
+                {localProfileAvatar ? <img src={localProfileAvatar} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-11 h-11 text-white" />}
                 <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center">
                   <Camera className="w-3.5 h-3.5 text-primary" />
                 </span>
@@ -450,8 +522,8 @@ export default function Profile({
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-foreground truncate">{profileNickname}</h2>
-                    <Button size="icon" variant="ghost" onClick={() => { setNicknameDraft(profileNickname); setEditingNickname(true); }} className="rounded-full shrink-0">
+                    <h2 className="text-xl font-black text-foreground truncate">{localProfileNickname}</h2>
+                    <Button size="icon" variant="ghost" onClick={() => { setNicknameDraft(localProfileNickname); setEditingNickname(true); }} className="rounded-full shrink-0">
                       <Pencil className="w-4 h-4" />
                     </Button>
                   </div>
@@ -635,7 +707,7 @@ export default function Profile({
                 ['dark', 'Темна', Moon],
                 ['custom', 'Своя', Sparkles],
               ].map(([mode, label, Icon]) => (
-                <button key={mode} onClick={() => chooseMode(mode)} className={`rounded-2xl border p-3 text-sm font-black transition ${themeMode === mode ? 'border-primary bg-primary/15 text-primary ring-2 ring-primary/25' : 'border-border bg-secondary text-foreground'}`}>
+                <button key={mode} onClick={() => chooseMode(mode)} className={`rounded-2xl border p-3 text-sm font-black transition ${localThemeMode === mode ? 'border-primary bg-primary/15 text-primary ring-2 ring-primary/25' : 'border-border bg-secondary text-foreground'}`}>
                   <Icon className="w-5 h-5 mx-auto mb-1" />
                   {label}
                 </button>
@@ -643,7 +715,7 @@ export default function Profile({
             </div>
           </section>
 
-          {themeMode === 'custom' && (
+          {localThemeMode === 'custom' && (
             <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-3">
               <button onClick={() => setShowBackgrounds(value => !value)} className="w-full rounded-2xl bg-secondary text-foreground px-4 py-3 text-sm font-bold text-left">
                 {showBackgrounds ? 'Сховати фони' : 'Відкрити фони'}

@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, ChevronDown, Repeat, Shuffle, Volume2, Moon, TimerOff, MoreVertical, ListPlus, Plus, Share2, Scissors, ListMusic, X, Music, GripVertical } from 'lucide-react';
+import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Slider } from "@/components/ui/slider";
@@ -43,6 +44,7 @@ export default function FullPlayer({
   sleepRemaining = 0, sleepDimming = false, onSleepTimerChange,
   coverShape = 'square', canFavorite = true, playlists = [], onAddSongsToPlaylist, onAddCurrentToQueue, onEditCurrent
 }) {
+  const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   // Handle lyrics line click в†’ seek
   useEffect(() => {
     const handler = (e) => {
@@ -58,6 +60,7 @@ export default function FullPlayer({
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showInlineQueue, setShowInlineQueue] = useState(false);
+  const dragIndexRef = useRef(null);
   if (!currentSong) return null;
   const isCircleCover = coverShape === 'circle';
   const fullCoverRadius = isCircleCover ? 'rounded-full' : 'rounded-[28px]';
@@ -94,19 +97,45 @@ export default function FullPlayer({
     onQueueReorder?.(nextQueue);
   };
 
+  const moveQueueItem = (from, to) => {
+    if (from === null || to === null || from === to || !queue?.[from] || !queue?.[to]) return;
+    const nextQueue = Array.from(queue || []);
+    const [moved] = nextQueue.splice(from, 1);
+    nextQueue.splice(to, 0, moved);
+    dragIndexRef.current = to;
+    onQueueReorder?.(nextQueue);
+  };
+
+  const handlePointerQueueStart = (event, index) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    dragIndexRef.current = index;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const handlePointerQueueMove = (event) => {
+    if (dragIndexRef.current === null) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-queue-index]');
+    const nextIndex = Number(target?.getAttribute('data-queue-index'));
+    if (Number.isFinite(nextIndex)) moveQueueItem(dragIndexRef.current, nextIndex);
+  };
+
+  const handlePointerQueueEnd = () => {
+    dragIndexRef.current = null;
+  };
+
   return (
     <>
       <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        initial={isNativeApp ? false : { y: '100%' }}
+        animate={isNativeApp ? undefined : { y: 0 }}
+        exit={isNativeApp ? undefined : { y: '100%' }}
+        transition={isNativeApp ? undefined : { type: 'spring', damping: 30, stiffness: 300 }}
         className={`fixed inset-0 z-[60] cozy-gradient-bg flex flex-col overflow-hidden ${sleepDimming ? 'sleep-dim' : ''}`}
         style={{
           '--player-cover-glow': currentSong.cover_url ? `url("${currentSong.cover_url}")` : 'none',
         }}
       >
-        {currentSong.cover_url && (
+        {currentSong.cover_url && !isNativeApp && (
           <div className="absolute inset-0 z-0 pointer-events-none">
             <img
               src={currentSong.cover_url}
@@ -355,14 +384,20 @@ export default function FullPlayer({
                           {(provided) => (
                             <div ref={provided.innerRef} {...provided.droppableProps} className="max-h-64 space-y-1 overflow-y-auto pr-1">
                               {queue.map((song, index) => (
-                                <Draggable key={`${song.id}-${index}`} draggableId={`${song.id}-${index}`} index={index}>
+                                <Draggable key={`${song.id}-${index}`} draggableId={`${song.id}-${index}`} index={index} disableInteractiveElementBlocking>
                                   {(dragProvided, snapshot) => (
                                     <div
                                       ref={dragProvided.innerRef}
                                       {...dragProvided.draggableProps}
+                                      {...dragProvided.dragHandleProps}
+                                      data-queue-index={index}
+                                      onPointerDown={(event) => handlePointerQueueStart(event, index)}
+                                      onPointerMove={handlePointerQueueMove}
+                                      onPointerUp={handlePointerQueueEnd}
+                                      onPointerCancel={handlePointerQueueEnd}
                                       className={`flex min-h-14 items-center gap-2 rounded-2xl bg-secondary/65 p-2 shadow-sm transition-shadow ${snapshot.isDragging ? 'shadow-2xl shadow-primary/25 opacity-95' : ''}`}
                                     >
-                                      <button type="button" {...dragProvided.dragHandleProps} className="min-h-10 min-w-8 rounded-xl flex items-center justify-center touch-none" aria-label="Перетягнути трек">
+                                      <button type="button" className="min-h-10 min-w-8 rounded-xl flex items-center justify-center touch-none" aria-label="Перетягнути трек">
                                         <GripVertical className="w-4 h-4 shrink-0 text-muted-foreground" />
                                       </button>
                                       <div className="flex min-w-0 flex-1 items-center gap-3">

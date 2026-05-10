@@ -228,13 +228,20 @@ export default function CollabPlaylists({
                   </div>
 
                   {isOwner && (
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
-                        <button type="button" onClick={(e) => e.stopPropagation()} className="min-h-10 min-w-10 rounded-full hover:bg-secondary flex items-center justify-center" aria-label="Дії спільного плейлиста">
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                          className="relative z-20 min-h-10 min-w-10 rounded-full hover:bg-secondary flex items-center justify-center"
+                          aria-label="Дії спільного плейлиста"
+                        >
                           <MoreVertical className="w-5 h-5 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-card border-border rounded-2xl shadow-xl min-w-52" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem onClick={() => setOpenDetail(pl)} className="rounded-xl">
                           <Pencil className="w-4 h-4 mr-2" /> Перейменувати
                         </DropdownMenuItem>
