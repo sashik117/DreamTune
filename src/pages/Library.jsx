@@ -197,16 +197,18 @@ export default function Library({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" disabled={!selectedCount || !playlists.length} className="rounded-2xl" aria-label="В плейлист">
+                <Button size="icon" disabled={!selectedCount} className="rounded-2xl" aria-label="В плейлист">
                   <ListPlus className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-card border-border rounded-2xl shadow-xl min-w-48">
-                {playlists.map(playlist => (
+                {playlists.length ? playlists.map(playlist => (
                   <DropdownMenuItem key={playlist.id} onClick={() => addSelectedToPlaylist(playlist)} className="rounded-xl">
                     {playlist.name}
                   </DropdownMenuItem>
-                ))}
+                )) : (
+                  <div className="px-3 py-2 text-xs font-bold text-muted-foreground">Спочатку створи плейлист</div>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button

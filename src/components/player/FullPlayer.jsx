@@ -379,7 +379,17 @@ export default function FullPlayer({
 
               <AnimatePresence>
                 {showInlineQueue && (
-                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }} className="rounded-3xl border border-border bg-card p-3 shadow-xl shadow-black/15">
+                  <>
+                  <motion.button
+                    type="button"
+                    aria-label="Close queue"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowInlineQueue(false)}
+                    className="fixed inset-0 z-[94] bg-black/25 backdrop-blur-[2px]"
+                  />
+                  <motion.div initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: 0.98 }} className="fixed left-3 right-3 bottom-[calc(18px+env(safe-area-inset-bottom,0px))] z-[95] max-h-[min(70dvh,520px)] overflow-hidden rounded-3xl border border-border bg-card/95 p-3 shadow-2xl shadow-black/35 backdrop-blur-2xl">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <ListMusic className="w-4 h-4 text-primary" />
@@ -398,7 +408,7 @@ export default function FullPlayer({
                       <DragDropContext onDragEnd={handleQueueDragEnd}>
                         <Droppable droppableId="player-queue">
                           {(provided) => (
-                            <div ref={provided.innerRef} {...provided.droppableProps} className="max-h-64 space-y-1 overflow-y-auto pr-1">
+                            <div ref={provided.innerRef} {...provided.droppableProps} className="max-h-[min(48dvh,340px)] space-y-1 overflow-y-auto pr-1">
                               {queue.map((song, index) => (
                                 <Draggable key={`${song.id}-${index}`} draggableId={`${song.id}-${index}`} index={index} disableInteractiveElementBlocking>
                                   {(dragProvided, snapshot) => (
@@ -437,6 +447,7 @@ export default function FullPlayer({
                       </DragDropContext>
                     )}
                   </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>

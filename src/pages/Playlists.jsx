@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import { entities, storage } from '@/api/SupabaseClient';
-import { Plus, ListMusic, Pencil, Trash2, ChevronRight, ImagePlus, Globe2, Lock, MoreVertical } from 'lucide-react';
+import { Plus, ListMusic, Pencil, Trash2, ChevronRight, Globe2, Lock, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import ImageCropBox from '@/components/ImageCropBox';
 
 export default function Playlists({ songs, playlists: livePlaylists = [] }) {
   const [playlists, setPlaylists] = useState([]);
@@ -21,7 +22,6 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
   const [coverFile, setCoverFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
-  const coverRef = useRef(null);
 
   useEffect(() => {
     setPlaylists(livePlaylists);
@@ -55,27 +55,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
     if (!file) return;
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
-  };
-
-  const updateCoverPosition = (event) => {
-    const rect = coverRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setCoverPosition({
-      x: Math.round(Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))),
-      y: Math.round(Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))),
-    });
-  };
-
-  const handleCoverPointerDown = (event) => {
-    if (!coverPreview) {
-      fileRef.current?.click();
-      return;
-    }
-    event.preventDefault();
-    updateCoverPosition(event);
-    const move = (moveEvent) => updateCoverPosition(moveEvent);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true });
+    event.target.value = '';
   };
 
   const handleCreate = async () => {
@@ -151,13 +131,15 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
             <h1 className="text-2xl font-black text-foreground">Плейлисти</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{playlists.length} плейлистів</p>
           </div>
-          <Button
+          <motion.button
+            whileTap={{ scale: 0.88 }}
             onClick={() => { resetForm(); setShowCreate(true); }}
-            size="sm"
-            className="bg-primary hover:brightness-110 text-primary-foreground rounded-xl gap-1.5"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-primary-foreground shadow-md shrink-0"
+            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
+            aria-label="Новий плейлист"
           >
-            <Plus className="w-4 h-4" /> Новий
-          </Button>
+            <Plus className="w-4 h-4" />
+          </motion.button>
         </div>
       </div>
 
@@ -217,7 +199,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-44" onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenuItem onClick={() => openEdit(playlist)} className="rounded-xl">
+                  <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEdit(playlist); }} className="rounded-xl">
                     <Pencil className="w-4 h-4 mr-2" /> Редагувати
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDelete(playlist)} className="rounded-xl text-destructive focus:text-destructive">
@@ -237,50 +219,19 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
             <DialogTitle>{editingId ? 'Редагувати плейлист' : 'Новий плейлист'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div
-              ref={coverRef}
-              onPointerDown={handleCoverPointerDown}
-              onDoubleClick={() => fileRef.current?.click()}
-              className="w-full h-32 rounded-xl overflow-hidden bg-secondary border-2 border-dashed border-border cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors flex items-center justify-center touch-none relative"
-            >
-              {coverPreview ? (
-                <>
-                  <img
-                    src={coverPreview}
-                    alt=""
-                    className="w-full h-full object-cover pointer-events-none"
-                    style={{
-                      objectPosition: `${coverPosition.x}% ${coverPosition.y}%`,
-                      transform: `scale(${coverScale})`,
-                      transformOrigin: `${coverPosition.x}% ${coverPosition.y}%`,
-                    }}
-                  />
-                  <div
-                    className="absolute w-3 h-3 rounded-full border-2 border-white bg-primary shadow-lg shadow-primary/30 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                    style={{ left: `${coverPosition.x}%`, top: `${coverPosition.y}%` }}
-                  />
-                </>
-              ) : (
-                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                  <ImagePlus className="w-8 h-8" />
-                  <span className="text-xs">Додати обкладинку</span>
-                </div>
-              )}
-            </div>
+            <ImageCropBox
+              preview={coverPreview}
+              position={coverPosition}
+              scale={coverScale}
+              onPositionChange={setCoverPosition}
+              onScaleChange={setCoverScale}
+              onPick={() => fileRef.current?.click()}
+              emptyLabel="Додати обкладинку"
+              className="mx-auto w-full max-w-[220px] rounded-3xl"
+            />
             <input ref={fileRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
             {coverPreview && (
-              <div className="space-y-1">
-                <p className="text-[11px] text-muted-foreground">{'\u041f\u0435\u0440\u0435\u0442\u044f\u0433\u043d\u0438 \u0444\u043e\u0442\u043e, \u0430\u0431\u043e \u0437\u043c\u0456\u043d\u0438 \u043c\u0430\u0441\u0448\u0442\u0430\u0431'}</p>
-                <input
-                  type="range"
-                  min="1"
-                  max="2.4"
-                  step="0.05"
-                  value={coverScale}
-                  onChange={event => setCoverScale(Number(event.target.value))}
-                  className="w-full accent-primary"
-                />
-              </div>
+              <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>
             )}
 
             <Input

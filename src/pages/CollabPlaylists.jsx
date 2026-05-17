@@ -1,5 +1,5 @@
-﻿import { useState, useEffect } from 'react';
-import { supabase, entities, auth } from '@/api/SupabaseClient';
+import { useState, useEffect, useRef } from 'react';
+import { supabase, entities, auth, storage } from '@/api/SupabaseClient';
 import { Users, Plus, Trash2, Music, Crown, MoreVertical, Pencil, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import CollabPlaylistDetail from './CollabPlaylistDetail';
+import ImageCropBox from '@/components/ImageCropBox';
 
 export default function CollabPlaylists({
   songs,
@@ -26,8 +27,15 @@ export default function CollabPlaylists({
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
+  const [editingPlaylist, setEditingPlaylist] = useState(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const [coverFile, setCoverFile] = useState(null);
+  const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50 });
+  const [coverScale, setCoverScale] = useState(1);
+  const [saving, setSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [openDetail, setOpenDetail] = useState(null);
+  const coverInputRef = useRef(null);
 
   useEffect(() => {
     loadData();
@@ -80,19 +88,74 @@ export default function CollabPlaylists({
     }
   };
 
+  const resetForm = () => {
+    setNewName('');
+    setEditingPlaylist(null);
+    setCoverPreview('');
+    setCoverFile(null);
+    setCoverPosition({ x: 50, y: 50 });
+    setCoverScale(1);
+  };
+
+  const openCreateDialog = () => {
+    resetForm();
+    setShowCreate(true);
+  };
+
+  const openEditDialog = (playlist) => {
+    setEditingPlaylist(playlist);
+    setNewName(playlist.name || '');
+    setCoverPreview(playlist.cover_url || '');
+    const [x = '50%', y = '50%'] = String(playlist.cover_position || '50% 50%').split(' ');
+    setCoverPosition({ x: Number(x.replace('%', '')) || 50, y: Number(y.replace('%', '')) || 50 });
+    setCoverScale(Number(playlist.cover_scale || 1));
+    setCoverFile(null);
+    setShowCreate(true);
+  };
+
+  const handleCoverSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    event.target.value = '';
+  };
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
+    setSaving(true);
     try {
-      await entities.CollabPlaylist.create({
+      let coverUrl = coverPreview || '';
+      if (coverFile) coverUrl = await storage.uploadFile(coverFile, 'songs');
+      const payload = {
         name: newName.trim(),
-        song_ids: [],
-        collaborator_ids: [],
-      });
-      setNewName('');
+        cover_url: coverUrl,
+        cover_position: `${coverPosition.x}% ${coverPosition.y}%`,
+        cover_scale: coverScale,
+      };
+      if (editingPlaylist) {
+        const updated = await entities.CollabPlaylist.update(editingPlaylist.id, {
+          ...payload,
+          last_edited_by: currentUser?.email || null,
+          last_edited_at: Date.now(),
+        });
+        setPlaylists(prev => prev.map(item => item.id === updated.id ? { ...item, ...updated } : item));
+        toast.success('Спільний плейлист оновлено');
+      } else {
+        await entities.CollabPlaylist.create({
+          ...payload,
+          song_ids: [],
+          collaborator_ids: [],
+        });
+        toast.success('Спільний плейлист створено');
+      }
+      resetForm();
       setShowCreate(false);
     } catch (err) {
       console.error(err);
-      toast.error('Помилка створення');
+      toast.error('Помилка збереження');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -156,7 +219,7 @@ export default function CollabPlaylists({
           </div>
           <motion.button
             whileTap={{ scale: 0.88 }}
-            onClick={() => setShowCreate(true)}
+            onClick={openCreateDialog}
             className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-primary-foreground shadow-md shrink-0"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
             aria-label="Create collab playlist"
@@ -242,10 +305,10 @@ export default function CollabPlaylists({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={() => setOpenDetail(pl)} className="rounded-xl">
+                        <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEditDialog(pl); }} className="rounded-xl">
                           <Pencil className="w-4 h-4 mr-2" /> Перейменувати
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setOpenDetail(pl)} className="rounded-xl">
+                        <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEditDialog(pl); }} className="rounded-xl">
                           <ImagePlus className="w-4 h-4 mr-2" /> Додати фото
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(pl)} className="rounded-xl text-destructive focus:text-destructive">
@@ -261,14 +324,26 @@ export default function CollabPlaylists({
         </div>
       )}
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto">
+      <Dialog open={showCreate} onOpenChange={(value) => { setShowCreate(value); if (!value) resetForm(); }}>
+        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> Новий спільний плейлист
+              <Users className="w-4 h-4 text-primary" /> {editingPlaylist ? 'Редагувати спільний плейлист' : 'Новий спільний плейлист'}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 pt-1">
+          <div className="space-y-4 pt-1">
+            <ImageCropBox
+              preview={coverPreview}
+              position={coverPosition}
+              scale={coverScale}
+              onPositionChange={setCoverPosition}
+              onScaleChange={setCoverScale}
+              onPick={() => coverInputRef.current?.click()}
+              emptyLabel="Додати фото"
+              className="mx-auto w-full max-w-[220px] rounded-3xl"
+            />
+            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
             <Input
               value={newName}
               onChange={e => setNewName(e.target.value)}
@@ -277,8 +352,8 @@ export default function CollabPlaylists({
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               autoFocus
             />
-            <Button onClick={handleCreate} disabled={!newName.trim()} className="w-full rounded-xl">
-              Створити
+            <Button onClick={handleCreate} disabled={!newName.trim() || saving} className="w-full rounded-xl">
+              {saving ? 'Збереження...' : editingPlaylist ? 'Зберегти' : 'Створити'}
             </Button>
           </div>
         </DialogContent>

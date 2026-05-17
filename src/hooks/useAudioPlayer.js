@@ -517,9 +517,10 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   const setSleepTimer = useCallback((minutes) => {
     clearSleepTimer();
-    if (!minutes) return;
+    const safeMinutes = Number(minutes);
+    if (!Number.isFinite(safeMinutes) || safeMinutes <= 0) return;
 
-    const totalSeconds = minutes * 60;
+    const totalSeconds = Math.round(safeMinutes * 60);
     setSleepRemaining(totalSeconds);
     sleepTimerRef.current.timeout = setTimeout(startSleepFade, totalSeconds * 1000);
     sleepTimerRef.current.ticker = setInterval(() => {

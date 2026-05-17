@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import ImageCropBox from '@/components/ImageCropBox';
 
 export default function PlaylistDetail({
   songs,
@@ -30,7 +31,6 @@ export default function PlaylistDetail({
   const [coverScale, setCoverScale] = useState(1);
   const [savingCover, setSavingCover] = useState(false);
   const coverInputRef = useRef(null);
-  const coverBoxRef = useRef(null);
 
   useEffect(() => { loadPlaylist(); }, [id]);
 
@@ -128,27 +128,7 @@ export default function PlaylistDetail({
     if (!file) return;
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
-  };
-
-  const updateCoverPosition = (event) => {
-    const rect = coverBoxRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setCoverPosition({
-      x: Math.round(Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))),
-      y: Math.round(Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))),
-    });
-  };
-
-  const handleCoverPointerDown = (event) => {
-    if (!coverPreview) {
-      coverInputRef.current?.click();
-      return;
-    }
-    event.preventDefault();
-    updateCoverPosition(event);
-    const move = (moveEvent) => updateCoverPosition(moveEvent);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true });
+    event.target.value = '';
   };
 
   const saveCover = async () => {
@@ -305,53 +285,21 @@ export default function PlaylistDetail({
             <DialogTitle>Обкладинка плейлиста</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div
-              ref={coverBoxRef}
-              onPointerDown={handleCoverPointerDown}
-              className="relative h-40 w-full cursor-grab touch-none overflow-hidden rounded-3xl border-2 border-dashed border-border bg-secondary flex items-center justify-center"
-            >
-              {coverPreview ? (
-                <>
-                  <img
-                    src={coverPreview}
-                    alt=""
-                    className="h-full w-full object-cover pointer-events-none"
-                    style={{
-                      objectPosition: `${coverPosition.x}% ${coverPosition.y}%`,
-                      transform: `scale(${coverScale})`,
-                      transformOrigin: `${coverPosition.x}% ${coverPosition.y}%`,
-                    }}
-                  />
-                  <div
-                    className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-lg pointer-events-none"
-                    style={{ left: `${coverPosition.x}%`, top: `${coverPosition.y}%` }}
-                  />
-                </>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <ImagePlus className="mx-auto mb-2 h-8 w-8" />
-                  <p className="text-xs font-bold">Додати фото</p>
-                </div>
-              )}
-            </div>
+            <ImageCropBox
+              preview={coverPreview}
+              position={coverPosition}
+              scale={coverScale}
+              onPositionChange={setCoverPosition}
+              onScaleChange={setCoverScale}
+              onPick={() => coverInputRef.current?.click()}
+              emptyLabel="Додати фото"
+              className="mx-auto w-full max-w-[240px] rounded-3xl"
+            />
             <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
             <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()} className="w-full rounded-2xl border-border">
               <ImagePlus className="w-4 h-4 mr-2" /> Вибрати фото
             </Button>
-            {coverPreview && (
-              <div className="space-y-1">
-                <p className="text-[11px] text-muted-foreground">Перетягни фото і зміни масштаб</p>
-                <input
-                  type="range"
-                  min="1"
-                  max="2.4"
-                  step="0.05"
-                  value={coverScale}
-                  onChange={event => setCoverScale(Number(event.target.value))}
-                  className="w-full accent-primary"
-                />
-              </div>
-            )}
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
             <Button onClick={saveCover} disabled={savingCover} className="w-full rounded-2xl">
               {savingCover ? 'Зберігаю...' : 'Зберегти'}
             </Button>

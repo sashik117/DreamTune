@@ -353,7 +353,7 @@ html:not(.dark) .app-background-layer {
 
 .capacitor-native .app-scroll .sticky[class*="bg-background"],
 .capacitor-native .fixed[class*="bg-background"] {
-  background-color: hsl(var(--background) / 0.36) !important;
+  background-color: hsl(var(--background) / 0.72) !important;
   backdrop-filter: blur(18px) saturate(1.18) !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.18) !important;
 }
@@ -896,9 +896,17 @@ html[data-theme-surface="light"] .border-border\/50 {
 .bg-background\/90,
 .bg-background\/92,
 .bg-background\/96 {
-  background-color: hsl(var(--background) / 0.38) !important;
+  background-color: hsl(var(--background) / 0.62) !important;
   backdrop-filter: blur(22px) saturate(1.25);
   -webkit-backdrop-filter: blur(22px) saturate(1.25);
+}
+
+html[data-theme-surface="light"] .bg-background\/70,
+html[data-theme-surface="light"] .bg-background\/90,
+html[data-theme-surface="light"] .bg-background\/92,
+html[data-theme-surface="light"] .bg-background\/96,
+html[data-theme-surface="light"] .bottom-navbar {
+  background-color: hsl(var(--background) / 0.88) !important;
 }
 
 .sticky[class*="bg-background"] {

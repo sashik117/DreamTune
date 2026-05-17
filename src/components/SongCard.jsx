@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, CheckSquare, Square } from 'lucide-react';
 import CoverArt from './CoverArt';
 import FavoriteButton from './FavoriteButton';
@@ -11,7 +10,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 export default function SongCard({
@@ -35,38 +34,6 @@ export default function SongCard({
   onSelectToggle,
   canFavorite = true,
 }) {
-  const [swiped, setSwiped] = useState(false);
-  const y = useMotionValue(0);
-  const opacity = useTransform(y, [-80, 0, 80], [0.5, 1, 0.5]);
-  const hintOpacityUp = useTransform(y, [-80, -30, 0], [1, 0.6, 0]);
-  const hintOpacityDown = useTransform(y, [0, 30, 80], [0, 0.6, 1]);
-
-  const handleDragEnd = (_, info) => {
-    if (selectionMode) return;
-    const threshold = 55;
-    if (info.offset.y < -threshold) {
-      if (navigator.vibrate) navigator.vibrate(30);
-      setSwiped(true);
-      setTimeout(() => {
-        setSwiped(false);
-        y.set(0);
-        onPlayNext?.(song);
-        toast.success('Грати наступною');
-      }, 350);
-    } else if (info.offset.y > threshold) {
-      if (navigator.vibrate) navigator.vibrate(30);
-      setSwiped(true);
-      setTimeout(() => {
-        setSwiped(false);
-        y.set(0);
-        onAddToQueue?.(song);
-        toast.success('Додано в чергу');
-      }, 350);
-    } else {
-      y.set(0);
-    }
-  };
-
   const addToPlaylist = async (playlist) => {
     await onAddSongsToPlaylist?.([song.id], playlist.id);
     toast.success(`Додано в "${playlist.name}"`);
@@ -84,30 +51,9 @@ export default function SongCard({
       animate={{ opacity: 1, y: 0 }}
       transition={staggerIndex !== undefined ? { delay: staggerIndex * 0.025, duration: 0.28, ease: [0.25, 1, 0.5, 1] } : {}}
     >
-      {!selectionMode && (
-        <>
-          <motion.div style={{ opacity: hintOpacityUp }}
-            className="absolute inset-0 rounded-2xl bg-primary/10 flex items-center justify-center gap-2 pointer-events-none z-0">
-            <ListStart className="w-4 h-4 text-primary" />
-            <span className="text-xs font-semibold text-primary">Грати наступною</span>
-          </motion.div>
-          <motion.div style={{ opacity: hintOpacityDown }}
-            className="absolute inset-0 rounded-2xl bg-accent/15 flex items-center justify-center gap-2 pointer-events-none z-0">
-            <ListEnd className="w-4 h-4 text-accent" />
-            <span className="text-xs font-semibold text-accent">В кінець черги</span>
-          </motion.div>
-        </>
-      )}
-
       <motion.div
-        drag={selectionMode ? false : 'y'}
-        dragConstraints={{ top: 0, bottom: 0 }}
-        dragElastic={0.28}
-        style={{ y, opacity }}
-        onDragEnd={handleDragEnd}
         whileHover={{ scale: 1.01, y: -1 }}
         whileTap={{ scale: 0.98 }}
-        animate={swiped ? { opacity: 0, scale: 0.88 } : { opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 26 }}
         className={`group relative z-10 flex items-center gap-3 px-3 sm:px-4 py-3 rounded-2xl cursor-pointer transition-shadow border
           ${selected
@@ -149,8 +95,11 @@ export default function SongCard({
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-xl">
               <div className="flex gap-0.5 items-end h-4">
                 {[60, 100, 45, 80].map((h, j) => (
-                  <div key={j} className="w-0.5 bg-white rounded-full animate-pulse"
-                    style={{ height: `${h}%`, animationDelay: `${j * 120}ms` }} />
+                  <div
+                    key={j}
+                    className="w-0.5 bg-white rounded-full animate-pulse"
+                    style={{ height: `${h}%`, animationDelay: `${j * 120}ms` }}
+                  />
                 ))}
               </div>
             </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ImagePlus, Loader2, Save, Scissors, Play, Pause, RotateCcw } from 'lucide-react';
 import { entities, storage } from '@/api/SupabaseClient';
+import { resolvePlayableAudioUrl } from '@/utils/audioUrls';
 import { toast } from 'sonner';
 
 export default function EditSongModal({ song, open, onOpenChange, onSongUpdated }) {
@@ -25,6 +26,8 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
   const fileRef = useRef(null);
   const waveformRef = useRef(null);
   const coverPointerRef = useRef(null);
+  const coverPointersRef = useRef(new Map());
+  const coverGestureRef = useRef({ startDistance: 1, startScale: 1 });
 
   const formatTime = (seconds) => {
     if (!seconds || Number.isNaN(seconds)) return '0:00';
@@ -94,10 +97,11 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     Array.from({ length: 72 }, (_, i) => Math.max(0.16, Math.min(1, 0.52 + Math.sin(i * 0.29) * 0.35 + Math.sin(i * 0.91) * 0.22)));
 
   const ensureAudioMetadata = async () => {
-    if (!song?.file_url) return 0;
-    if (!previewAudioRef.current) previewAudioRef.current = new Audio(song.file_url);
+    const playableUrl = resolvePlayableAudioUrl(song?.file_url);
+    if (!playableUrl) return 0;
+    if (!previewAudioRef.current) previewAudioRef.current = new Audio(playableUrl);
     const audio = previewAudioRef.current;
-    if (audio.src !== song.file_url) audio.src = song.file_url;
+    if (audio.src !== playableUrl) audio.src = playableUrl;
     if (Number.isFinite(audio.duration) && audio.duration > 0) return audio.duration;
     return new Promise(resolve => {
       audio.addEventListener('loadedmetadata', () => resolve(audio.duration || 0), { once: true });
@@ -106,9 +110,10 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
   };
 
   const loadWaveform = async () => {
-    if (!song?.file_url) return setWaveform(buildFallbackWaveform());
+    const playableUrl = resolvePlayableAudioUrl(song?.file_url);
+    if (!playableUrl) return setWaveform(buildFallbackWaveform());
     try {
-      const response = await fetch(song.file_url);
+      const response = await fetch(playableUrl);
       const buffer = await response.arrayBuffer();
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
@@ -193,8 +198,11 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     const duration = audioDuration || await ensureAudioMetadata();
     if (!duration) return;
     const [start, end] = trimRange;
-    if (!previewAudioRef.current) previewAudioRef.current = new Audio(song.file_url);
+    const playableUrl = resolvePlayableAudioUrl(song?.file_url);
+    if (!playableUrl) return;
+    if (!previewAudioRef.current) previewAudioRef.current = new Audio(playableUrl);
     const audio = previewAudioRef.current;
+    if (audio.src !== playableUrl) audio.src = playableUrl;
 
     if (previewing) {
       audio.pause();
@@ -239,13 +247,19 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     setCoverPreview(URL.createObjectURL(file));
   };
 
-  const updateCoverPosition = (event) => {
+  const updateCoverPosition = (clientX, clientY) => {
     const rect = coverPointerRef.current?.getBoundingClientRect();
     if (!rect) return;
     setCoverPosition({
-      x: Math.round(Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))),
-      y: Math.round(Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))),
+      x: Math.round(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100))),
+      y: Math.round(Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100))),
     });
+  };
+
+  const getCoverDistance = () => {
+    const points = Array.from(coverPointersRef.current.values());
+    if (points.length < 2) return 1;
+    return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y) || 1;
   };
 
   const handleCoverPointerDown = (event) => {
@@ -253,11 +267,34 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
       fileRef.current?.click();
       return;
     }
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
-    updateCoverPosition(event);
-    const move = (moveEvent) => updateCoverPosition(moveEvent);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    coverPointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (coverPointersRef.current.size >= 2) {
+      coverGestureRef.current = { startDistance: getCoverDistance(), startScale: coverScale };
+      return;
+    }
+    updateCoverPosition(event.clientX, event.clientY);
+  };
+
+  const handleCoverPointerMove = (event) => {
+    if (!coverPointersRef.current.has(event.pointerId)) return;
+    event.preventDefault();
+    coverPointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (coverPointersRef.current.size >= 2) {
+      const ratio = getCoverDistance() / (coverGestureRef.current.startDistance || 1);
+      setCoverScale(Number(Math.max(1, Math.min(2.8, coverGestureRef.current.startScale * ratio)).toFixed(2)));
+      return;
+    }
+    updateCoverPosition(event.clientX, event.clientY);
+  };
+
+  const handleCoverPointerEnd = (event) => {
+    coverPointersRef.current.delete(event.pointerId);
+    if (coverPointersRef.current.size >= 2) {
+      coverGestureRef.current = { startDistance: getCoverDistance(), startScale: coverScale };
+    }
   };
 
   const handleSave = async () => {
@@ -311,6 +348,9 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
               <div
                 ref={coverPointerRef}
                 onPointerDown={handleCoverPointerDown}
+                onPointerMove={handleCoverPointerMove}
+                onPointerUp={handleCoverPointerEnd}
+                onPointerCancel={handleCoverPointerEnd}
                 onDoubleClick={() => fileRef.current?.click()}
                 className="w-28 h-28 rounded-2xl overflow-hidden bg-secondary border-2 border-dashed border-border cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors flex items-center justify-center relative touch-none"
               >
@@ -341,7 +381,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
               <input ref={fileRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
               {coverPreview && <p className="mt-2 text-[10px] text-muted-foreground">{'\u041f\u0435\u0440\u0435\u0442\u044f\u0433\u043d\u0438 \u0442\u043e\u0447\u043a\u0443 \u043f\u043e \u0444\u043e\u0442\u043e'}</p>}
               {coverPreview && (
-                <div className="mt-2 space-y-1">
+                <div className="hidden">
                   <Label className="text-[10px] text-muted-foreground">{'\u041c\u0430\u0441\u0448\u0442\u0430\u0431'}</Label>
                   <input
                     type="range"

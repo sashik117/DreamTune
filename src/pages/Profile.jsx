@@ -29,10 +29,13 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import CoverArt from '../components/CoverArt';
+import ImageCropBox from '../components/ImageCropBox';
+import { cropImageToDataUrl, dataUrlToFile } from '../utils/imageCrop';
 import { useTranslation } from 'react-i18next';
 import i18n, { supportedLanguages } from '../i18n';
 
@@ -77,6 +80,26 @@ const BACKGROUNDS = [
   { key: 'wine', name: '\u0412\u0438\u043d\u043d\u0438\u0439', preview: 'radial-gradient(circle at 18% 0%,#e11d4866,transparent 35%),radial-gradient(circle at 82% 18%,#7f1d1d66,transparent 35%),linear-gradient(145deg,#140407,#2a0f14)' },
   { key: 'deepsea', name: '\u0413\u043b\u0438\u0431\u0438\u043d\u0430', preview: 'radial-gradient(circle at 84% 8%,#0ea5e966,transparent 35%),radial-gradient(circle at 12% 18%,#14b8a666,transparent 35%),linear-gradient(145deg,#021018,#08202d)' },
 ];
+
+const ACCENT_BACKGROUNDS = {
+  rose: 'pastel-rose',
+  violet: 'pastel-lilac',
+  blue: 'pastel-sky',
+  ruby: 'pastel-peach',
+  mint: 'pastel-mint',
+  peach: 'pastel-peach',
+  ice: 'light-sky',
+  gold: 'pastel-peach',
+  graphite: 'noir',
+  sage: 'pastel-mint',
+  velvet: 'velvet',
+  burgundy: 'wine',
+  midnight: 'midnight',
+  ember: 'sunset',
+  neon: 'cyber',
+  citrus: 'pastel-mint',
+  berry: 'pastel-lilac',
+};
 
 const TITLES = {
   profile: 'profile.title',
@@ -149,6 +172,12 @@ export default function Profile({
   const [nicknameDraft, setNicknameDraft] = useState(profileNickname);
   const [localProfileNickname, setLocalProfileNickname] = useState(profileNickname || currentUser?.nickname || 'DreamTune');
   const [localProfileAvatar, setLocalProfileAvatar] = useState(profileAvatar || '');
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [avatarDraft, setAvatarDraft] = useState(profileAvatar || '');
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPosition, setAvatarPosition] = useState({ x: 50, y: 50 });
+  const [avatarScale, setAvatarScale] = useState(1);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [language, setLanguage] = useState(() => i18n.resolvedLanguage || localStorage.getItem('dreamtune-language') || 'en');
   const avatarInputRef = useRef(null);
@@ -369,26 +398,52 @@ export default function Profile({
     reader.readAsDataURL(file);
   });
 
+  const openAvatarEditor = () => {
+    setAvatarDraft(localProfileAvatar || '');
+    setAvatarFile(null);
+    setAvatarPosition({ x: 50, y: 50 });
+    setAvatarScale(1);
+    setAvatarEditorOpen(true);
+  };
+
   const handleAvatarSelect = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
       const previewUrl = await imageFileToDataUrl(file);
-      setLocalProfileAvatar(previewUrl);
-      onProfileAvatarChange?.(previewUrl);
-      try {
-        const publicUrl = await storage.uploadFile(file, 'avatars');
-        setLocalProfileAvatar(publicUrl);
-        onProfileAvatarChange?.(publicUrl);
-        await auth.updateProfile?.({ avatar_url: publicUrl });
-      } catch {
-        await auth.updateProfile?.({ avatar_url: previewUrl }).catch(() => {});
-      }
+      setAvatarFile(file);
+      setAvatarDraft(previewUrl);
     } catch (error) {
       console.error(error);
       toast.error('Не вийшло відкрити фото');
     } finally {
       event.target.value = '';
+    }
+  };
+
+  const saveAvatar = async () => {
+    if (!avatarDraft) return avatarInputRef.current?.click();
+    setSavingAvatar(true);
+    try {
+      const cropped = await cropImageToDataUrl(avatarDraft, avatarPosition, avatarScale);
+      setLocalProfileAvatar(cropped);
+      onProfileAvatarChange?.(cropped);
+      try {
+        const uploadFile = await dataUrlToFile(cropped, avatarFile?.name || 'avatar.jpg');
+        const publicUrl = await storage.uploadFile(uploadFile, 'avatars');
+        setLocalProfileAvatar(publicUrl);
+        onProfileAvatarChange?.(publicUrl);
+        await auth.updateProfile?.({ avatar_url: publicUrl });
+      } catch {
+        await auth.updateProfile?.({ avatar_url: cropped }).catch(() => {});
+      }
+      setAvatarEditorOpen(false);
+      toast.success('Аватарку оновлено');
+    } catch (error) {
+      console.error(error);
+      toast.error('Не вийшло зберегти фото');
+    } finally {
+      setSavingAvatar(false);
     }
   };
 
@@ -428,6 +483,13 @@ export default function Profile({
     if (mode === 'custom') {
       if (!themeBackground || ['aurora', 'nebula'].includes(themeBackground)) onThemeBackgroundChange('pastel-lilac');
       setShowBackgrounds(true);
+    }
+  };
+
+  const chooseAccent = (accent) => {
+    onThemeAccentChange?.(accent);
+    if (localThemeMode === 'custom' && themeBackground !== 'photo') {
+      onThemeBackgroundChange?.(ACCENT_BACKGROUNDS[accent] || 'pastel-lilac');
     }
   };
 
@@ -507,7 +569,7 @@ export default function Profile({
         <>
           <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl border border-border bg-card/95 p-5 shadow-lg shadow-primary/10">
             <div className="flex items-center gap-5">
-              <button type="button" onClick={() => avatarInputRef.current?.click()} className="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden shrink-0">
+              <button type="button" onClick={openAvatarEditor} className="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/25 overflow-hidden shrink-0">
                 {localProfileAvatar ? <img src={localProfileAvatar} alt="" className="w-full h-full object-cover" /> : <UserCircle className="w-11 h-11 text-white" />}
                 <span className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center">
                   <Camera className="w-3.5 h-3.5 text-primary" />
@@ -556,6 +618,34 @@ export default function Profile({
           </section>
         </>
       )}
+
+      <Dialog open={avatarEditorOpen} onOpenChange={setAvatarEditorOpen}>
+        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto">
+          <DialogHeader>
+            <DialogTitle>Аватарка</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <ImageCropBox
+              preview={avatarDraft}
+              position={avatarPosition}
+              scale={avatarScale}
+              onPositionChange={setAvatarPosition}
+              onScaleChange={setAvatarScale}
+              onPick={() => avatarInputRef.current?.click()}
+              emptyLabel="Додати фото"
+              className="mx-auto w-full max-w-[220px] rounded-full"
+              marker={false}
+            />
+            {avatarDraft && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
+            <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} className="w-full rounded-2xl border-border">
+              <Camera className="w-4 h-4 mr-2" /> Вибрати фото
+            </Button>
+            <Button onClick={saveAvatar} disabled={savingAvatar || !avatarDraft} className="w-full rounded-2xl">
+              {savingAvatar ? 'Збереження...' : 'Зберегти'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {section === 'friends' && (
         <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-4">
@@ -760,7 +850,7 @@ export default function Profile({
             {showPalettes && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {ACCENTS.map(theme => (
-                  <button key={theme.key} onClick={() => onThemeAccentChange(theme.key)} className={`rounded-2xl border p-2 text-left transition ${themeAccent === theme.key ? 'border-primary bg-primary/10 ring-2 ring-primary/25' : 'border-border bg-secondary/70'}`}>
+                  <button key={theme.key} onClick={() => chooseAccent(theme.key)} className={`rounded-2xl border p-2 text-left transition ${themeAccent === theme.key ? 'border-primary bg-primary/10 ring-2 ring-primary/25' : 'border-border bg-secondary/70'}`}>
                     <div className="h-14 rounded-xl mb-2" style={{ background: `linear-gradient(135deg, hsl(${theme.primary}), hsl(${theme.accent}))` }} />
                     <p className="text-sm font-bold text-foreground">{theme.name}</p>
                   </button>

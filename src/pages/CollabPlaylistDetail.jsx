@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import SongCard from '../components/SongCard';
 import { cacheAudio } from '../utils/audioCache';
+import ImageCropBox from '@/components/ImageCropBox';
 
 export default function CollabPlaylistDetail({
   playlist: initialPlaylist,
@@ -37,7 +38,6 @@ export default function CollabPlaylistDetail({
   const [coverScale, setCoverScale] = useState(Number(initialPlaylist.cover_scale || 1));
   const [savingCover, setSavingCover] = useState(false);
   const coverInputRef = useRef(null);
-  const coverBoxRef = useRef(null);
   const previousSongIdsRef = useRef((initialPlaylist.song_ids || []).map(String));
 
   const playlistSongs = (playlist.song_ids || [])
@@ -197,27 +197,7 @@ export default function CollabPlaylistDetail({
     if (!file) return;
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
-  };
-
-  const updateCoverPosition = (event) => {
-    const rect = coverBoxRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setCoverPosition({
-      x: Math.round(Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100))),
-      y: Math.round(Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))),
-    });
-  };
-
-  const handleCoverPointerDown = (event) => {
-    if (!coverPreview) {
-      coverInputRef.current?.click();
-      return;
-    }
-    event.preventDefault();
-    updateCoverPosition(event);
-    const move = (moveEvent) => updateCoverPosition(moveEvent);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true });
+    event.target.value = '';
   };
 
   const openCoverEditor = () => {
@@ -459,42 +439,21 @@ export default function CollabPlaylistDetail({
             <DialogTitle>{'\u041e\u0431\u043a\u043b\u0430\u0434\u0438\u043d\u043a\u0430 \u043f\u043b\u0435\u0439\u043b\u0438\u0441\u0442\u0430'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div
-              ref={coverBoxRef}
-              onPointerDown={handleCoverPointerDown}
-              className="relative h-40 w-full cursor-grab touch-none overflow-hidden rounded-3xl border-2 border-dashed border-border bg-secondary flex items-center justify-center"
-            >
-              {coverPreview ? (
-                <>
-                  <img
-                    src={coverPreview}
-                    alt=""
-                    className="h-full w-full object-cover pointer-events-none"
-                    style={{
-                      objectPosition: `${coverPosition.x}% ${coverPosition.y}%`,
-                      transform: `scale(${coverScale})`,
-                      transformOrigin: `${coverPosition.x}% ${coverPosition.y}%`,
-                    }}
-                  />
-                  <div className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-lg" style={{ left: `${coverPosition.x}%`, top: `${coverPosition.y}%` }} />
-                </>
-              ) : (
-                <div className="text-center text-muted-foreground">
-                  <ImagePlus className="mx-auto mb-2 h-8 w-8" />
-                  <p className="text-xs font-bold">{'\u0414\u043e\u0434\u0430\u0442\u0438 \u0444\u043e\u0442\u043e'}</p>
-                </div>
-              )}
-            </div>
+            <ImageCropBox
+              preview={coverPreview}
+              position={coverPosition}
+              scale={coverScale}
+              onPositionChange={setCoverPosition}
+              onScaleChange={setCoverScale}
+              onPick={() => coverInputRef.current?.click()}
+              emptyLabel="Додати фото"
+              className="mx-auto w-full max-w-[240px] rounded-3xl"
+            />
             <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
             <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()} className="w-full rounded-2xl border-border">
               <ImagePlus className="w-4 h-4 mr-2" /> {'\u0412\u0438\u0431\u0440\u0430\u0442\u0438 \u0444\u043e\u0442\u043e'}
             </Button>
-            {coverPreview && (
-              <div className="space-y-1">
-                <p className="text-[11px] text-muted-foreground">{'\u041f\u0435\u0440\u0435\u0442\u044f\u0433\u043d\u0438 \u0444\u043e\u0442\u043e \u0456 \u0437\u043c\u0456\u043d\u0438 \u043c\u0430\u0441\u0448\u0442\u0430\u0431'}</p>
-                <input type="range" min="1" max="2.4" step="0.05" value={coverScale} onChange={event => setCoverScale(Number(event.target.value))} className="w-full accent-primary" />
-              </div>
-            )}
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
             <Button onClick={saveCover} disabled={savingCover} className="w-full rounded-2xl">
               {savingCover ? '\u0417\u0431\u0435\u0440\u0456\u0433\u0430\u044e...' : '\u0417\u0431\u0435\u0440\u0435\u0433\u0442\u0438'}
             </Button>
