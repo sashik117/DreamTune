@@ -73,6 +73,14 @@ ALTER TABLE songs ADD COLUMN IF NOT EXISTS cover_scale double precision NOT NULL
 ALTER TABLE songs ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES users(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS songs_user_id_created_at_idx ON songs(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS youtube_cache (
+  video_id text PRIMARY KEY,
+  file_url text NOT NULL,
+  cover_url text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS playlists (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES users(id) ON DELETE CASCADE,
@@ -172,6 +180,11 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS songs_touch_updated_at ON songs;
 CREATE TRIGGER songs_touch_updated_at
 BEFORE UPDATE ON songs
+FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+DROP TRIGGER IF EXISTS youtube_cache_touch_updated_at ON youtube_cache;
+CREATE TRIGGER youtube_cache_touch_updated_at
+BEFORE UPDATE ON youtube_cache
 FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 DROP TRIGGER IF EXISTS users_touch_updated_at ON users;

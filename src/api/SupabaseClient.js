@@ -53,10 +53,11 @@ function emitLocalEntityChange(event) {
 }
 
 async function request(path, options = {}) {
+  const { timeoutMs: requestTimeoutMs, ...fetchOptions } = options;
   const token = getAuthToken();
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const controller = new AbortController();
-  const timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_MS || 30000);
+  const timeoutMs = Number(requestTimeoutMs || import.meta.env.VITE_API_TIMEOUT_MS || 30000);
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   let wakeShown = false;
   const wakeTimer = typeof window !== 'undefined'
@@ -68,12 +69,12 @@ async function request(path, options = {}) {
 
   try {
     const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      signal: options.signal || controller.signal,
+      ...fetchOptions,
+      signal: fetchOptions.signal || controller.signal,
       headers: {
-        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
 
@@ -315,6 +316,7 @@ export const media = {
     return request('/api/youtube/download', {
       method: 'POST',
       body: JSON.stringify({ videoId }),
+      timeoutMs: Number(import.meta.env.VITE_YOUTUBE_DOWNLOAD_TIMEOUT_MS || 180000),
     });
   },
   async getSpotifyPlaylist(url) {

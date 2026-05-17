@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Search, Music, AlertCircle, ExternalLink, CheckCircle2, PlayCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
+import { downloadSong } from '@/utils/audioCache';
 import { toast } from 'sonner';
 import { repairMojibake } from '@/utils/text';
 
@@ -45,9 +46,9 @@ async function fetchJson(url, timeout = 9000) {
 
 async function searchYouTubeDirect(query) {
   const pipedInstances = [
-    'https://pipedapi.adminforge.de',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.adminforge.de',
     'https://pipedapi.syncpundit.io',
   ];
   for (const base of pipedInstances) {
@@ -74,11 +75,11 @@ async function searchYouTubeDirect(query) {
   }
 
   const invidiousInstances = [
-    'https://yewtu.be',
+    'https://inv.thepixora.com',
+    'https://yt.chocolatemoo53.com',
     'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
     'https://invidious.nerdvpn.de',
-    'https://iv.datura.network',
+    'https://yewtu.be',
   ];
   for (const base of invidiousInstances) {
     try {
@@ -127,9 +128,9 @@ async function searchYouTubeDirect(query) {
 
 async function resolveDirectAudioUrl(videoId) {
   const pipedInstances = [
-    'https://pipedapi.adminforge.de',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.adminforge.de',
     'https://pipedapi.syncpundit.io',
   ];
   for (const base of pipedInstances) {
@@ -143,11 +144,11 @@ async function resolveDirectAudioUrl(videoId) {
   }
 
   const invidiousInstances = [
-    'https://yewtu.be',
+    'https://inv.thepixora.com',
+    'https://yt.chocolatemoo53.com',
     'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
     'https://invidious.nerdvpn.de',
-    'https://iv.datura.network',
+    'https://yewtu.be',
   ];
   for (const base of invidiousInstances) {
     try {
@@ -285,8 +286,11 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       });
 
       fetchLyrics(artist, title, song.id);
+      const offlineSaved = await downloadSong(song, () => {});
 
-      toast.success('\u041f\u0456\u0441\u043d\u044e \u0434\u043e\u0434\u0430\u043d\u043e!');
+      toast.success(offlineSaved
+        ? '\u041f\u0456\u0441\u043d\u044e \u0434\u043e\u0434\u0430\u043d\u043e \u0456 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043e \u043e\u0444\u043b\u0430\u0439\u043d!'
+        : '\u041f\u0456\u0441\u043d\u044e \u0434\u043e\u0434\u0430\u043d\u043e, \u0430\u043b\u0435 \u043e\u0444\u043b\u0430\u0439\u043d-\u043a\u043e\u043f\u0456\u044e \u043d\u0435 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043e.');
       onSongAdded(song);
       onClose();
     } catch (err) {

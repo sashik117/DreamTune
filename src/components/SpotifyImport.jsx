@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
+import { downloadSong } from '@/utils/audioCache';
 import { toast } from 'sonner';
 
 async function fetchSpotifyTracks(playlistUrl) {
@@ -27,7 +28,7 @@ async function fetchJson(url, timeout = 9000) {
 }
 
 async function searchYouTubeDirect(query) {
-  const bases = ['https://pipedapi.adminforge.de', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.syncpundit.io'];
+  const bases = ['https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
   for (const base of bases) {
     try {
       const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
@@ -39,7 +40,7 @@ async function searchYouTubeDirect(query) {
       if (found.length) return found;
     } catch {}
   }
-  const invidious = ['https://yewtu.be', 'https://inv.nadeko.net', 'https://invidious.fdn.fr', 'https://invidious.nerdvpn.de', 'https://iv.datura.network'];
+  const invidious = ['https://inv.thepixora.com', 'https://yt.chocolatemoo53.com', 'https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be'];
   for (const base of invidious) {
     try {
       const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
@@ -67,7 +68,7 @@ async function searchYouTubeDirect(query) {
 }
 
 async function resolveDirectAudioUrl(videoId) {
-  const bases = ['https://pipedapi.adminforge.de', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.syncpundit.io'];
+  const bases = ['https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
   for (const base of bases) {
     try {
       const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
@@ -75,7 +76,7 @@ async function resolveDirectAudioUrl(videoId) {
       if (audio?.url) return audio.url;
     } catch {}
   }
-  const invidious = ['https://yewtu.be', 'https://inv.nadeko.net', 'https://invidious.fdn.fr', 'https://invidious.nerdvpn.de', 'https://iv.datura.network'];
+  const invidious = ['https://inv.thepixora.com', 'https://yt.chocolatemoo53.com', 'https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be'];
   for (const base of invidious) {
     try {
       const data = await fetchJson(`${base}/api/v1/videos/${videoId}`, 10000);
@@ -338,6 +339,8 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
         added.push(song);
         playlistSongIds.push(song.id);
         onSongsAdded?.([song]);
+        updateRow(index, { status: 'loading', message: '\u0417\u0431\u0435\u0440\u0456\u0433\u0430\u044e \u043e\u0444\u043b\u0430\u0439\u043d-\u043a\u043e\u043f\u0456\u044e...' });
+        const offlineSaved = await downloadSong(song, () => {});
         if (targetPlaylist) {
           const updatedPlaylist = await entities.Playlist.update(targetPlaylist.id, {
             song_ids: playlistSongIds,
@@ -346,7 +349,13 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
           targetPlaylist = { ...targetPlaylist, ...updatedPlaylist };
           onPlaylistUpdated?.(targetPlaylist);
         }
-        updateRow(index, { status: 'done', message: 'Додано', cover_url: audio.spotifyCoverUrl || audio.coverUrl });
+        updateRow(index, {
+          status: 'done',
+          message: offlineSaved
+            ? '\u0414\u043e\u0434\u0430\u043d\u043e \u043e\u0444\u043b\u0430\u0439\u043d'
+            : '\u0414\u043e\u0434\u0430\u043d\u043e, \u043e\u0444\u043b\u0430\u0439\u043d \u043d\u0435 \u0437\u0431\u0435\u0440\u0435\u0433\u043b\u043e\u0441\u044f',
+          cover_url: audio.spotifyCoverUrl || audio.coverUrl,
+        });
 
         ;(async () => {
           try {

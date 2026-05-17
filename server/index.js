@@ -339,6 +339,13 @@ async function sendVerificationEmail({ email, nickname, code }) {
   }
 }
 
+function extractYouTubeVideoId(input) {
+  const value = String(input || '').trim();
+  return value.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/)?.[1]
+    || value.match(/^[\w-]{11}$/)?.[0]
+    || '';
+}
+
 async function getSessionUser(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -1395,11 +1402,42 @@ async function searchYouTubeByPage(query, limit = 6) {
   return entries.filter(entry => entry.video_id);
 }
 
+async function getYouTubeOembedEntry(videoId, fallbackTitle = '') {
+  const fallback = {
+    title: fallbackTitle || `YouTube ${videoId}`,
+    artist: 'YouTube',
+    uploader: 'YouTube',
+    video_id: videoId,
+    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    duration: null,
+  };
+  try {
+    const response = await withTimeout(
+      fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}`, {
+        headers: { 'user-agent': 'Mozilla/5.0 DreamTune/1.0' },
+      }),
+      4500,
+      'YouTube oEmbed timed out'
+    );
+    if (!response.ok) return fallback;
+    const meta = await response.json();
+    return {
+      ...fallback,
+      title: repairMojibake(meta.title || fallback.title),
+      artist: repairMojibake(meta.author_name || fallback.artist),
+      uploader: repairMojibake(meta.author_name || fallback.uploader),
+      thumbnail: meta.thumbnail_url || fallback.thumbnail,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 async function searchYouTubeViaPiped(query, limit = 6) {
   const instances = [
-    'https://pipedapi.adminforge.de',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.adminforge.de',
     'https://pipedapi.syncpundit.io',
   ];
 
@@ -1445,11 +1483,11 @@ async function searchYouTubeViaPiped(query, limit = 6) {
 
 async function searchYouTubeViaInvidious(query, limit = 6) {
   const instances = [
-    'https://yewtu.be',
+    'https://inv.thepixora.com',
+    'https://yt.chocolatemoo53.com',
     'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
     'https://invidious.nerdvpn.de',
-    'https://iv.datura.network',
+    'https://yewtu.be',
   ];
 
   for (const base of instances) {
@@ -1638,11 +1676,11 @@ async function downloadYouTubeFromPipedOrInvidious(videoId, dir, baseName) {
   }
 
   const invidiousInstances = [
-    'https://yewtu.be',
+    'https://inv.thepixora.com',
+    'https://yt.chocolatemoo53.com',
     'https://inv.nadeko.net',
-    'https://invidious.fdn.fr',
     'https://invidious.nerdvpn.de',
-    'https://iv.datura.network',
+    'https://yewtu.be',
   ];
   for (const base of invidiousInstances) {
     try {
@@ -1720,6 +1758,12 @@ app.get('/api/youtube/search', async (req, res, next) => {
     if (!query) return res.status(400).json({ error: 'Query is required' });
 
     const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 10);
+    const directVideoId = extractYouTubeVideoId(query);
+    if (directVideoId) {
+      const entry = await getYouTubeOembedEntry(directVideoId, query);
+      return res.json({ results: [entry], ...entry });
+    }
+
     let info;
     try {
       info = await withTimeout(
@@ -1810,6 +1854,15 @@ app.post('/api/youtube/download', async (req, res, next) => {
     const videoId = String(req.body.videoId || '').trim();
     if (!/^[\w-]{11}$/.test(videoId)) return res.status(400).json({ error: 'Valid videoId is required' });
 
+    const cached = await pool.query('SELECT file_url, cover_url FROM youtube_cache WHERE video_id = $1 LIMIT 1', [videoId]);
+    if (cached.rows[0]?.file_url) {
+      return res.json({
+        file_url: cached.rows[0].file_url,
+        cover_url: cached.rows[0].cover_url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        cached: true,
+      });
+    }
+
     const dir = path.join(mediaRoot, 'youtube');
     await fs.mkdir(dir, { recursive: true });
     const baseName = `${Date.now()}-${videoId}`;
@@ -1820,7 +1873,7 @@ app.post('/api/youtube/download', async (req, res, next) => {
     try {
       await youtubedl(`https://www.youtube.com/watch?v=${videoId}`, {
         output: outputTemplate,
-        format: 'bestaudio/best',
+        format: 'bestaudio[ext=m4a]/bestaudio/best',
         noPlaylist: true,
         noWarnings: true,
         restrictFilenames: true,
@@ -1831,7 +1884,6 @@ app.post('/api/youtube/download', async (req, res, next) => {
         socketTimeout: 15,
         retries: 2,
         fragmentRetries: 2,
-        extractorArgs: 'youtube:player_client=web',
       });
 
       const files = await fs.readdir(dir);
@@ -1860,18 +1912,33 @@ app.post('/api/youtube/download', async (req, res, next) => {
       downloadedFile = path.basename(filePath);
     }
 
+    const coverUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
     if (CLOUDINARY_ENABLED) {
       const fileUrl = await uploadToCloudinary(filePath, 'youtube', downloadedFile);
       await removeTempFile(filePath);
+      await pool.query(
+        `INSERT INTO youtube_cache (video_id, file_url, cover_url)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (video_id) DO UPDATE SET file_url = EXCLUDED.file_url, cover_url = EXCLUDED.cover_url`,
+        [videoId, fileUrl, coverUrl]
+      );
       return res.json({
         file_url: fileUrl,
-        cover_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        cover_url: coverUrl,
       });
     }
 
+    const fileUrl = `${PUBLIC_BASE_URL}/media/youtube/${downloadedFile}`;
+    await pool.query(
+      `INSERT INTO youtube_cache (video_id, file_url, cover_url)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (video_id) DO UPDATE SET file_url = EXCLUDED.file_url, cover_url = EXCLUDED.cover_url`,
+      [videoId, fileUrl, coverUrl]
+    );
     res.json({
-      file_url: `${PUBLIC_BASE_URL}/media/youtube/${downloadedFile}`,
-      cover_url: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      file_url: fileUrl,
+      cover_url: coverUrl,
     });
   } catch (err) {
     next(err);
