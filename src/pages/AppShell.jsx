@@ -14,6 +14,7 @@ import ProfileDrawer from '../components/ProfileDrawer';
 import { UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { downloadSong, getDownloadedSongsMeta } from '../utils/audioCache';
+import { queueBrokenSongRepairs } from '../utils/audioRepair';
 import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads } from '../utils/nativeYouTube';
 import { toast } from 'sonner';
 
@@ -40,6 +41,7 @@ export default function AppShell() {
   const [collabDetailOpen, setCollabDetailOpen] = useState(false);
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const playlistsRef = useRef([]);
+  const staleAudioRepairStartedRef = useRef(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -328,6 +330,7 @@ export default function AppShell() {
     try {
       const data = await entities.Song.list();
       setSongs(data);
+      scheduleStaleAudioRepair(data);
     } catch (err) {
       console.error('Failed to load songs:', err);
       if (!navigator.onLine) {
@@ -338,6 +341,18 @@ export default function AppShell() {
       setLoading(false);
     }
   };
+
+  const scheduleStaleAudioRepair = useCallback((librarySongs) => {
+    if (staleAudioRepairStartedRef.current || !canUseNativeYouTube() || !librarySongs?.length) return;
+    staleAudioRepairStartedRef.current = true;
+    queueBrokenSongRepairs(librarySongs)
+      .then(({ queued }) => {
+        if (queued > 0) toast.success(`Repairing ${queued} old tracks in the background`);
+        return;
+        if (queued > 0) toast.success(`Відновлюю ${queued} старих треків у фоні`);
+      })
+      .catch((error) => console.warn('Stale audio repair check failed:', error));
+  }, []);
 
   const loadPlaylists = async () => {
     try {
@@ -433,6 +448,7 @@ export default function AppShell() {
     const createdSongs = [];
     const playlistAdds = new Map();
     let failedCount = 0;
+    let repairedCount = 0;
 
     for (const item of completed) {
       if (item.status !== 'done' || !item.file_url) {
@@ -442,6 +458,21 @@ export default function AppShell() {
       }
 
       try {
+        if (item.repair && item.songId) {
+          const fileUrl = item.native_file_url || item.file_url;
+          const updatedSong = await entities.Song.update(item.songId, { file_url: fileUrl });
+          const repairedSong = {
+            ...updatedSong,
+            file_url: fileUrl,
+            cover_url: updatedSong.cover_url || item.cover_url || item.coverUrl || '',
+          };
+          await downloadSong(repairedSong, () => {});
+          setSongs(prev => prev.map(song => song.id === item.songId ? { ...song, ...repairedSong } : song));
+          repairedCount++;
+          if (item.id) processedIds.push(item.id);
+          continue;
+        }
+
         const song = await entities.Song.create({
           title: item.title || 'YouTube track',
           artist: item.artist || '',
@@ -482,6 +513,7 @@ export default function AppShell() {
       handleSongsAdded(createdSongs);
       toast.success(`Фоново додано ${createdSongs.length} треків`);
     }
+    if (repairedCount) toast.success(`Відновлено ${repairedCount} старих треків`);
     if (failedCount) toast.error(`Не вдалось скачати ${failedCount} треків у фоні`);
     if (processedIds.length) await clearCompletedYouTubeDownloads(processedIds);
   }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded]);

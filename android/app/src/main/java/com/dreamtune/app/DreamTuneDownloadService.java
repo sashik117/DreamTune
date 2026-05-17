@@ -21,12 +21,15 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class DreamTuneDownloadService extends Service {
     public static final String ACTION_QUEUE = "com.dreamtune.app.download.QUEUE";
     private static final String CHANNEL_ID = "dreamtune_downloads";
+    private static final String RESULT_CHANNEL_ID = "dreamtune_download_results";
     private static final String PREFS = "dreamtune-native-youtube";
     private static final String QUEUE_KEY = "download_queue";
     private static final String COMPLETED_KEY = "download_completed";
@@ -50,7 +53,9 @@ public class DreamTuneDownloadService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        publish("Preparing background downloads", true);
         publish("Готую фонове скачування", true);
+        publish("Preparing background downloads", true);
         if (intent != null && ACTION_QUEUE.equals(intent.getAction())) {
             appendQueue(intent.getStringExtra("items"));
         }
@@ -88,24 +93,34 @@ public class DreamTuneDownloadService extends Service {
 
                 String title = item.optString("title", "DreamTune");
                 String artist = item.optString("artist", "");
+                publish("Downloading: " + formatTrackLabel(title, artist), false);
                 publish((artist.isEmpty() ? title : artist + " - " + title), false);
 
+                publish("Downloading: " + formatTrackLabel(title, artist), false);
+
                 JSONObject completed = new JSONObject(item.toString());
+                boolean success = false;
+                String errorMessage = "";
                 try {
                     File downloaded = downloadItem(item);
                     completed.put("status", "done");
                     completed.put("file_url", Uri.fromFile(downloaded).toString());
                     completed.put("file_name", downloaded.getName());
                     completed.put("size", downloaded.length());
+                    success = true;
                 } catch (Exception error) {
                     cleanupPartialFiles(item.optString("videoId", ""));
                     completed.put("status", "failed");
-                    completed.put("error", error.getMessage() != null ? error.getMessage() : "Download failed");
+                    errorMessage = error.getMessage() != null ? error.getMessage() : "Download failed";
+                    completed.put("error", errorMessage);
                 }
 
                 appendCompleted(completed);
+                notifyTrackFinished(title, artist, success, errorMessage);
                 batchDone++;
+                publish("Downloaded " + batchDone + " of " + Math.max(batchTotal, batchDone), false);
                 publish("Завантажено " + batchDone + " з " + Math.max(batchTotal, batchDone), false);
+                publish("Downloaded " + batchDone + " of " + Math.max(batchTotal, batchDone), false);
             }
         } catch (Exception error) {
             appendServiceError(error);
@@ -209,10 +224,36 @@ public class DreamTuneDownloadService extends Service {
         try {
             JSONArray current = getQueue();
             JSONArray incoming = new JSONArray(json);
-            for (int i = 0; i < incoming.length(); i++) current.put(incoming.getJSONObject(i));
-            if (workerRunning) batchTotal += incoming.length();
+            Set<String> queuedKeys = new HashSet<>();
+            for (int i = 0; i < current.length(); i++) {
+                JSONObject item = current.optJSONObject(i);
+                String key = queueIdentity(item);
+                if (!key.isEmpty()) queuedKeys.add(key);
+            }
+
+            int added = 0;
+            for (int i = 0; i < incoming.length(); i++) {
+                JSONObject item = incoming.getJSONObject(i);
+                String key = queueIdentity(item);
+                if (!key.isEmpty() && queuedKeys.contains(key)) continue;
+                current.put(item);
+                if (!key.isEmpty()) queuedKeys.add(key);
+                added++;
+            }
+            if (workerRunning) batchTotal += added;
             saveArray(QUEUE_KEY, current);
         } catch (Exception ignored) {}
+    }
+
+    private String queueIdentity(JSONObject item) {
+        if (item == null) return "";
+        String songId = item.optString("songId", "").trim();
+        if (!songId.isEmpty()) return "song:" + songId;
+        String id = item.optString("id", "").trim();
+        if (!id.isEmpty()) return "id:" + id;
+        String videoId = item.optString("videoId", "").trim();
+        if (!videoId.isEmpty()) return "video:" + videoId;
+        return "";
     }
 
     private synchronized JSONObject pollQueue() {
@@ -279,6 +320,42 @@ public class DreamTuneDownloadService extends Service {
         startForeground(NOTIFICATION_ID, buildNotification(text, indeterminate));
     }
 
+    private String formatTrackLabel(String title, String artist) {
+        if (artist == null || artist.trim().isEmpty()) return title != null && !title.trim().isEmpty() ? title : "DreamTune track";
+        if (title == null || title.trim().isEmpty()) return artist;
+        return artist + " - " + title;
+    }
+
+    private void notifyTrackFinished(String title, String artist, boolean success, String errorMessage) {
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+
+        PendingIntent contentIntent = PendingIntent.getActivity(
+            this,
+            0,
+            getPackageManager().getLaunchIntentForPackage(getPackageName()),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        String label = formatTrackLabel(title, artist);
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? new Notification.Builder(this, RESULT_CHANNEL_ID)
+            : new Notification.Builder(this);
+
+        builder
+            .setSmallIcon(R.drawable.ic_stat_dreamtune)
+            .setContentTitle("DreamTune is downloading")
+            .setContentTitle(success ? "DreamTune: track downloaded" : "DreamTune: download failed")
+            .setContentText(success ? label : (label + (errorMessage == null || errorMessage.isEmpty() ? "" : " - " + errorMessage)))
+            .setContentIntent(contentIntent)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(false)
+            .setShowWhen(true);
+
+        manager.notify((int) (System.currentTimeMillis() % 100000) + 2300, builder.build());
+    }
+
     private Notification buildNotification(String text, boolean indeterminate) {
         PendingIntent contentIntent = PendingIntent.getActivity(
             this,
@@ -295,6 +372,7 @@ public class DreamTuneDownloadService extends Service {
         builder
             .setSmallIcon(R.drawable.ic_stat_dreamtune)
             .setContentTitle("DreamTune качає плейлист")
+            .setContentTitle("DreamTune is downloading")
             .setContentText(text)
             .setContentIntent(contentIntent)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -316,6 +394,15 @@ public class DreamTuneDownloadService extends Service {
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(channel);
+
+        NotificationChannel resultChannel = new NotificationChannel(
+            RESULT_CHANNEL_ID,
+            "DreamTune download results",
+            NotificationManager.IMPORTANCE_DEFAULT
+        );
+        resultChannel.setDescription("Completed DreamTune download notifications");
+        resultChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        manager.createNotificationChannel(resultChannel);
     }
 
     private void stopForegroundCompat() {

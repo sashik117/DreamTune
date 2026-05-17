@@ -1,6 +1,7 @@
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from './audioCache';
-import { canUseNativeYouTube, downloadYouTubeOnDevice } from './nativeYouTube';
+import { isNativeFileUrl, resolvePlayableAudioUrl } from './audioUrls';
+import { canUseNativeYouTube, downloadYouTubeOnDevice, startYouTubeDownloadQueue } from './nativeYouTube';
 
 async function fetchJson(url, timeout = 9000) {
   const controller = new AbortController();
@@ -105,6 +106,62 @@ async function findYouTubeCandidates(song) {
   }
 
   return candidates;
+}
+
+async function canReadAudioUrl(url) {
+  const playableUrl = resolvePlayableAudioUrl(url);
+  if (!playableUrl) return false;
+
+  try {
+    const response = await fetch(playableUrl, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: { Range: 'bytes=0-0' },
+    });
+    return response.ok || response.status === 206;
+  } catch {
+    return false;
+  }
+}
+
+export async function queueBrokenSongRepairs(songs, { limit = 250 } = {}) {
+  if (!canUseNativeYouTube() || !Array.isArray(songs) || !songs.length) {
+    return { checked: 0, broken: 0, queued: 0 };
+  }
+
+  const candidates = songs
+    .filter(song => song?.id && isNativeFileUrl(song.file_url))
+    .slice(0, limit);
+  const queueItems = [];
+  let checked = 0;
+  let broken = 0;
+
+  for (const song of candidates) {
+    checked += 1;
+    const readable = await canReadAudioUrl(song.file_url);
+    if (readable) continue;
+
+    broken += 1;
+    const youtubeCandidates = await findYouTubeCandidates(song);
+    const candidate = youtubeCandidates[0];
+    if (!candidate?.video_id) continue;
+
+    queueItems.push({
+      id: `repair-${song.id}-${Date.now()}-${queueItems.length}`,
+      songId: song.id,
+      repair: true,
+      videoId: candidate.video_id,
+      title: song.title || candidate.title || 'DreamTune track',
+      artist: song.artist || '',
+      cover_url: song.cover_url || candidate.thumbnail || '',
+    });
+  }
+
+  if (queueItems.length) {
+    await startYouTubeDownloadQueue(queueItems);
+  }
+
+  return { checked, broken, queued: queueItems.length };
 }
 
 async function resolveReplacementAudio(videoId) {
