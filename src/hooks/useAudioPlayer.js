@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { getCachedAudio, cacheAudio, getDownloadedSongsMeta } from '../utils/audioCache';
+import { resolvePlayableAudioUrl } from '../utils/audioUrls';
 import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMediaSession } from '../utils/nativeMediaSession';
 import { toast } from 'sonner';
 
@@ -250,8 +251,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     initAudioChain();
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
     
+    const playableUrl = resolvePlayableAudioUrl(song.file_url);
     const cached = await getCachedAudio(song.file_url);
-    const src = cached || song.file_url;
+    const src = cached || playableUrl;
     
     // Only change src if different to avoid reload
     if (audioRef.current.src !== src) {
@@ -277,6 +279,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       setIsPlaying(true);
       updateMediaSession(song);
     } catch (e) {
+      console.warn('Audio playback failed:', { fileUrl: song.file_url, src, error: e });
       toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
       setIsPlaying(false);
     }

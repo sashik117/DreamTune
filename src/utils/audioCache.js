@@ -1,3 +1,5 @@
+import { isNativeFileUrl, resolvePlayableAudioUrl } from './audioUrls';
+
 const DB_NAME = 'MusicPlayerCache';
 const STORE_NAME = 'audioFiles';
 const META_STORE = 'cachedMeta';
@@ -22,28 +24,33 @@ function openDB() {
 
 export async function getCachedAudio(url) {
   const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).get(url);
-    req.onsuccess = () => {
-      if (req.result) resolve(URL.createObjectURL(req.result.blob));
-      else resolve(null);
-    };
-    req.onerror = () => resolve(null);
-  });
+  const keys = Array.from(new Set([url, resolvePlayableAudioUrl(url)].filter(Boolean)));
+  for (const key of keys) {
+    const cached = await new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+    if (cached?.blob) return URL.createObjectURL(cached.blob);
+  }
+  return null;
 }
 
 export async function cacheAudio(url) {
+  const playableUrl = resolvePlayableAudioUrl(url);
   try {
-    const response = await fetch(url);
-    if (!response.ok) return url;
+    const response = await fetch(playableUrl);
+    if (!response.ok) return playableUrl || url;
     const blob = await response.blob();
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put({ url, blob });
+    const store = tx.objectStore(STORE_NAME);
+    const keys = Array.from(new Set([url, playableUrl].filter(Boolean)));
+    keys.forEach(key => store.put({ url: key, blob }));
     return URL.createObjectURL(blob);
   } catch {
-    return url;
+    return playableUrl || url;
   }
 }
 
@@ -56,10 +63,6 @@ async function cacheCoverBlob(url) {
   } catch {
     return null;
   }
-}
-
-function isNativeFileUrl(url) {
-  return String(url || '').startsWith('file:') || String(url || '').includes('/_capacitor_file_');
 }
 
 async function saveOfflineSongMeta(song, coverBlob = null) {
@@ -87,18 +90,24 @@ async function saveOfflineSongMeta(song, coverBlob = null) {
 
 export async function isAudioCached(url) {
   const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const req = tx.objectStore(STORE_NAME).count(url);
-    req.onsuccess = () => resolve(req.result > 0);
-    req.onerror = () => resolve(false);
-  });
+  const keys = Array.from(new Set([url, resolvePlayableAudioUrl(url)].filter(Boolean)));
+  for (const key of keys) {
+    const cached = await new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).count(key);
+      req.onsuccess = () => resolve(req.result > 0);
+      req.onerror = () => resolve(false);
+    });
+    if (cached) return true;
+  }
+  return false;
 }
 
 // Download a song explicitly (with progress callback)
 export async function downloadSong(song, onProgress) {
+  const playableUrl = resolvePlayableAudioUrl(song.file_url);
   try {
-    const response = await fetch(song.file_url);
+    const response = await fetch(playableUrl);
     if (!response.ok) throw new Error('fetch failed');
     const total = Number(response.headers.get('Content-Length') || 0);
     const reader = response.body.getReader();
@@ -115,7 +124,9 @@ export async function downloadSong(song, onProgress) {
     const coverBlob = await cacheCoverBlob(song.cover_url);
     const db = await openDB();
     const tx = db.transaction([STORE_NAME, META_STORE], 'readwrite');
-    tx.objectStore(STORE_NAME).put({ url: song.file_url, blob });
+    const audioStore = tx.objectStore(STORE_NAME);
+    const keys = Array.from(new Set([song.file_url, playableUrl].filter(Boolean)));
+    keys.forEach(key => audioStore.put({ url: key, blob }));
     tx.objectStore(META_STORE).put({
       songId: song.id,
       id: song.id,
@@ -137,7 +148,7 @@ export async function downloadSong(song, onProgress) {
     }
     return true;
   } catch {
-    if (isNativeFileUrl(song.file_url)) {
+    if (isNativeFileUrl(song.file_url) || isNativeFileUrl(playableUrl)) {
       try {
         const coverBlob = await cacheCoverBlob(song.cover_url);
         await saveOfflineSongMeta(song, coverBlob);

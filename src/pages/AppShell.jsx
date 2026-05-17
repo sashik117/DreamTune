@@ -446,7 +446,7 @@ export default function AppShell() {
           title: item.title || 'YouTube track',
           artist: item.artist || '',
           cover_url: item.cover_url || item.coverUrl || '',
-          file_url: item.file_url,
+          file_url: item.native_file_url || item.file_url,
           is_favorite: false,
         });
         await downloadSong(song, () => {});
