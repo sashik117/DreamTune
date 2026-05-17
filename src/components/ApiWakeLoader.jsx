@@ -32,22 +32,15 @@ export default function ApiWakeLoader() {
   if (!activeRequests.size || dismissed) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-background/72 px-6 backdrop-blur-xl">
-      <div className="w-full max-w-[320px] rounded-[28px] border border-white/12 bg-card/95 p-6 text-center shadow-2xl">
-        <div className="mx-auto mb-4 h-12 w-12 rounded-2xl bg-primary/20 p-2">
-          <div className="h-full w-full animate-pulse rounded-xl bg-primary shadow-[0_0_28px_hsl(var(--primary)/0.65)]" />
+    <div className="pointer-events-none fixed left-1/2 top-[calc(12px+env(safe-area-inset-top,0px))] z-[10000] w-[calc(100%-32px)] max-w-[360px] -translate-x-1/2">
+      <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-card/92 px-4 py-3 text-left shadow-2xl shadow-black/20 backdrop-blur-xl">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+          <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
         </div>
-        <p className="text-base font-semibold text-foreground">Завантаження DreamTune...</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          Підтягуємо музику, профіль і плейлисти.
-        </p>
-        <button
-          type="button"
-          onClick={() => setDismissed(true)}
-          className="mt-4 w-full rounded-2xl bg-primary/90 px-4 py-3 text-sm font-semibold text-primary-foreground"
-        >
-          Продовжити
-        </button>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">DreamTune ще підтягує дані</p>
+          <p className="truncate text-xs text-muted-foreground">Можна продовжувати користуватись додатком.</p>
+        </div>
       </div>
     </div>
   );

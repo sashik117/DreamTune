@@ -20,6 +20,7 @@ export default function AppShell() {
   const [songs, setSongs]               = useState([]);
   const [playlists, setPlaylists]       = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [showUpload, setShowUpload]     = useState(false);
   const [editingSong, setEditingSong]   = useState(null);
@@ -127,6 +128,15 @@ export default function AppShell() {
     }, 8000);
     return () => window.clearTimeout(timer);
   }, [loading, navigate]);
+
+  useEffect(() => {
+    if (!loading) {
+      setShowLoadingScreen(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setShowLoadingScreen(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -428,14 +438,15 @@ export default function AppShell() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background px-6">
-        <div className="max-w-[300px] text-center">
-          <div className="mx-auto mb-4 h-9 w-9 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-sm font-semibold text-foreground">DreamTune завантажується...</p>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Підтягуємо музику, профіль і плейлисти.
-          </p>
-        </div>
+      <div className="fixed inset-0 bg-background px-6" aria-busy="true">
+        {showLoadingScreen && (
+          <div className="flex min-h-screen items-center justify-center">
+            <div className="max-w-[260px] text-center">
+              <div className="mx-auto mb-4 h-8 w-8 rounded-full border-4 border-primary/25 border-t-primary animate-spin" />
+              <p className="text-sm font-semibold text-foreground">DreamTune завантажується...</p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -64,7 +64,7 @@ async function request(path, options = {}) {
     ? window.setTimeout(() => {
       wakeShown = true;
       window.dispatchEvent(new CustomEvent(API_WAKE_EVENT, { detail: { id: requestId, active: true } }));
-    }, 1400)
+    }, 4500)
     : null;
 
   try {
