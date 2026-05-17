@@ -179,6 +179,48 @@ function formatDuration(seconds) {
   return `${m}:${s}`;
 }
 
+function normalizeCoverText(value) {
+  return repairMojibake(value || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    .replace(/\b(official|video|audio|lyrics?|visualizer|remaster(?:ed)?|hd|4k)\b/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function findSpotifyCover(title, artist, fallbackCover = '') {
+  const cleanTitle = repairMojibake(title || '').trim();
+  const cleanArtist = repairMojibake(artist || '').trim();
+  const queries = Array.from(new Set([
+    `${cleanArtist} ${cleanTitle}`.trim(),
+    cleanTitle,
+  ].filter(Boolean)));
+  const titleTokens = new Set(normalizeCoverText(cleanTitle).split(' ').filter(token => token.length > 2));
+
+  for (const query of queries) {
+    try {
+      const data = await media.searchSpotifyTracks(query, 8);
+      const best = (data.tracks || [])
+        .filter(track => track?.cover_url)
+        .map(track => {
+          const haystack = normalizeCoverText(`${track.artist || ''} ${track.title || ''}`);
+          let score = 0;
+          for (const token of titleTokens) if (haystack.includes(token)) score += 1;
+          if (cleanArtist && haystack.includes(normalizeCoverText(cleanArtist))) score += 2;
+          return { track, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.track;
+      if (best?.cover_url) return best.cover_url;
+    } catch (error) {
+      console.warn('Spotify cover lookup failed:', error.message || error);
+    }
+  }
+
+  return fallbackCover;
+}
+
 export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) {
   const [query, setQuery] = useState(prefillQuery);
   const [step, setStep] = useState('idle');
@@ -286,10 +328,11 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
         return;
       }
 
+      const coverUrl = await findSpotifyCover(title, artist, result.thumbnail);
       const song = await entities.Song.create({
         title,
         artist,
-        cover_url: result.thumbnail,
+        cover_url: coverUrl || result.thumbnail,
         file_url: fileUrl,
         is_favorite: false,
       });

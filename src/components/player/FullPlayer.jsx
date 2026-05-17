@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, ChevronDown, Repeat, Shuffle, Volume2, Moon, TimerOff, MoreVertical, ListPlus, Plus, Share2, Scissors, ListMusic, X, Music, GripVertical } from 'lucide-react';
 import { useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Slider } from "@/components/ui/slider";
 import LyricsView from '../LyricsView';
@@ -45,6 +45,7 @@ export default function FullPlayer({
   coverShape = 'square', canFavorite = true, playlists = [], onAddSongsToPlaylist, onAddCurrentToQueue, onEditCurrent
 }) {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+  const dragControls = useDragControls();
   // Handle lyrics line click в†’ seek
   useEffect(() => {
     const handler = (e) => {
@@ -126,10 +127,19 @@ export default function FullPlayer({
   return (
     <>
       <motion.div
-        initial={isNativeApp ? false : { y: '100%' }}
-        animate={isNativeApp ? undefined : { y: 0 }}
-        exit={isNativeApp ? undefined : { y: '100%' }}
-        transition={isNativeApp ? undefined : { type: 'spring', damping: 30, stiffness: 300 }}
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 280, mass: 0.9 }}
+        drag="y"
+        dragControls={dragControls}
+        dragListener={false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.34 }}
+        dragMomentum={false}
+        onDragEnd={(_, info) => {
+          if (info.offset.y > 96 || info.velocity.y > 680) onCollapse();
+        }}
         className={`fixed inset-0 z-[60] cozy-gradient-bg flex flex-col overflow-hidden ${sleepDimming ? 'sleep-dim' : ''}`}
         style={{
           '--player-cover-glow': currentSong.cover_url ? `url("${currentSong.cover_url}")` : 'none',
@@ -147,8 +157,14 @@ export default function FullPlayer({
         )}
 
         {/* Header */}
-        <div className="fixed left-0 right-0 top-0 z-[90] flex items-center justify-between px-5 pt-[calc(16px+env(safe-area-inset-top,0px))] pb-2 bg-background/70 backdrop-blur-2xl border-b border-border/40">
-          <motion.button whileTap={{ scale: 0.88 }} onClick={onCollapse} className="p-2 -ml-2 bg-card/90 border border-border/70 shadow-lg shadow-primary/10 hover:bg-secondary rounded-full transition-colors">
+        <div
+          className="fixed left-0 right-0 top-0 z-[90] flex items-center justify-between px-5 pt-[calc(16px+env(safe-area-inset-top,0px))] pb-2 bg-background/70 backdrop-blur-2xl border-b border-border/40 touch-none cursor-grab active:cursor-grabbing"
+          onPointerDown={(event) => {
+            const interactive = event.target.closest?.('button,a,input,[role="button"]');
+            if (!interactive || interactive.dataset.playerDragHandle === 'true') dragControls.start(event);
+          }}
+        >
+          <motion.button data-player-drag-handle="true" whileTap={{ scale: 0.88 }} onClick={onCollapse} className="p-2 -ml-2 bg-card/90 border border-border/70 shadow-lg shadow-primary/10 hover:bg-secondary rounded-full transition-colors">
             <ChevronDown className="w-6 h-6 text-foreground" />
           </motion.button>
           <div className="flex bg-card/95 backdrop-blur-xl rounded-full p-1 gap-1 border border-border/80 shadow-lg shadow-primary/10">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { getCachedAudio, cacheAudio, getDownloadedSongsMeta } from '../utils/audioCache';
+import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMediaSession } from '../utils/nativeMediaSession';
 import { toast } from 'sonner';
 
 export default function useAudioPlayer(songs, visualPulseEnabled = false) {
@@ -11,6 +12,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const sleepTimerRef = useRef({ timeout: null, ticker: null, fade: null, originalVolume: 0.8 });
   const repeatHitsRef = useRef({ songId: null, count: 0 });
   const manualQueueRef = useRef(false);
+  const nativeSessionRef = useRef({ songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 });
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -413,6 +415,14 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     if (audioRef.current.duration) audioRef.current.currentTime = start + (percent / 100) * Math.max(0, activeEnd - start);
   }, [songs, queue, currentSongId, getTrimBounds]);
 
+  const seekToSeconds = useCallback((seconds) => {
+    const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+    const { start, end } = getTrimBounds(song);
+    const activeEnd = end || audioRef.current.duration || 0;
+    const nextTime = start + Math.max(0, Number(seconds) || 0);
+    if (audioRef.current.duration) audioRef.current.currentTime = Math.min(activeEnd || audioRef.current.duration, nextTime);
+  }, [songs, queue, currentSongId, getTrimBounds]);
+
   const setVolume = useCallback((v) => {
     audioRef.current.volume = v;
     setVolumeState(v);
@@ -471,6 +481,68 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   }, [clearSleepTimer, startSleepFade]);
 
   useEffect(() => clearSleepTimer, [clearSleepTimer]);
+
+  useEffect(() => {
+    let mounted = true;
+    let handle = null;
+    Promise.resolve(addNativeMediaActionListener((event) => {
+      const action = event?.action;
+      if (action === 'play') {
+        if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+        requestMainAudioFocus();
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+      if (action === 'pause') {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+      if (action === 'next') playNext();
+      if (action === 'previous') playPrev();
+      if (action === 'seek') seekToSeconds(Number(event?.position || 0));
+    })).then((listener) => {
+      if (!mounted) listener?.remove?.();
+      else handle = listener;
+    });
+
+    return () => {
+      mounted = false;
+      handle?.remove?.();
+    };
+  }, [playNext, playPrev, requestMainAudioFocus, seekToSeconds]);
+
+  useEffect(() => {
+    const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+    if (!song) {
+      nativeSessionRef.current = { songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 };
+      clearNativeMediaSession();
+      return;
+    }
+    const now = Date.now();
+    const previous = nativeSessionRef.current;
+    const metadataChanged =
+      previous.songId !== song.id ||
+      previous.title !== song.title ||
+      previous.artist !== song.artist ||
+      previous.coverUrl !== song.cover_url ||
+      previous.isPlaying !== isPlaying;
+    if (!metadataChanged && now - previous.lastUpdate < 900) return;
+    nativeSessionRef.current = {
+      songId: song.id,
+      title: song.title || '',
+      artist: song.artist || '',
+      coverUrl: song.cover_url || '',
+      isPlaying,
+      lastUpdate: now,
+    };
+    updateNativeMediaSession({
+      title: song.title || 'DreamTune',
+      artist: song.artist || '',
+      coverUrl: song.cover_url || '',
+      isPlaying,
+      position: currentTime || 0,
+      duration: duration || 0,
+    });
+  }, [songs, queue, currentSongId, isPlaying, currentTime, duration]);
 
   return {
     currentSong: songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId) || null,
