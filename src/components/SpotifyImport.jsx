@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
@@ -14,6 +14,12 @@ async function fetchSpotifyTracks(playlistUrl) {
 async function searchSpotifyTracks(query) {
   const data = await media.searchSpotifyTracks(query, 12);
   return data.tracks || [];
+}
+
+function normalizeSpotifyQuery(value) {
+  return String(value || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\s+/g, ' ');
 }
 
 async function fetchJson(url, timeout = 9000) {
@@ -183,6 +189,7 @@ function BusyWarning() {
 }
 
 export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylistUpdated, onClose }) {
+  const queryInputRef = useRef(null);
   const [mode, setMode] = useState(() => localStorage.getItem('dreamtune-spotify-mode') || sessionStorage.getItem('dreamtune-spotify-mode') || 'playlist');
   const [query, setQuery] = useState(() => localStorage.getItem('dreamtune-spotify-query') || sessionStorage.getItem('dreamtune-spotify-query') || '');
   const [step, setStep] = useState('idle');
@@ -193,8 +200,9 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   const [importRows, setImportRows] = useState([]);
   const [error, setError] = useState('');
   const busy = step === 'fetching' || step === 'searching' || step === 'importing';
-  const cleanQuery = query.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
-  const canSubmit = Boolean(cleanQuery) && !busy;
+  const cleanQuery = normalizeSpotifyQuery(query).trim();
+  const hasQuery = Boolean(cleanQuery);
+  const canSubmit = !busy;
 
   useEffect(() => {
     if (!busy) return undefined;
@@ -216,11 +224,18 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   };
 
   const updateQuery = (value) => {
-    const next = String(value || '').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
+    const next = normalizeSpotifyQuery(value);
     setQuery(next);
     sessionStorage.setItem('dreamtune-spotify-query', next);
     localStorage.setItem('dreamtune-spotify-query', next);
     setError('');
+  };
+
+  const syncInputQuery = (input = queryInputRef.current) => {
+    if (!input) return cleanQuery;
+    const next = normalizeSpotifyQuery(input.value);
+    updateQuery(next);
+    return next.trim();
   };
 
   const updateMode = (value) => {
@@ -239,13 +254,13 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
     });
   };
 
-  const handleFetchPlaylist = async () => {
-    if (!cleanQuery) return;
+  const handleFetchPlaylist = async (queryValue = cleanQuery) => {
+    if (!queryValue) return;
     setError('');
     setStep('fetching');
 
     try {
-      const { name, tracks: found } = await fetchSpotifyTracks(cleanQuery);
+      const { name, tracks: found } = await fetchSpotifyTracks(queryValue);
       if (!found.length) {
         setError('Не вдалося отримати треки. Перевір, що плейлист публічний або посилання правильне.');
         setStep('idle');
@@ -263,13 +278,13 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
     }
   };
 
-  const handleSearchTracks = async () => {
-    if (!cleanQuery) return;
+  const handleSearchTracks = async (queryValue = cleanQuery) => {
+    if (!queryValue) return;
     setError('');
     setStep('searching');
 
     try {
-      const found = await searchSpotifyTracks(cleanQuery);
+      const found = await searchSpotifyTracks(queryValue);
       if (!found.length) {
         setError('Трек не знайдено. Спробуй точнішу назву або Spotify-посилання на трек.');
         setStep('idle');
@@ -288,8 +303,15 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   };
 
   const handleSubmit = () => {
-    if (mode === 'playlist') handleFetchPlaylist();
-    else handleSearchTracks();
+    const queryValue = syncInputQuery();
+    if (!queryValue) {
+      setError(mode === 'playlist'
+        ? 'Встав посилання на Spotify-плейлист.'
+        : 'Введи назву треку або Spotify-посилання.');
+      return;
+    }
+    if (mode === 'playlist') handleFetchPlaylist(queryValue);
+    else handleSearchTracks(queryValue);
   };
 
   const handleImport = async () => {
@@ -418,13 +440,27 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
           </p>
 
           <Input
+            ref={queryInputRef}
             value={query}
             onChange={e => updateQuery(e.target.value)}
             onInput={e => updateQuery(e.currentTarget.value)}
-            onPaste={e => window.setTimeout(() => updateQuery(e.currentTarget.value), 0)}
+            onPaste={e => {
+              const input = e.currentTarget;
+              window.requestAnimationFrame(() => syncInputQuery(input));
+              window.setTimeout(() => syncInputQuery(input), 80);
+            }}
+            onFocus={e => {
+              const input = e.currentTarget;
+              window.setTimeout(() => syncInputQuery(input), 0);
+            }}
             placeholder={mode === 'playlist' ? 'https://open.spotify.com/playlist/...' : 'Billie Eilish Birds of a Feather'}
             className="bg-secondary border-border"
-            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
           />
 
           {error && (
@@ -433,7 +469,7 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
             </p>
           )}
 
-          <Button onClick={handleSubmit} disabled={!canSubmit} className={`w-full bg-primary hover:brightness-110 ${canSubmit ? 'shadow-lg shadow-primary/25 opacity-100' : 'opacity-55'}`}>
+          <Button onClick={handleSubmit} disabled={!canSubmit} className={`w-full bg-primary hover:brightness-110 ${hasQuery ? 'shadow-lg shadow-primary/25 opacity-100' : 'opacity-70'}`}>
             {busy ? (
               <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{mode === 'playlist' ? 'Отримую треки...' : 'Шукаю трек...'}</>
             ) : (
