@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
@@ -20,6 +20,23 @@ function normalizeSpotifyQuery(value) {
   return String(value || '')
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/\s+/g, ' ');
+}
+
+function normalizeTrackText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replace(/\b(official|audio|video|lyrics?|remaster(?:ed)?|hd|4k)\b/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function trackIdentity(track) {
+  return `${normalizeTrackText(track?.artist)}::${normalizeTrackText(track?.title)}`;
 }
 
 async function fetchJson(url, timeout = 9000) {
@@ -188,7 +205,7 @@ function BusyWarning() {
   );
 }
 
-export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylistUpdated, onClose }) {
+export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlaylistAdded, onPlaylistUpdated, onClose }) {
   const queryInputRef = useRef(null);
   const [mode, setMode] = useState(() => localStorage.getItem('dreamtune-spotify-mode') || sessionStorage.getItem('dreamtune-spotify-mode') || 'playlist');
   const [query, setQuery] = useState(() => localStorage.getItem('dreamtune-spotify-query') || sessionStorage.getItem('dreamtune-spotify-query') || '');
@@ -198,11 +215,17 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
   const [playlistName, setPlaylistName] = useState('');
   const [progress, setProgress] = useState({ done: 0, total: 0, current: '' });
   const [importRows, setImportRows] = useState([]);
+  const [playlistMeta, setPlaylistMeta] = useState({ total: 0, skipped: 0, limited: false });
   const [error, setError] = useState('');
   const busy = step === 'fetching' || step === 'searching' || step === 'importing';
   const cleanQuery = normalizeSpotifyQuery(query).trim();
   const hasQuery = Boolean(cleanQuery);
   const canSubmit = !busy;
+  const existingTrackKeys = useMemo(() => new Set(
+    (existingSongs || [])
+      .map(trackIdentity)
+      .filter(key => key !== '::')
+  ), [existingSongs]);
 
   useEffect(() => {
     if (!busy) return undefined;
@@ -219,6 +242,7 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
     setSelected(new Set());
     setPlaylistName('');
     setImportRows([]);
+    setPlaylistMeta({ total: 0, skipped: 0, limited: false });
     setError('');
     setStep('idle');
   };
@@ -260,16 +284,27 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
     setStep('fetching');
 
     try {
-      const { name, tracks: found } = await fetchSpotifyTracks(queryValue);
+      const { name, tracks: found, limited } = await fetchSpotifyTracks(queryValue);
       if (!found.length) {
         setError('Не вдалося отримати треки. Перевір, що плейлист публічний або посилання правильне.');
         setStep('idle');
         return;
       }
 
+      const freshTracks = found.filter(track => !existingTrackKeys.has(trackIdentity(track)));
+      const skipped = found.length - freshTracks.length;
+      if (!freshTracks.length) {
+        setError(limited
+          ? `Ці ${found.length} треків уже є в бібліотеці. Без Spotify API ключів сервер бачить тільки першу сотню цього плейлиста.`
+          : 'У цьому плейлисті не знайшла нових треків: усе вже є в бібліотеці.');
+        setStep('idle');
+        return;
+      }
+
       setPlaylistName(name || 'Spotify playlist');
-      setTracks(found);
-      setSelected(new Set(found.map((_, index) => index)));
+      setTracks(freshTracks);
+      setPlaylistMeta({ total: found.length, skipped, limited: Boolean(limited) });
+      setSelected(new Set(freshTracks.map((_, index) => index)));
       setStep('preview');
     } catch (err) {
       console.error(err);
@@ -293,6 +328,7 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
 
       setPlaylistName('Spotify tracks');
       setTracks(found);
+      setPlaylistMeta({ total: found.length, skipped: 0, limited: false });
       setSelected(new Set());
       setStep('preview');
     } catch (err) {
@@ -487,9 +523,14 @@ export default function SpotifyImport({ onSongsAdded, onPlaylistAdded, onPlaylis
           </div>
           <p className="text-xs text-muted-foreground">
             {mode === 'playlist'
-              ? `${tracks.length} треків знайдено. Імпортуються всі.`
+              ? `${tracks.length} нових з ${playlistMeta.total || tracks.length} треків. ${playlistMeta.skipped ? `${playlistMeta.skipped} уже є в бібліотеці.` : 'Імпортуються всі нові.'}`
               : `${selected.size} з ${tracks.length} треків вибрано.`}
           </p>
+          {mode === 'playlist' && playlistMeta.limited && (
+            <p className="text-[11px] leading-relaxed text-amber-500">
+              Spotify без API ключів показує тільки першу сотню. Якщо в цій сотні все вже додано, наступні треки сервер не побачить без ключів.
+            </p>
+          )}
 
           <div className="max-h-64 overflow-y-auto space-y-1 rounded-xl border border-border p-2">
             {tracks.map((track, index) => {

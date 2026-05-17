@@ -22,7 +22,7 @@ function parseFileName(fileName) {
   return { artist: '', title: clean };
 }
 
-export default function UploadModal({ open, onOpenChange, onSongAdded, onSongsAdded, onPlaylistAdded, onPlaylistUpdated }) {
+export default function UploadModal({ open, existingSongs = [], onOpenChange, onSongAdded, onSongsAdded, onPlaylistAdded, onPlaylistUpdated }) {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -114,6 +114,7 @@ export default function UploadModal({ open, onOpenChange, onSongAdded, onSongsAd
 
           <TabsContent value="spotify" forceMount className="pt-4 data-[state=inactive]:hidden">
             <SpotifyImport
+              existingSongs={existingSongs}
               onSongsAdded={(songs) => onSongsAdded?.(songs)}
               onPlaylistAdded={onPlaylistAdded}
               onPlaylistUpdated={onPlaylistUpdated}

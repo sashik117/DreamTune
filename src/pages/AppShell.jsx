@@ -612,6 +612,7 @@ export default function AppShell() {
       />
       <UploadModal
         open={showUpload}
+        existingSongs={songs}
         onOpenChange={setShowUpload}
         onSongAdded={handleSongAdded}
         onSongsAdded={handleSongsAdded}
