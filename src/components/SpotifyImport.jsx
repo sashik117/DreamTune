@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
-import { downloadYouTubeOnDevice } from '@/utils/nativeYouTube';
+import { canUseNativeYouTube, downloadYouTubeOnDevice, startYouTubeDownloadQueue } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 
 async function fetchSpotifyTracks(playlistUrl) {
@@ -112,7 +112,7 @@ async function resolveDirectAudioUrl(videoId) {
   return '';
 }
 
-async function getAudioForTrack(track) {
+async function findYouTubeCandidatesForTrack(track) {
   const baseQuery = `${track.artist || ''} ${track.title || ''}`.trim();
   const queries = Array.from(new Set([
     `${baseQuery} audio`,
@@ -142,7 +142,11 @@ async function getAudioForTrack(track) {
     }
     if (candidates.length >= 6) break;
   }
+  return candidates;
+}
 
+async function getAudioForTrack(track) {
+  const candidates = await findYouTubeCandidatesForTrack(track);
   let audio = null;
   let result = null;
   for (const [index, candidate] of candidates.slice(0, 4).entries()) {
@@ -385,6 +389,51 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
     const updateRow = (index, patch) => {
       setImportRows(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
     };
+
+    if (mode === 'playlist' && canUseNativeYouTube()) {
+      const queueItems = [];
+      for (let index = 0; index < chosen.length; index++) {
+        const track = chosen[index];
+        setProgress({ done, total, current: `${track.artist || ''} — ${track.title || ''}` });
+        updateRow(index, { status: 'loading', message: 'Шукаю аудіо на YouTube...' });
+
+        try {
+          const candidate = (await findYouTubeCandidatesForTrack(track))[0];
+          if (!candidate?.video_id) {
+            updateRow(index, { status: 'failed', message: 'Не знайшла аудіо' });
+          } else {
+            queueItems.push({
+              id: `${Date.now()}-${index}-${candidate.video_id}`,
+              videoId: candidate.video_id,
+              title: track.title,
+              artist: track.artist,
+              cover_url: track.cover_url || candidate.thumbnail || '',
+              playlistId: targetPlaylist?.id || '',
+              playlistName: targetPlaylist?.name || playlistName || 'Spotify playlist',
+              source_url: track.source_url || '',
+            });
+            updateRow(index, { status: 'done', message: 'Додано в фонову чергу' });
+          }
+        } catch (error) {
+          console.warn('Queue candidate failed:', track.title, error);
+          updateRow(index, { status: 'failed', message: 'Не вдалося підготувати' });
+        }
+
+        done++;
+        setProgress({ done, total, current: '' });
+      }
+
+      if (!queueItems.length) {
+        toast.error('Не вдалося підготувати жоден трек для фону');
+        setStep('done');
+        return;
+      }
+
+      await startYouTubeDownloadQueue(queueItems);
+      toast.success(`Фонове скачування запущено: ${queueItems.length} треків`);
+      setStep('done');
+      return;
+    }
 
     for (let index = 0; index < chosen.length; index++) {
       const track = chosen[index];

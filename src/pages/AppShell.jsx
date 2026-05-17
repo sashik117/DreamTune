@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { auth, entities, hydrateAuthToken, setAuthToken, supabase, social } from '@/api/SupabaseClient';
@@ -13,7 +13,9 @@ import OfflineBanner from '../components/offline/OfflineBanner';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getDownloadedSongsMeta } from '../utils/audioCache';
+import { downloadSong, getDownloadedSongsMeta } from '../utils/audioCache';
+import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads } from '../utils/nativeYouTube';
+import { toast } from 'sonner';
 
 export default function AppShell() {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
@@ -37,9 +39,13 @@ export default function AppShell() {
   const [currentUser, setCurrentUser] = useState(null);
   const [collabDetailOpen, setCollabDetailOpen] = useState(false);
   const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const playlistsRef = useRef([]);
 
   const location = useLocation();
   const navigate = useNavigate();
+  useEffect(() => {
+    playlistsRef.current = playlists;
+  }, [playlists]);
   useEffect(() => {
     const root = document.documentElement;
     const safeSetLocalStorage = (key, value) => {
@@ -417,6 +423,94 @@ export default function AppShell() {
   const handlePlaylistUpdated = useCallback((playlist) => {
     setPlaylists(prev => prev.map(pl => pl.id === playlist.id ? { ...pl, ...playlist } : pl));
   }, []);
+
+  const syncCompletedNativeDownloads = useCallback(async () => {
+    if (!currentUser?.id || !canUseNativeYouTube()) return;
+    const completed = await getCompletedYouTubeDownloads();
+    if (!completed.length) return;
+
+    const processedIds = [];
+    const createdSongs = [];
+    const playlistAdds = new Map();
+    let failedCount = 0;
+
+    for (const item of completed) {
+      if (item.status !== 'done' || !item.file_url) {
+        failedCount++;
+        if (item.id) processedIds.push(item.id);
+        continue;
+      }
+
+      try {
+        const song = await entities.Song.create({
+          title: item.title || 'YouTube track',
+          artist: item.artist || '',
+          cover_url: item.cover_url || item.coverUrl || '',
+          file_url: item.file_url,
+          is_favorite: false,
+        });
+        await downloadSong(song, () => {});
+        createdSongs.push(song);
+        if (item.playlistId) {
+          const group = playlistAdds.get(item.playlistId) || { songIds: [], coverUrl: '' };
+          group.songIds.push(song.id);
+          group.coverUrl ||= song.cover_url || '';
+          playlistAdds.set(item.playlistId, group);
+        }
+        if (item.id) processedIds.push(item.id);
+      } catch (error) {
+        console.warn('Could not import completed native download:', error);
+      }
+    }
+
+    for (const [playlistId, group] of playlistAdds.entries()) {
+      try {
+        let playlist = playlistsRef.current.find(item => item.id === playlistId);
+        if (!playlist) playlist = await entities.Playlist.get(playlistId).catch(() => null);
+        if (!playlist) continue;
+        const updated = await entities.Playlist.update(playlistId, {
+          song_ids: Array.from(new Set([...(playlist.song_ids || []), ...group.songIds])),
+          cover_url: playlist.cover_url || group.coverUrl || '',
+        });
+        handlePlaylistUpdated({ ...playlist, ...updated });
+      } catch (error) {
+        console.warn('Could not attach background songs to playlist:', error);
+      }
+    }
+
+    if (createdSongs.length) {
+      handleSongsAdded(createdSongs);
+      toast.success(`Фоново додано ${createdSongs.length} треків`);
+    }
+    if (failedCount) toast.error(`Не вдалось скачати ${failedCount} треків у фоні`);
+    if (processedIds.length) await clearCompletedYouTubeDownloads(processedIds);
+  }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded]);
+
+  useEffect(() => {
+    if (!currentUser?.id || !canUseNativeYouTube()) return undefined;
+    let busy = false;
+    const run = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        await syncCompletedNativeDownloads();
+      } finally {
+        busy = false;
+      }
+    };
+    run();
+    const timer = window.setInterval(run, 12000);
+    const onVisibility = () => {
+      if (!document.hidden) run();
+    };
+    window.addEventListener('focus', run);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', run);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [currentUser?.id, syncCompletedNativeDownloads]);
 
   const handleSongUpdated = useCallback((updatedSong) => {
     setSongs(prev => prev.map(s => s.id === updatedSong.id ? { ...s, ...updatedSong } : s));

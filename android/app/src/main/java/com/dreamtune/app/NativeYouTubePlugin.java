@@ -2,8 +2,11 @@ package com.dreamtune.app;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -14,11 +17,18 @@ import com.yausername.youtubedl_android.YoutubeDLException;
 import com.yausername.youtubedl_android.YoutubeDLRequest;
 
 import java.io.File;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 @CapacitorPlugin(name = "NativeYouTube")
 public class NativeYouTubePlugin extends Plugin {
+    private static final String PREFS = "dreamtune-native-youtube";
+    private static final String COMPLETED_KEY = "download_completed";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private boolean initialized = false;
 
@@ -71,6 +81,59 @@ public class NativeYouTubePlugin extends Plugin {
         });
     }
 
+    @PluginMethod
+    public void queue(PluginCall call) {
+        JSArray items = call.getArray("items");
+        if (items == null || items.length() == 0) {
+            call.reject("Download queue items are required");
+            return;
+        }
+
+        Intent intent = new Intent(getContext(), DreamTuneDownloadService.class);
+        intent.setAction(DreamTuneDownloadService.ACTION_QUEUE);
+        intent.putExtra("items", items.toString());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getContext().startForegroundService(intent);
+        } else {
+            getContext().startService(intent);
+        }
+
+        JSObject result = new JSObject();
+        result.put("queued", items.length());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void completed(PluginCall call) {
+        JSObject result = new JSObject();
+        result.put("items", getCompletedDownloads());
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void clearCompleted(PluginCall call) {
+        JSArray ids = call.getArray("ids");
+        if (ids == null || ids.length() == 0) {
+            call.resolve();
+            return;
+        }
+
+        Set<String> removeIds = new HashSet<>();
+        for (int i = 0; i < ids.length(); i++) {
+            removeIds.add(String.valueOf(ids.opt(i)));
+        }
+
+        JSONArray current = getCompletedDownloads();
+        JSONArray next = new JSONArray();
+        for (int i = 0; i < current.length(); i++) {
+            JSONObject item = current.optJSONObject(i);
+            if (item == null || removeIds.contains(item.optString("id"))) continue;
+            next.put(item);
+        }
+        getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(COMPLETED_KEY, next.toString()).apply();
+        call.resolve();
+    }
+
     private synchronized void ensureInitialized() throws YoutubeDLException {
         if (initialized) return;
         YoutubeDL.getInstance().init(getContext());
@@ -95,7 +158,7 @@ public class NativeYouTubePlugin extends Plugin {
 
     private boolean maybeUpdateYoutubeDL() {
         Context context = getContext();
-        SharedPreferences prefs = context.getSharedPreferences("dreamtune-native-youtube", Context.MODE_PRIVATE);
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
         long lastUpdate = prefs.getLong("yt_dlp_updated_at", 0);
         if (now - lastUpdate < 24L * 60L * 60L * 1000L) return false;
@@ -128,6 +191,15 @@ public class NativeYouTubePlugin extends Plugin {
         for (File file : files) {
             // Best-effort cleanup only; a failed delete is harmless and should not mask the real error.
             file.delete();
+        }
+    }
+
+    private JSONArray getCompletedDownloads() {
+        try {
+            String value = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(COMPLETED_KEY, "[]");
+            return new JSONArray(value);
+        } catch (Exception ignored) {
+            return new JSONArray();
         }
     }
 }
