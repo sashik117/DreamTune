@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -28,7 +29,8 @@ import java.util.concurrent.Executors;
 
 public class DreamTuneDownloadService extends Service {
     public static final String ACTION_QUEUE = "com.dreamtune.app.download.QUEUE";
-    private static final String CHANNEL_ID = "dreamtune_downloads";
+
+    private static final String CHANNEL_ID = "dreamtune_downloads_v2";
     private static final String RESULT_CHANNEL_ID = "dreamtune_download_results";
     private static final String PREFS = "dreamtune-native-youtube";
     private static final String QUEUE_KEY = "download_queue";
@@ -36,8 +38,10 @@ public class DreamTuneDownloadService extends Service {
     private static final int NOTIFICATION_ID = 2191;
 
     private static boolean initialized = false;
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private PowerManager.WakeLock wakeLock;
+    private WifiManager.WifiLock wifiLock;
     private boolean workerRunning = false;
     private int batchTotal = 0;
     private int batchDone = 0;
@@ -45,16 +49,19 @@ public class DreamTuneDownloadService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        createChannel();
+        createChannels();
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DreamTune:Downloads");
         wakeLock.setReferenceCounted(false);
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        if (wifiManager != null) {
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "DreamTune:DownloadWifi");
+            wifiLock.setReferenceCounted(false);
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        publish("Preparing background downloads", true);
-        publish("Готую фонове скачування", true);
         publish("Preparing background downloads", true);
         if (intent != null && ACTION_QUEUE.equals(intent.getAction())) {
             appendQueue(intent.getStringExtra("items"));
@@ -87,16 +94,22 @@ public class DreamTuneDownloadService extends Service {
         try {
             acquireWakeLock();
             ensureInitialized(this);
+
             while (true) {
                 JSONObject item = pollQueue();
                 if (item == null) break;
 
-                String title = item.optString("title", "DreamTune");
+                String title = item.optString("title", "DreamTune track");
                 String artist = item.optString("artist", "");
-                publish("Downloading: " + formatTrackLabel(title, artist), false);
-                publish((artist.isEmpty() ? title : artist + " - " + title), false);
+                String label = formatTrackLabel(title, artist);
 
-                publish("Downloading: " + formatTrackLabel(title, artist), false);
+                if (shouldSkipExistingRepair(item)) {
+                    batchDone++;
+                    publish("Checked " + batchDone + " of " + Math.max(batchTotal, batchDone), false);
+                    continue;
+                }
+
+                publish("Downloading: " + label, false);
 
                 JSONObject completed = new JSONObject(item.toString());
                 boolean success = false;
@@ -109,17 +122,14 @@ public class DreamTuneDownloadService extends Service {
                     completed.put("size", downloaded.length());
                     success = true;
                 } catch (Exception error) {
-                    cleanupPartialFiles(item.optString("videoId", ""));
                     completed.put("status", "failed");
                     errorMessage = error.getMessage() != null ? error.getMessage() : "Download failed";
                     completed.put("error", errorMessage);
                 }
 
                 appendCompleted(completed);
-                notifyTrackFinished(title, artist, success, errorMessage);
+                notifyTrackFinished(label, success, errorMessage);
                 batchDone++;
-                publish("Downloaded " + batchDone + " of " + Math.max(batchTotal, batchDone), false);
-                publish("Завантажено " + batchDone + " з " + Math.max(batchTotal, batchDone), false);
                 publish("Downloaded " + batchDone + " of " + Math.max(batchTotal, batchDone), false);
             }
         } catch (Exception error) {
@@ -135,24 +145,24 @@ public class DreamTuneDownloadService extends Service {
     }
 
     private File downloadItem(JSONObject item) throws Exception {
-        String videoId = item.optString("videoId", "").trim();
-        if (!videoId.matches("^[A-Za-z0-9_-]{11}$")) {
-            throw new IllegalArgumentException("Valid videoId is required");
-        }
+        String source = buildSource(item);
+        String sourceKey = buildSourceKey(item, source);
 
         File dir = new File(getFilesDir(), "youtube");
         if (!dir.exists() && !dir.mkdirs()) {
             throw new IllegalStateException("Could not create youtube cache directory");
         }
 
-        String baseName = System.currentTimeMillis() + "-" + videoId;
+        String baseName = System.currentTimeMillis() + "-" + sourceKey;
         String outputTemplate = new File(dir, baseName + ".%(ext)s").getAbsolutePath();
+
         try {
-            YoutubeDL.getInstance().execute(buildDownloadRequest(videoId, outputTemplate));
+            YoutubeDL.getInstance().execute(buildDownloadRequest(source, outputTemplate));
         } catch (Exception firstError) {
-            cleanupPartialFiles(videoId);
+            cleanupPartialFiles(baseName);
+            cleanupPartialFiles(sourceKey);
             if (!maybeUpdateYoutubeDL()) throw firstError;
-            YoutubeDL.getInstance().execute(buildDownloadRequest(videoId, outputTemplate));
+            YoutubeDL.getInstance().execute(buildDownloadRequest(source, outputTemplate));
         }
 
         File downloaded = findDownloadedFile(dir, baseName);
@@ -162,18 +172,48 @@ public class DreamTuneDownloadService extends Service {
         return downloaded;
     }
 
-    private YoutubeDLRequest buildDownloadRequest(String videoId, String outputTemplate) {
-        YoutubeDLRequest request = new YoutubeDLRequest("https://www.youtube.com/watch?v=" + videoId);
+    private String buildSource(JSONObject item) {
+        String videoId = item.optString("videoId", "").trim();
+        if (videoId.matches("^[A-Za-z0-9_-]{11}$")) {
+            return "https://www.youtube.com/watch?v=" + videoId;
+        }
+
+        String query = item.optString("query", "").trim();
+        if (query.isEmpty()) {
+            query = formatTrackLabel(item.optString("title", ""), item.optString("artist", ""));
+        }
+        if (query.trim().isEmpty()) {
+            throw new IllegalArgumentException("videoId or query is required");
+        }
+        return "ytsearch1:" + query;
+    }
+
+    private String buildSourceKey(JSONObject item, String source) {
+        String videoId = item.optString("videoId", "").trim();
+        if (videoId.matches("^[A-Za-z0-9_-]{11}$")) return videoId;
+        String songId = item.optString("songId", "").trim();
+        if (!songId.isEmpty()) return sanitizeFilePart(songId);
+        return Integer.toHexString(source.hashCode());
+    }
+
+    private String sanitizeFilePart(String value) {
+        String cleaned = value == null ? "" : value.replaceAll("[^A-Za-z0-9_-]", "_");
+        return cleaned.isEmpty() ? "dreamtune" : cleaned;
+    }
+
+    private YoutubeDLRequest buildDownloadRequest(String source, String outputTemplate) {
+        YoutubeDLRequest request = new YoutubeDLRequest(source);
         request.addOption("-f", "bestaudio[ext=m4a][abr<=192]/bestaudio[abr<=192]/bestaudio[ext=m4a]/bestaudio/best");
         request.addOption("-o", outputTemplate);
+        request.addOption("--default-search", "ytsearch1");
         request.addOption("--no-playlist");
         request.addOption("--restrict-filenames");
         request.addOption("--no-warnings");
         request.addOption("--no-mtime");
         request.addOption("--force-overwrites");
-        request.addOption("--socket-timeout", "12");
-        request.addOption("--retries", "2");
-        request.addOption("--fragment-retries", "1");
+        request.addOption("--socket-timeout", "20");
+        request.addOption("--retries", "4");
+        request.addOption("--fragment-retries", "2");
         request.addOption("--concurrent-fragments", "4");
         return request;
     }
@@ -200,6 +240,24 @@ public class DreamTuneDownloadService extends Service {
         }
     }
 
+    private boolean shouldSkipExistingRepair(JSONObject item) {
+        if (!item.optBoolean("repair", false)) return false;
+        File existing = fileFromUrl(item.optString("existing_file_url", item.optString("file_url", "")));
+        return existing != null && existing.exists() && existing.length() > 0;
+    }
+
+    private File fileFromUrl(String url) {
+        if (url == null || url.trim().isEmpty()) return null;
+        try {
+            Uri uri = Uri.parse(url);
+            if (!"file".equalsIgnoreCase(uri.getScheme())) return null;
+            String path = uri.getPath();
+            return path == null || path.trim().isEmpty() ? null : new File(path);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private File findDownloadedFile(File dir, String baseName) {
         File[] files = dir.listFiles((file, name) -> name.startsWith(baseName + ".") && !name.endsWith(".part"));
         if (files == null || files.length == 0) return null;
@@ -211,10 +269,10 @@ public class DreamTuneDownloadService extends Service {
         return best;
     }
 
-    private void cleanupPartialFiles(String videoId) {
-        if (videoId == null || videoId.isEmpty()) return;
+    private void cleanupPartialFiles(String marker) {
+        if (marker == null || marker.isEmpty()) return;
         File dir = new File(getFilesDir(), "youtube");
-        File[] files = dir.listFiles((file, name) -> name.contains(videoId) && (name.endsWith(".part") || name.endsWith(".tmp")));
+        File[] files = dir.listFiles((file, name) -> name.contains(marker) && (name.endsWith(".part") || name.endsWith(".tmp")));
         if (files == null) return;
         for (File file : files) file.delete();
     }
@@ -226,8 +284,7 @@ public class DreamTuneDownloadService extends Service {
             JSONArray incoming = new JSONArray(json);
             Set<String> queuedKeys = new HashSet<>();
             for (int i = 0; i < current.length(); i++) {
-                JSONObject item = current.optJSONObject(i);
-                String key = queueIdentity(item);
+                String key = queueIdentity(current.optJSONObject(i));
                 if (!key.isEmpty()) queuedKeys.add(key);
             }
 
@@ -253,6 +310,8 @@ public class DreamTuneDownloadService extends Service {
         if (!id.isEmpty()) return "id:" + id;
         String videoId = item.optString("videoId", "").trim();
         if (!videoId.isEmpty()) return "video:" + videoId;
+        String query = item.optString("query", "").trim();
+        if (!query.isEmpty()) return "query:" + query;
         return "";
     }
 
@@ -306,13 +365,15 @@ public class DreamTuneDownloadService extends Service {
 
     private void acquireWakeLock() {
         try {
-            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire();
+            if (wakeLock != null && !wakeLock.isHeld()) wakeLock.acquire(6L * 60L * 60L * 1000L);
+            if (wifiLock != null && !wifiLock.isHeld()) wifiLock.acquire();
         } catch (Exception ignored) {}
     }
 
     private void releaseWakeLock() {
         try {
             if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
         } catch (Exception ignored) {}
     }
 
@@ -321,12 +382,14 @@ public class DreamTuneDownloadService extends Service {
     }
 
     private String formatTrackLabel(String title, String artist) {
-        if (artist == null || artist.trim().isEmpty()) return title != null && !title.trim().isEmpty() ? title : "DreamTune track";
-        if (title == null || title.trim().isEmpty()) return artist;
-        return artist + " - " + title;
+        String cleanTitle = title == null ? "" : title.trim();
+        String cleanArtist = artist == null ? "" : artist.trim();
+        if (cleanArtist.isEmpty()) return cleanTitle.isEmpty() ? "DreamTune track" : cleanTitle;
+        if (cleanTitle.isEmpty()) return cleanArtist;
+        return cleanArtist + " - " + cleanTitle;
     }
 
-    private void notifyTrackFinished(String title, String artist, boolean success, String errorMessage) {
+    private void notifyTrackFinished(String label, boolean success, String errorMessage) {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
@@ -337,14 +400,12 @@ public class DreamTuneDownloadService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        String label = formatTrackLabel(title, artist);
         Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(this, RESULT_CHANNEL_ID)
             : new Notification.Builder(this);
 
         builder
             .setSmallIcon(R.drawable.ic_stat_dreamtune)
-            .setContentTitle("DreamTune is downloading")
             .setContentTitle(success ? "DreamTune: track downloaded" : "DreamTune: download failed")
             .setContentText(success ? label : (label + (errorMessage == null || errorMessage.isEmpty() ? "" : " - " + errorMessage)))
             .setContentIntent(contentIntent)
@@ -371,7 +432,6 @@ public class DreamTuneDownloadService extends Service {
         int max = Math.max(batchTotal, batchDone);
         builder
             .setSmallIcon(R.drawable.ic_stat_dreamtune)
-            .setContentTitle("DreamTune качає плейлист")
             .setContentTitle("DreamTune is downloading")
             .setContentText(text)
             .setContentIntent(contentIntent)
@@ -383,16 +443,18 @@ public class DreamTuneDownloadService extends Service {
         return builder.build();
     }
 
-    private void createChannel() {
+    private void createChannels() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
+
         NotificationChannel channel = new NotificationChannel(
             CHANNEL_ID,
             "DreamTune downloads",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_DEFAULT
         );
         channel.setDescription("Background playlist downloads for DreamTune");
         channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
-        NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(channel);
 
         NotificationChannel resultChannel = new NotificationChannel(

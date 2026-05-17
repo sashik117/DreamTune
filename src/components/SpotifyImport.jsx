@@ -390,47 +390,32 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
       setImportRows(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
     };
 
-    if (mode === 'playlist' && canUseNativeYouTube()) {
-      const queueItems = [];
-      for (let index = 0; index < chosen.length; index++) {
-        const track = chosen[index];
-        setProgress({ done, total, current: `${track.artist || ''} — ${track.title || ''}` });
-        updateRow(index, { status: 'loading', message: 'Шукаю аудіо на YouTube...' });
-
-        try {
-          const candidate = (await findYouTubeCandidatesForTrack(track))[0];
-          if (!candidate?.video_id) {
-            updateRow(index, { status: 'failed', message: 'Не знайшла аудіо' });
-          } else {
-            queueItems.push({
-              id: `${Date.now()}-${index}-${candidate.video_id}`,
-              videoId: candidate.video_id,
-              title: track.title,
-              artist: track.artist,
-              cover_url: track.cover_url || candidate.thumbnail || '',
-              playlistId: targetPlaylist?.id || '',
-              playlistName: targetPlaylist?.name || playlistName || 'Spotify playlist',
-              source_url: track.source_url || '',
-            });
-            updateRow(index, { status: 'done', message: 'Додано в фонову чергу' });
-          }
-        } catch (error) {
-          console.warn('Queue candidate failed:', track.title, error);
-          updateRow(index, { status: 'failed', message: 'Не вдалося підготувати' });
-        }
-
-        done++;
-        setProgress({ done, total, current: '' });
-      }
+    if (canUseNativeYouTube()) {
+      const queueItems = chosen.map((track, index) => {
+        const query = `${track.artist || ''} ${track.title || ''} audio`.trim();
+        updateRow(index, { status: 'done', message: 'Added to Android background queue' });
+        return {
+          id: `${Date.now()}-${index}-${trackIdentity(track)}`,
+          query,
+          title: track.title,
+          artist: track.artist,
+          cover_url: track.cover_url || '',
+          playlistId: targetPlaylist?.id || '',
+          playlistName: targetPlaylist?.name || playlistName || 'Spotify playlist',
+          source_url: track.source_url || '',
+        };
+      }).filter(item => item.query);
+      done = queueItems.length;
+      setProgress({ done, total, current: '' });
 
       if (!queueItems.length) {
-        toast.error('Не вдалося підготувати жоден трек для фону');
+        toast.error('Could not prepare any tracks for background download');
         setStep('done');
         return;
       }
 
       await startYouTubeDownloadQueue(queueItems);
-      toast.success(`Фонове скачування запущено: ${queueItems.length} треків`);
+      toast.success(`Background download started: ${queueItems.length} tracks`);
       setStep('done');
       return;
     }

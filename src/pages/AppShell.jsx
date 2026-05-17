@@ -347,9 +347,10 @@ export default function AppShell() {
     staleAudioRepairStartedRef.current = true;
     queueBrokenSongRepairs(librarySongs)
       .then(({ queued }) => {
-        if (queued > 0) toast.success(`Repairing ${queued} old tracks in the background`);
-        return;
-        if (queued > 0) toast.success(`Відновлюю ${queued} старих треків у фоні`);
+        if (queued > 0) {
+          toast.success(`Repairing ${queued} old tracks in the background`);
+          return;
+        }
       })
       .catch((error) => console.warn('Stale audio repair check failed:', error));
   }, []);
