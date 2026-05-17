@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
+import { downloadYouTubeOnDevice } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 
 async function fetchSpotifyTracks(playlistUrl) {
@@ -28,7 +29,7 @@ async function fetchJson(url, timeout = 9000) {
 }
 
 async function searchYouTubeDirect(query) {
-  const bases = ['https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
+  const bases = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
   for (const base of bases) {
     try {
       const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
@@ -68,7 +69,7 @@ async function searchYouTubeDirect(query) {
 }
 
 async function resolveDirectAudioUrl(videoId) {
-  const bases = ['https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
+  const bases = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
   for (const base of bases) {
     try {
       const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
@@ -122,6 +123,16 @@ async function getAudioForTrack(track) {
   let audio = null;
   let result = null;
   for (const candidate of candidates.slice(0, 8)) {
+    try {
+      const native = await downloadYouTubeOnDevice(candidate.video_id);
+      if (native?.file_url) {
+        audio = { file_url: native.file_url, cover_url: native.cover_url || candidate.thumbnail, native: true };
+        result = candidate;
+        break;
+      }
+    } catch (error) {
+      console.warn('Native YouTube candidate failed:', candidate.title || candidate.video_id, error);
+    }
     try {
       audio = await media.downloadYouTube(candidate.video_id);
       result = candidate;

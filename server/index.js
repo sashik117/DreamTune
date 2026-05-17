@@ -1435,6 +1435,7 @@ async function getYouTubeOembedEntry(videoId, fallbackTitle = '') {
 
 async function searchYouTubeViaPiped(query, limit = 6) {
   const instances = [
+    'https://api.piped.private.coffee',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
     'https://pipedapi.adminforge.de',
@@ -1648,6 +1649,7 @@ async function saveRemoteAudio(url, dir, baseName, extension, headers = {}) {
 
 async function downloadYouTubeFromPipedOrInvidious(videoId, dir, baseName) {
   const pipedInstances = [
+    'https://api.piped.private.coffee',
     'https://pipedapi.adminforge.de',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',

@@ -58,6 +58,33 @@ async function cacheCoverBlob(url) {
   }
 }
 
+function isNativeFileUrl(url) {
+  return String(url || '').startsWith('file:') || String(url || '').includes('/_capacitor_file_');
+}
+
+async function saveOfflineSongMeta(song, coverBlob = null) {
+  const db = await openDB();
+  const tx = db.transaction(META_STORE, 'readwrite');
+  tx.objectStore(META_STORE).put({
+    songId: song.id,
+    id: song.id,
+    title: song.title,
+    artist: song.artist,
+    cover_url: song.cover_url,
+    cover_blob: coverBlob,
+    file_url: song.file_url,
+    duration: song.duration,
+    trim_start: song.trim_start || 0,
+    trim_end: song.trim_end || 0,
+    lyrics: song.lyrics,
+    downloadedAt: Date.now(),
+    is_offline: true,
+  });
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('dreamtune-offline-cache-change', { detail: { songId: song.id, downloaded: true } }));
+  }
+}
+
 export async function isAudioCached(url) {
   const db = await openDB();
   return new Promise((resolve) => {
@@ -110,6 +137,14 @@ export async function downloadSong(song, onProgress) {
     }
     return true;
   } catch {
+    if (isNativeFileUrl(song.file_url)) {
+      try {
+        const coverBlob = await cacheCoverBlob(song.cover_url);
+        await saveOfflineSongMeta(song, coverBlob);
+        if (onProgress) onProgress(100);
+        return true;
+      } catch {}
+    }
     return false;
   }
 }

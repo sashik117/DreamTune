@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Search, Music, AlertCircle, ExternalLink, CheckCircle2, PlayCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
+import { downloadYouTubeOnDevice } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 import { repairMojibake } from '@/utils/text';
 
@@ -20,6 +21,12 @@ async function findYouTubeResults(query) {
 }
 
 async function getAudioUrl(videoId) {
+  try {
+    const native = await downloadYouTubeOnDevice(videoId);
+    if (native?.file_url) return native.file_url;
+  } catch (error) {
+    console.warn('Native YouTube download failed, trying server:', error.message || error);
+  }
   try {
     const data = await media.downloadYouTube(videoId);
     if (data.file_url) return data.file_url;
@@ -46,6 +53,7 @@ async function fetchJson(url, timeout = 9000) {
 
 async function searchYouTubeDirect(query) {
   const pipedInstances = [
+    'https://api.piped.private.coffee',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
     'https://pipedapi.adminforge.de',
@@ -128,6 +136,7 @@ async function searchYouTubeDirect(query) {
 
 async function resolveDirectAudioUrl(videoId) {
   const pipedInstances = [
+    'https://api.piped.private.coffee',
     'https://pipedapi.kavin.rocks',
     'https://pipedapi-libre.kavin.rocks',
     'https://pipedapi.adminforge.de',
