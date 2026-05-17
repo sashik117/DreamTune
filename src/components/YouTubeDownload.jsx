@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Search, Music, AlertCircle, ExternalLink, CheckCircle2, PlayCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
-import { downloadYouTubeOnDevice } from '@/utils/nativeYouTube';
+import { downloadYouTubeOnDevice, isNativeAudioUrl } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 import { repairMojibake } from '@/utils/text';
 
@@ -20,12 +20,14 @@ async function findYouTubeResults(query) {
   return searchYouTubeDirect(query);
 }
 
-async function getAudioUrl(videoId) {
-  try {
-    const native = await downloadYouTubeOnDevice(videoId);
-    if (native?.file_url) return native.file_url;
-  } catch (error) {
-    console.warn('Native YouTube download failed, trying server:', error.message || error);
+async function getAudioUrl(videoId, { native = true } = {}) {
+  if (native) {
+    try {
+      const nativeAudio = await downloadYouTubeOnDevice(videoId);
+      if (nativeAudio?.file_url) return nativeAudio.file_url;
+    } catch (error) {
+      console.warn('Native YouTube download failed, trying server:', error.message || error);
+    }
   }
   try {
     const data = await media.downloadYouTube(videoId);
@@ -295,7 +297,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
     setError('');
 
     try {
-      const fileUrl = await getAudioUrl(result.videoId);
+      const fileUrl = await getAudioUrl(result.videoId, { native: false });
 
       if (!fileUrl) {
         setError('\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u043f\u0456\u0434\u0433\u043e\u0442\u0443\u0432\u0430\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0432\u0430\u0440\u0456\u0430\u043d\u0442 \u0437 YouTube.');
@@ -320,7 +322,10 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
     const artist = repairMojibake(editArtist).trim();
 
     try {
-      const fileUrl = previewUrl || (videoId ? await getAudioUrl(videoId) : null);
+      let fileUrl = previewUrl;
+      if (videoId && !isNativeAudioUrl(previewUrl)) {
+        fileUrl = await getAudioUrl(videoId, { native: true });
+      }
 
       if (!fileUrl) {
         setError('\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438 \u0430\u0443\u0434\u0456\u043e. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0432\u0430\u0440\u0456\u0430\u043d\u0442 \u0430\u0431\u043e \u0434\u043e\u0434\u0430\u0439 \u0444\u0430\u0439\u043b \u0432\u0440\u0443\u0447\u043d\u0443.');

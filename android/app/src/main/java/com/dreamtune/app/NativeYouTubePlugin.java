@@ -33,7 +33,6 @@ public class NativeYouTubePlugin extends Plugin {
         executor.execute(() -> {
             try {
                 ensureInitialized();
-                maybeUpdateYoutubeDL();
 
                 File dir = new File(getContext().getFilesDir(), "youtube");
                 if (!dir.exists() && !dir.mkdirs()) {
@@ -42,19 +41,17 @@ public class NativeYouTubePlugin extends Plugin {
 
                 String baseName = System.currentTimeMillis() + "-" + videoId;
                 String outputTemplate = new File(dir, baseName + ".%(ext)s").getAbsolutePath();
-                YoutubeDLRequest request = new YoutubeDLRequest("https://www.youtube.com/watch?v=" + videoId);
-                request.addOption("-f", "bestaudio[ext=m4a]/bestaudio/best");
-                request.addOption("-o", outputTemplate);
-                request.addOption("--no-playlist");
-                request.addOption("--restrict-filenames");
-                request.addOption("--no-warnings");
-                request.addOption("--no-mtime");
-                request.addOption("--force-overwrites");
-                request.addOption("--socket-timeout", "20");
-                request.addOption("--retries", "3");
-                request.addOption("--fragment-retries", "3");
 
-                YoutubeDL.getInstance().execute(request);
+                try {
+                    YoutubeDL.getInstance().execute(buildDownloadRequest(videoId, outputTemplate));
+                } catch (Exception firstError) {
+                    cleanupPartialFiles(videoId);
+                    if (!maybeUpdateYoutubeDL()) {
+                        throw firstError;
+                    }
+                    YoutubeDL.getInstance().execute(buildDownloadRequest(videoId, outputTemplate));
+                }
+
                 File downloaded = findDownloadedFile(dir, baseName);
                 if (downloaded == null || downloaded.length() <= 0) {
                     throw new IllegalStateException("Audio file was not created");
@@ -80,18 +77,36 @@ public class NativeYouTubePlugin extends Plugin {
         initialized = true;
     }
 
-    private void maybeUpdateYoutubeDL() {
+    private YoutubeDLRequest buildDownloadRequest(String videoId, String outputTemplate) {
+        YoutubeDLRequest request = new YoutubeDLRequest("https://www.youtube.com/watch?v=" + videoId);
+        request.addOption("-f", "bestaudio[ext=m4a][abr<=192]/bestaudio[abr<=192]/bestaudio[ext=m4a]/bestaudio/best");
+        request.addOption("-o", outputTemplate);
+        request.addOption("--no-playlist");
+        request.addOption("--restrict-filenames");
+        request.addOption("--no-warnings");
+        request.addOption("--no-mtime");
+        request.addOption("--force-overwrites");
+        request.addOption("--socket-timeout", "12");
+        request.addOption("--retries", "2");
+        request.addOption("--fragment-retries", "1");
+        request.addOption("--concurrent-fragments", "4");
+        return request;
+    }
+
+    private boolean maybeUpdateYoutubeDL() {
         Context context = getContext();
         SharedPreferences prefs = context.getSharedPreferences("dreamtune-native-youtube", Context.MODE_PRIVATE);
         long now = System.currentTimeMillis();
         long lastUpdate = prefs.getLong("yt_dlp_updated_at", 0);
-        if (now - lastUpdate < 24L * 60L * 60L * 1000L) return;
+        if (now - lastUpdate < 24L * 60L * 60L * 1000L) return false;
 
         try {
             YoutubeDL.getInstance().updateYoutubeDL(context, YoutubeDL.UpdateChannel._STABLE);
             prefs.edit().putLong("yt_dlp_updated_at", now).apply();
+            return true;
         } catch (Exception ignored) {
             prefs.edit().putLong("yt_dlp_updated_at", now).apply();
+            return false;
         }
     }
 

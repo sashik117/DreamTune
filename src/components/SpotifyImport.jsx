@@ -117,21 +117,23 @@ async function getAudioForTrack(track) {
         }
       }
     }
-    if (candidates.length >= 8) break;
+    if (candidates.length >= 6) break;
   }
 
   let audio = null;
   let result = null;
-  for (const candidate of candidates.slice(0, 8)) {
-    try {
-      const native = await downloadYouTubeOnDevice(candidate.video_id);
-      if (native?.file_url) {
-        audio = { file_url: native.file_url, cover_url: native.cover_url || candidate.thumbnail, native: true };
-        result = candidate;
-        break;
+  for (const [index, candidate] of candidates.slice(0, 4).entries()) {
+    if (index < 3) {
+      try {
+        const native = await downloadYouTubeOnDevice(candidate.video_id);
+        if (native?.file_url) {
+          audio = { file_url: native.file_url, cover_url: native.cover_url || candidate.thumbnail, native: true };
+          result = candidate;
+          break;
+        }
+      } catch (error) {
+        console.warn('Native YouTube candidate failed:', candidate.title || candidate.video_id, error);
       }
-    } catch (error) {
-      console.warn('Native YouTube candidate failed:', candidate.title || candidate.video_id, error);
     }
     try {
       audio = await media.downloadYouTube(candidate.video_id);
