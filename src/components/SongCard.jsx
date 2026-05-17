@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, CheckSquare, Square } from 'lucide-react';
-import OfflineDownloadButton from './offline/OfflineDownloadButton';
 import CoverArt from './CoverArt';
 import FavoriteButton from './FavoriteButton';
 import {
@@ -164,7 +163,6 @@ export default function SongCard({
         </div>
 
         <div className="flex items-center gap-0.5 opacity-100" onClick={e => e.stopPropagation()}>
-          {!selectionMode && <OfflineDownloadButton song={song} size="sm" />}
           {canFavorite && onToggleFavorite && (
             <FavoriteButton active={Boolean(song.is_favorite)} onClick={(_, nextFavorite) => onToggleFavorite(song, nextFavorite)} />
           )}

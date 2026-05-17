@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
-import PlaylistDownloadBar from '../components/offline/PlaylistDownloadBar';
 import SongCard from '../components/SongCard';
 import { cacheAudio } from '../utils/audioCache';
 
@@ -356,8 +355,6 @@ export default function CollabPlaylistDetail({
           ))}
         </div>
       )}
-
-      <PlaylistDownloadBar songs={playlistSongs} />
 
       {playlistSongs.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">

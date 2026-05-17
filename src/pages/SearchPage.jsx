@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, WifiOff, Wifi, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowUpDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import SongCard from '../components/SongCard';
 
@@ -11,7 +11,6 @@ const SORT_OPTIONS = [
 
 export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs }) {
   const [query, setQuery] = useState('');
-  const [cacheFilter, setCacheFilter] = useState('all'); // all | cached | online
   const [sort, setSort] = useState('title');
 
   const filtered = useMemo(() => {
@@ -25,17 +24,14 @@ export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, on
       );
     }
 
-    if (cacheFilter === 'cached') result = result.filter(s => cachedSongs?.has(s.id));
-    if (cacheFilter === 'online') result = result.filter(s => !cachedSongs?.has(s.id));
-
     if (sort === 'title') result.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'uk'));
     if (sort === 'artist') result.sort((a, b) => (a.artist || '').localeCompare(b.artist || '', 'uk'));
     if (sort === 'newest') result.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
     return result;
-  }, [songs, query, cacheFilter, sort, cachedSongs]);
+  }, [songs, query, sort]);
 
-  const showResults = query.trim() || cacheFilter !== 'all';
+  const showResults = Boolean(query.trim());
 
   return (
     <div className="px-4 pt-6 pb-4">
@@ -51,21 +47,8 @@ export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, on
         />
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <button
-          onClick={() => setCacheFilter(cacheFilter === 'cached' ? 'all' : 'cached')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${cacheFilter === 'cached' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
-        >
-          <WifiOff className="w-3 h-3" /> Завантажені
-        </button>
-        <button
-          onClick={() => setCacheFilter(cacheFilter === 'online' ? 'all' : 'online')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${cacheFilter === 'online' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'}`}
-        >
-          <Wifi className="w-3 h-3" /> Онлайн
-        </button>
-        <div className="flex items-center gap-1.5 ml-auto">
+      <div className="flex justify-end mb-4">
+        <div className="flex items-center gap-1.5">
           <ArrowUpDown className="w-3 h-3 text-muted-foreground" />
           <select
             value={sort}

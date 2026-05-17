@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { getCachedAudio, cacheAudio, getDownloadedSongsMeta } from '../utils/audioCache';
 import { resolvePlayableAudioUrl } from '../utils/audioUrls';
+import { repairSongAudio } from '../utils/audioRepair';
 import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMediaSession } from '../utils/nativeMediaSession';
 import { toast } from 'sonner';
 
@@ -14,6 +15,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const repeatHitsRef = useRef({ songId: null, count: 0 });
   const manualQueueRef = useRef(false);
   const nativeSessionRef = useRef({ songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 });
+  const loadingAudioRef = useRef(false);
+  const repairingSongIdRef = useRef(null);
+  const repairAttemptsRef = useRef(new Set());
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -210,6 +214,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       else playNext();
     };
     const handleError = () => {
+      if (loadingAudioRef.current || repairingSongIdRef.current) return;
       toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
       setIsPlaying(false);
     };
@@ -250,46 +255,85 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const loadAndPlay = useCallback(async (song) => {
     initAudioChain();
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-    
-    const playableUrl = resolvePlayableAudioUrl(song.file_url);
-    const cached = await getCachedAudio(song.file_url);
-    const src = cached || playableUrl;
-    
-    // Only change src if different to avoid reload
-    if (audioRef.current.src !== src) {
-      audioRef.current.src = src;
-      audioRef.current.load();
-    }
-    const { start } = getTrimBounds(song);
-    if (start > 0) {
-      const setTrimStart = () => { audioRef.current.currentTime = start; };
-      if (audioRef.current.readyState >= 1) setTrimStart();
-      else audioRef.current.addEventListener('loadedmetadata', setTrimStart, { once: true });
-    }
-    
-    try {
+
+    const prepareAndPlay = async (targetSong) => {
+      const playableUrl = resolvePlayableAudioUrl(targetSong.file_url);
+      const cached = await getCachedAudio(targetSong.file_url);
+      const src = cached || playableUrl;
+      loadingAudioRef.current = true;
+
+      // Only change src if different to avoid reload
+      if (audioRef.current.src !== src) {
+        audioRef.current.src = src;
+        audioRef.current.load();
+      }
+      const { start } = getTrimBounds(targetSong);
+      if (start > 0) {
+        const setTrimStart = () => { audioRef.current.currentTime = start; };
+        if (audioRef.current.readyState >= 1) setTrimStart();
+        else audioRef.current.addEventListener('loadedmetadata', setTrimStart, { once: true });
+      }
+
       requestMainAudioFocus();
       await audioRef.current.play();
-      const { start: activeStart, end: activeEnd } = getTrimBounds(song);
+      loadingAudioRef.current = false;
+      const { start: activeStart, end: activeEnd } = getTrimBounds(targetSong);
       const span = Math.max(0, (activeEnd || audioRef.current.duration || 0) - activeStart);
       setCurrentTime(Math.max(0, audioRef.current.currentTime - activeStart));
       setDuration(span || audioRef.current.duration || 0);
-      setCurrentSongId(song.id);
-      repeatHitsRef.current = { songId: song.id, count: 0 };
+      setCurrentSongId(targetSong.id);
+      repeatHitsRef.current = { songId: targetSong.id, count: 0 };
       setIsPlaying(true);
-      updateMediaSession(song);
+      updateMediaSession(targetSong);
+      return { cached, src };
+    };
+
+    let activeSong = song;
+    let cached = null;
+
+    try {
+      ({ cached } = await prepareAndPlay(activeSong));
     } catch (e) {
-      console.warn('Audio playback failed:', { fileUrl: song.file_url, src, error: e });
-      toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
-      setIsPlaying(false);
+      loadingAudioRef.current = false;
+      console.warn('Audio playback failed:', { fileUrl: activeSong.file_url, error: e });
+
+      if (activeSong?.id && !repairAttemptsRef.current.has(activeSong.id)) {
+        repairAttemptsRef.current.add(activeSong.id);
+        repairingSongIdRef.current = activeSong.id;
+        toast.loading('Звук зламався, перескачую трек заново...', { id: `repair-${activeSong.id}` });
+        try {
+          const repairedSong = await repairSongAudio(activeSong);
+          repairingSongIdRef.current = null;
+          if (repairedSong?.file_url) {
+            activeSong = repairedSong;
+            setQueue(prev => prev.map(item => item.id === repairedSong.id ? { ...item, ...repairedSong } : item));
+            ({ cached } = await prepareAndPlay(activeSong));
+            toast.success('Готово, звук відновлено', { id: `repair-${activeSong.id}` });
+          } else {
+            toast.error('Не вдалося відновити цей трек автоматично', { id: `repair-${activeSong.id}` });
+            setIsPlaying(false);
+            return;
+          }
+        } catch (repairError) {
+          repairingSongIdRef.current = null;
+          console.warn('Audio repair failed:', repairError);
+          toast.error('Не вдалося відновити цей трек автоматично', { id: `repair-${activeSong.id}` });
+          setIsPlaying(false);
+          return;
+        }
+      } else {
+        toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
+        setIsPlaying(false);
+        return;
+      }
     }
     
     if (!cached) {
-      cacheAudio(song.file_url).then(() => {
-        setCachedSongs(prev => new Set([...prev, song.id]));
+      cacheAudio(activeSong.file_url).then(() => {
+        setCachedSongs(prev => new Set([...prev, activeSong.id]));
       }).catch(() => {});
     } else {
-      setCachedSongs(prev => new Set([...prev, song.id]));
+      setCachedSongs(prev => new Set([...prev, activeSong.id]));
     }
   }, [initAudioChain, updateMediaSession, getTrimBounds, requestMainAudioFocus]);
 

@@ -24,7 +24,7 @@ async function getAudioUrl(videoId, { native = true } = {}) {
   if (native) {
     try {
       const nativeAudio = await downloadYouTubeOnDevice(videoId);
-      if (nativeAudio?.file_url) return nativeAudio.file_url;
+      if (nativeAudio?.native_file_url || nativeAudio?.file_url) return nativeAudio.native_file_url || nativeAudio.file_url;
     } catch (error) {
       console.warn('Native YouTube download failed, trying server:', error.message || error);
     }

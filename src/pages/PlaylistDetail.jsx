@@ -5,7 +5,6 @@ import { ArrowLeft, Plus, Music, Check, Shuffle, Play, ImagePlus } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import SongCard from '../components/SongCard';
-import PlaylistDownloadBar from '../components/offline/PlaylistDownloadBar';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -247,8 +246,6 @@ export default function PlaylistDetail({
           </div>
         </div>
       </div>
-
-      <PlaylistDownloadBar songs={playlistSongs} />
 
       {playlistSongs.length === 0 ? (
         <div className="text-center py-16">

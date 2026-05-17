@@ -153,8 +153,8 @@ async function getAudioForTrack(track) {
     if (index < 3) {
       try {
         const native = await downloadYouTubeOnDevice(candidate.video_id);
-        if (native?.file_url) {
-          audio = { file_url: native.file_url, cover_url: native.cover_url || candidate.thumbnail, native: true };
+        if (native?.native_file_url || native?.file_url) {
+          audio = { file_url: native.native_file_url || native.file_url, cover_url: native.cover_url || candidate.thumbnail, native: true };
           result = candidate;
           break;
         }
