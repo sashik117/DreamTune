@@ -36,6 +36,7 @@ export default function CollabPlaylists({
   const [currentUser, setCurrentUser] = useState(null);
   const [openDetail, setOpenDetail] = useState(null);
   const coverInputRef = useRef(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     loadData();
@@ -122,13 +123,15 @@ export default function CollabPlaylists({
   };
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
+      const cleanName = newName.trim();
       let coverUrl = coverPreview || '';
       if (coverFile) coverUrl = await storage.uploadFile(coverFile, 'songs');
       const payload = {
-        name: newName.trim(),
+        name: cleanName,
         cover_url: coverUrl,
         cover_position: `${coverPosition.x}% ${coverPosition.y}%`,
         cover_scale: coverScale,
@@ -142,11 +145,12 @@ export default function CollabPlaylists({
         setPlaylists(prev => prev.map(item => item.id === updated.id ? { ...item, ...updated } : item));
         toast.success('Спільний плейлист оновлено');
       } else {
-        await entities.CollabPlaylist.create({
+        const created = await entities.CollabPlaylist.create({
           ...payload,
           song_ids: [],
           collaborator_ids: [],
         });
+        setPlaylists(prev => prev.some(item => item.id === created.id) ? prev : [created, ...prev]);
         toast.success('Спільний плейлист створено');
       }
       resetForm();
@@ -156,6 +160,7 @@ export default function CollabPlaylists({
       toast.error('Помилка збереження');
     } finally {
       setSaving(false);
+      savingRef.current = false;
     }
   };
 
@@ -349,7 +354,7 @@ export default function CollabPlaylists({
               onChange={e => setNewName(e.target.value)}
               placeholder="Назва плейлиста..."
               className="bg-secondary border-border rounded-xl"
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              onKeyDown={e => e.key === 'Enter' && !e.nativeEvent?.isComposing && handleCreate()}
               autoFocus
             />
             <Button onClick={handleCreate} disabled={!newName.trim() || saving} className="w-full rounded-xl">

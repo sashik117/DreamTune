@@ -1,8 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, ChevronDown, Repeat, Shuffle, Volume2, Moon, TimerOff, MoreVertical, ListPlus, Plus, Share2, Scissors, ListMusic, X, Music, GripVertical } from 'lucide-react';
-import { useRef } from 'react';
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, Repeat, Shuffle, Volume2, Moon, TimerOff, MoreVertical, ListPlus, Plus, Share2, Scissors, ListMusic, X, Music } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
-import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
 import { Slider } from "@/components/ui/slider";
 import LyricsView from '../LyricsView';
 import EqPanel from '../EqPanel';
@@ -40,7 +38,7 @@ export default function FullPlayer({
   onToggleFavorite, onCollapse, progress, currentTime, duration,
   onSeek, volume, onVolumeChange, shuffle, onShuffleToggle, repeat, onRepeatToggle,
   analyser, onSongUpdated, eq, onEqChange,
-  queue, onQueueReorder, onQueueRemove, onQueuePlay,
+  queue, onQueueRemove, onQueuePlay,
   sleepRemaining = 0, sleepDimming = false, onSleepTimerChange,
   coverShape = 'square', canFavorite = true, playlists = [], onAddSongsToPlaylist, onAddCurrentToQueue, onEditCurrent
 }) {
@@ -61,7 +59,6 @@ export default function FullPlayer({
   const [showPlaylistPicker, setShowPlaylistPicker] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showInlineQueue, setShowInlineQueue] = useState(false);
-  const dragIndexRef = useRef(null);
   if (!currentSong) return null;
   const isCircleCover = coverShape === 'circle';
   const fullCoverRadius = isCircleCover ? 'rounded-full' : 'rounded-[28px]';
@@ -88,40 +85,6 @@ export default function FullPlayer({
     } finally {
       setShowMoreMenu(false);
     }
-  };
-
-  const handleQueueDragEnd = (result) => {
-    if (!result.destination || result.destination.index === result.source.index) return;
-    const nextQueue = Array.from(queue || []);
-    const [moved] = nextQueue.splice(result.source.index, 1);
-    nextQueue.splice(result.destination.index, 0, moved);
-    onQueueReorder?.(nextQueue);
-  };
-
-  const moveQueueItem = (from, to) => {
-    if (from === null || to === null || from === to || !queue?.[from] || !queue?.[to]) return;
-    const nextQueue = Array.from(queue || []);
-    const [moved] = nextQueue.splice(from, 1);
-    nextQueue.splice(to, 0, moved);
-    dragIndexRef.current = to;
-    onQueueReorder?.(nextQueue);
-  };
-
-  const handlePointerQueueStart = (event, index) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    dragIndexRef.current = index;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  };
-
-  const handlePointerQueueMove = (event) => {
-    if (dragIndexRef.current === null) return;
-    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-queue-index]');
-    const nextIndex = Number(target?.getAttribute('data-queue-index'));
-    if (Number.isFinite(nextIndex)) moveQueueItem(dragIndexRef.current, nextIndex);
-  };
-
-  const handlePointerQueueEnd = () => {
-    dragIndexRef.current = null;
   };
 
   return (
@@ -405,46 +368,25 @@ export default function FullPlayer({
                         <Music className="w-4 h-4" /> {'\u0427\u0435\u0440\u0433\u0430 \u043f\u043e\u0440\u043e\u0436\u043d\u044f'}
                       </div>
                     ) : (
-                      <DragDropContext onDragEnd={handleQueueDragEnd}>
-                        <Droppable droppableId="player-queue">
-                          {(provided) => (
-                            <div ref={provided.innerRef} {...provided.droppableProps} className="max-h-[min(48dvh,340px)] space-y-1 overflow-y-auto pr-1">
-                              {queue.map((song, index) => (
-                                <Draggable key={`${song.id}-${index}`} draggableId={`${song.id}-${index}`} index={index} disableInteractiveElementBlocking>
-                                  {(dragProvided, snapshot) => (
-                                    <div
-                                      ref={dragProvided.innerRef}
-                                      {...dragProvided.draggableProps}
-                                      {...dragProvided.dragHandleProps}
-                                      data-queue-index={index}
-                                      onPointerDown={(event) => handlePointerQueueStart(event, index)}
-                                      onPointerMove={handlePointerQueueMove}
-                                      onPointerUp={handlePointerQueueEnd}
-                                      onPointerCancel={handlePointerQueueEnd}
-                                      className={`flex min-h-14 items-center gap-2 rounded-2xl bg-secondary/65 p-2 shadow-sm transition-shadow ${snapshot.isDragging ? 'shadow-2xl shadow-primary/25 opacity-95' : ''}`}
-                                    >
-                                      <button type="button" className="min-h-10 min-w-8 rounded-xl flex items-center justify-center touch-none" aria-label="Перетягнути трек">
-                                        <GripVertical className="w-4 h-4 shrink-0 text-muted-foreground" />
-                                      </button>
-                                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                                        <CoverArt song={song} className={`h-10 w-10 ${smallCoverRadius} shrink-0`} fallbackClassName="text-xs" />
-                                        <button onClick={() => onQueuePlay?.(song)} className="min-w-0 flex-1 text-left">
-                                          <p className="truncate text-sm font-bold text-foreground">{song.title}</p>
-                                          <p className="truncate text-xs text-muted-foreground">{song.artist || '\u041d\u0435\u0432\u0456\u0434\u043e\u043c\u0438\u0439'}</p>
-                                        </button>
-                                      </div>
-                                      <button onClick={() => onQueueRemove?.(song.id)} className="rounded-full p-2 hover:bg-card" aria-label="Прибрати з черги">
-                                        <X className="w-4 h-4 text-muted-foreground" />
-                                      </button>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
+                      <div className="max-h-[min(48dvh,340px)] space-y-1 overflow-y-auto pr-1">
+                        {queue.map((song, index) => (
+                          <div key={`${song.id}-${index}`} className="flex min-h-14 items-center gap-2 rounded-2xl bg-secondary/65 p-2 shadow-sm">
+                            <span className="min-h-10 min-w-8 rounded-xl flex items-center justify-center text-xs font-black text-muted-foreground">
+                              {index + 1}
+                            </span>
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <CoverArt song={song} className={`h-10 w-10 ${smallCoverRadius} shrink-0`} fallbackClassName="text-xs" />
+                              <button onClick={() => onQueuePlay?.(song)} className="min-w-0 flex-1 text-left">
+                                <p className="truncate text-sm font-bold text-foreground">{song.title}</p>
+                                <p className="truncate text-xs text-muted-foreground">{song.artist || '\u041d\u0435\u0432\u0456\u0434\u043e\u043c\u0438\u0439'}</p>
+                              </button>
                             </div>
-                          )}
-                        </Droppable>
-                      </DragDropContext>
+                            <button onClick={() => onQueueRemove?.(song.id)} className="rounded-full p-2 hover:bg-card" aria-label="Прибрати з черги">
+                              <X className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </motion.div>
                   </>

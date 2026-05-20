@@ -18,6 +18,16 @@ import { queueBrokenSongRepairs } from '../utils/audioRepair';
 import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads } from '../utils/nativeYouTube';
 import { toast } from 'sonner';
 
+const OFFLINE_PLAYLISTS_KEY = 'dreamtune-offline-playlists-v1';
+
+function readOfflinePlaylists() {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_PLAYLISTS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
 export default function AppShell() {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const [songs, setSongs]               = useState([]);
@@ -47,7 +57,11 @@ export default function AppShell() {
   const navigate = useNavigate();
   useEffect(() => {
     playlistsRef.current = playlists;
-  }, [playlists]);
+    if (loading && !playlists.length) return;
+    try {
+      localStorage.setItem(OFFLINE_PLAYLISTS_KEY, JSON.stringify(playlists || []));
+    } catch {}
+  }, [loading, playlists]);
   useEffect(() => {
     const root = document.documentElement;
     const safeSetLocalStorage = (key, value) => {
@@ -96,46 +110,59 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    const loadOfflineShell = async () => {
+      const offlineSongs = await getDownloadedSongsMeta();
+      if (!mounted) return;
+      setSongs(offlineSongs);
+      setPlaylists(readOfflinePlaylists());
+      setLoading(false);
+    };
+
     hydrateAuthToken()
       .then((token) => {
         if (!token) {
-          navigate('/auth', { replace: true });
-          setLoading(false);
+          if (!navigator.onLine) loadOfflineShell();
+          else {
+            navigate('/auth', { replace: true });
+            setLoading(false);
+          }
           return null;
         }
         return auth.me();
       })
       .then(user => {
-        if (!user) return;
+        if (!mounted || !user) return;
         setCurrentUser(user);
         if (user?.nickname) setProfileNickname(user.nickname);
         if (user?.avatar_url) setProfileAvatar(user.avatar_url);
         loadSongs();
         loadPlaylists();
         loadFriendRequestCount();
-      }).catch(async () => {
-        if (!navigator.onLine) {
-          const offlineSongs = await getDownloadedSongsMeta();
-          setSongs(offlineSongs);
-          setPlaylists([]);
-          setLoading(false);
+      }).catch(async (error) => {
+        if (!mounted) return;
+        const isAuthError = error?.status === 401 || error?.status === 403;
+        if (!isAuthError || !navigator.onLine || error?.isTimeout) {
+          await loadOfflineShell();
           return;
         }
         setAuthToken('');
         navigate('/auth', { replace: true });
         setLoading(false);
       });
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
     if (!loading) return undefined;
-    const timer = window.setTimeout(() => {
-      setAuthToken('');
+    const timer = window.setTimeout(async () => {
+      const offlineSongs = await getDownloadedSongsMeta();
+      setSongs(prev => prev.length ? prev : offlineSongs);
+      setPlaylists(prev => prev.length ? prev : readOfflinePlaylists());
       setLoading(false);
-      navigate('/auth', { replace: true });
     }, 8000);
     return () => window.clearTimeout(timer);
-  }, [loading, navigate]);
+  }, [loading]);
 
   useEffect(() => {
     if (!loading) {
@@ -333,7 +360,7 @@ export default function AppShell() {
       scheduleStaleAudioRepair(data);
     } catch (err) {
       console.error('Failed to load songs:', err);
-      if (!navigator.onLine) {
+      if (!navigator.onLine || err?.isTimeout || !err?.status) {
         const offlineSongs = await getDownloadedSongsMeta();
         setSongs(offlineSongs);
       }
@@ -361,6 +388,7 @@ export default function AppShell() {
       setPlaylists(data);
     } catch (err) {
       console.error('Failed to load playlists:', err);
+      setPlaylists(readOfflinePlaylists());
     }
   };
 
@@ -404,21 +432,25 @@ export default function AppShell() {
   }, [currentUser?.id]);
 
   const handleDelete = useCallback(async (song) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Видалити "${song.title || 'трек'}" назавжди?`)) return false;
     setSongs(prev => prev.filter(s => s.id !== song.id));
     setPlaylists(prev => prev.map(pl => ({
       ...pl,
       song_ids: (pl.song_ids || []).filter(id => id !== song.id),
     })));
     await entities.Song.delete(song.id);
+    return true;
   }, []);
 
   const handleDeleteMany = useCallback(async (songIds) => {
+    if (typeof window !== 'undefined' && !window.confirm(`Видалити ${songIds.length} пісень назавжди?`)) return false;
     setSongs(prev => prev.filter(song => !songIds.includes(song.id)));
     setPlaylists(prev => prev.map(pl => ({
       ...pl,
       song_ids: (pl.song_ids || []).filter(id => !songIds.includes(id)),
     })));
     await Promise.all(songIds.map(id => entities.Song.delete(id)));
+    return true;
   }, []);
 
   const handleSongAdded = useCallback((newSong) => {
@@ -700,7 +732,6 @@ export default function AppShell() {
             eq={player.eq}
             onEqChange={player.setEq}
             queue={player.queue}
-            onQueueReorder={player.reorderQueue}
             onQueueRemove={player.removeFromQueue}
             onQueuePlay={player.playSong}
             bassLevel={player.bassLevel}
@@ -734,8 +765,6 @@ export default function AppShell() {
         onThemeAccentChange={setThemeAccent}
         onThemeBackgroundChange={setThemeBackground}
         onSignOut={outletContext.onSignOut}
-        sleepRemaining={player.sleepRemaining}
-        onSleepTimerChange={player.setSleepTimer}
       />
       <UploadModal
         open={showUpload}

@@ -83,6 +83,7 @@ async function request(path, options = {}) {
 
     if (!response.ok) {
       const error = new Error(data?.error || data || 'API request failed');
+      error.status = response.status;
       if (data && typeof data === 'object') Object.assign(error, data);
       throw error;
     }
@@ -90,7 +91,9 @@ async function request(path, options = {}) {
     return data;
   } catch (err) {
     if (err?.name === 'AbortError') {
-      throw new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+      const error = new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+      error.isTimeout = true;
+      throw error;
     }
     throw err;
   } finally {

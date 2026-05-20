@@ -1,4 +1,4 @@
-import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, CheckSquare, Square } from 'lucide-react';
+import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, ListMinus, CheckSquare, Square } from 'lucide-react';
 import CoverArt from './CoverArt';
 import FavoriteButton from './FavoriteButton';
 import {
@@ -25,6 +25,7 @@ export default function SongCard({
   onEdit,
   onAddToQueue,
   onPlayNext,
+  onRemoveFromPlaylist,
   staggerIndex,
   playlists = [],
   onAddSongsToPlaylist,
@@ -128,7 +129,7 @@ export default function SongCard({
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </motion.button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52">
+            <DropdownMenuContent align="end" collisionPadding={12} className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52 max-w-[calc(100vw-1.5rem)]">
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(song)} className="rounded-xl">
                   <Pencil className="w-4 h-4 mr-2" /> Редагувати
@@ -139,7 +140,7 @@ export default function SongCard({
                   <DropdownMenuSubTrigger className="rounded-xl">
                     <ListPlus className="w-4 h-4 mr-2" /> Додати в плейлист
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="bg-card border-border rounded-2xl shadow-xl min-w-48">
+                  <DropdownMenuSubContent side="left" align="start" sideOffset={8} collisionPadding={12} className="z-[150] bg-card border-border rounded-2xl shadow-xl min-w-48 max-w-[calc(100vw-1.5rem)]">
                     {playlists.map(playlist => (
                       <DropdownMenuItem key={playlist.id} onClick={() => addToPlaylist(playlist)} className="rounded-xl">
                         {playlist.name}
@@ -158,9 +159,16 @@ export default function SongCard({
                   <ListEnd className="w-4 h-4 mr-2" /> В кінець черги
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onDelete(song)} className="text-destructive focus:text-destructive rounded-xl">
+              {onRemoveFromPlaylist && (
+                <DropdownMenuItem onClick={() => onRemoveFromPlaylist(song)} className="rounded-xl">
+                  <ListMinus className="w-4 h-4 mr-2" /> Прибрати з плейлиста
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <DropdownMenuItem onClick={() => onDelete(song)} className="text-destructive focus:text-destructive rounded-xl">
                 <Trash2 className="w-4 h-4 mr-2" /> Видалити
-              </DropdownMenuItem>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

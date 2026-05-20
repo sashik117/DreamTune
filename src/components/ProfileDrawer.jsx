@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, ChevronRight, Languages, LogOut, Moon, Palette, Settings, TimerOff, UserCircle, Users, X } from 'lucide-react';
+import { BarChart3, ChevronRight, Languages, LogOut, Moon, Palette, Settings, UserCircle, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -12,21 +12,12 @@ export default function ProfileDrawer({
   profileAvatar = '',
   profileNickname = 'DreamTune',
   notificationCount = 0,
-  sleepRemaining = 0,
-  onSleepTimerChange,
   onSignOut,
   onNavigate,
 }) {
   const location = useLocation();
   const { t } = useTranslation();
   const publicPlaylists = playlists.filter(playlist => playlist.is_public);
-  const formatRemaining = (seconds) => {
-    if (!seconds) return 'Вимкнено';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
   const menu = [
     { path: '/profile', labelKey: 'profile.title', icon: UserCircle },
     { path: '/profile/friends', labelKey: 'profile.friends', icon: Users },
@@ -107,36 +98,7 @@ export default function ProfileDrawer({
               })}
             </nav>
 
-            <div className="mt-auto p-3 border-t border-border space-y-3">
-              <div className="rounded-3xl border border-border bg-secondary/70 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Moon className="w-4 h-4 text-primary shrink-0" />
-                    <span className="truncate text-xs font-black text-foreground">Sleep timer</span>
-                  </div>
-                  <span className="text-xs font-black text-primary">{formatRemaining(sleepRemaining)}</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[15, 30, 60].map(minutes => (
-                    <button
-                      key={minutes}
-                      type="button"
-                      onClick={() => onSleepTimerChange?.(minutes)}
-                      className="min-h-9 rounded-2xl bg-card px-2 text-xs font-black text-foreground hover:bg-primary/15 hover:text-primary"
-                    >
-                      {minutes === 60 ? '1h' : `${minutes}m`}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => onSleepTimerChange?.(0)}
-                    className="min-h-9 rounded-2xl bg-card px-2 text-muted-foreground hover:text-foreground"
-                    aria-label="Cancel sleep timer"
-                  >
-                    <TimerOff className="mx-auto h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+            <div className="mt-auto p-3 border-t border-border">
               <button onClick={signOut} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-foreground hover:bg-secondary">
                 <LogOut className="w-5 h-5" />
                 {t('profile.signOut')}

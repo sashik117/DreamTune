@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import SongCard from '../components/SongCard';
 import { cacheAudio } from '../utils/audioCache';
 import ImageCropBox from '@/components/ImageCropBox';
+import { formatPlaylistDuration, getPlaylistSeconds } from '@/utils/duration';
 
 export default function CollabPlaylistDetail({
   playlist: initialPlaylist,
@@ -48,6 +49,7 @@ export default function CollabPlaylistDetail({
 
   const playlistCoverSongs = playlistSongs.filter(song => song.cover_url).slice(0, 4);
   const memberCount = ((playlist.collaborator_ids || []).length || (playlist.collaborator_emails || []).length) + 1;
+  const playlistDuration = formatPlaylistDuration(getPlaylistSeconds(playlistSongs));
 
   const pluralSong = (count) => {
     const mod10 = count % 10;
@@ -128,7 +130,7 @@ export default function CollabPlaylistDetail({
   const handleRemoveSong = async (songId) => {
     const newIds = (playlist.song_ids || []).filter(id => id !== songId);
     await update({ song_ids: newIds });
-    toast.success('Пісню видалено');
+    toast.success('Пісню прибрано з плейлиста');
   };
 
   const handleInvite = async (friend) => {
@@ -278,7 +280,7 @@ export default function CollabPlaylistDetail({
                 <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Спільний плейлист'}</h1>
               </div>
               <p className="truncate text-sm text-muted-foreground">
-                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {memberCount} {pluralMember(memberCount)}
+                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {memberCount} {pluralMember(memberCount)}
               </p>
             </div>
           </div>
@@ -364,7 +366,7 @@ export default function CollabPlaylistDetail({
                     isPlaying={isPlaying}
                     onPlay={handlePlayFromPlaylist}
                     onToggleFavorite={onToggleFavorite}
-                    onDelete={(item) => handleRemoveSong(item.id)}
+                    onRemoveFromPlaylist={(item) => handleRemoveSong(item.id)}
                     onEdit={onEdit}
                     onAddToQueue={onAddToQueue}
                     onPlayNext={onPlayNext}

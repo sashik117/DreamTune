@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { normalizeSearchText } from '@/utils/text';
 
 const SORT_OPTIONS = [
   { value: 'artist', label: 'Виконавець' },
@@ -43,12 +44,15 @@ export default function Library({
 
   const visibleSongs = useMemo(() => {
     let result = [...songs];
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearchText(query);
 
     if (q) {
+      const terms = q.split(' ').filter(Boolean);
       result = result.filter(song =>
-        song.title?.toLowerCase().includes(q) ||
-        song.artist?.toLowerCase().includes(q)
+        terms.every(term => {
+          const haystack = normalizeSearchText(`${song.title || ''} ${song.artist || ''}`);
+          return haystack.includes(term);
+        })
       );
     }
 
@@ -120,7 +124,8 @@ export default function Library({
   const deleteSelected = async () => {
     if (!selectedIds.length) return;
     try {
-      await onDeleteMany?.(selectedIds);
+      const deleted = await onDeleteMany?.(selectedIds);
+      if (deleted === false) return;
       toast.success(`${selectedCount} пісень видалено`);
       clearSelection();
     } catch (err) {

@@ -1,9 +1,49 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getCachedAudio, cacheAudio, getDownloadedSongsMeta } from '../utils/audioCache';
+import { getCachedAudio, cacheAudio, getDownloadedSongsMeta, saveOfflineSongMeta } from '../utils/audioCache';
 import { resolvePlayableAudioUrl } from '../utils/audioUrls';
 import { repairSongAudio } from '../utils/audioRepair';
 import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMediaSession } from '../utils/nativeMediaSession';
 import { toast } from 'sonner';
+
+const PLAYBACK_STATE_KEY = 'dreamtune-playback-state-v1';
+
+function serializeSong(song) {
+  if (!song?.id) return null;
+  return {
+    id: song.id,
+    title: song.title || '',
+    artist: song.artist || '',
+    cover_url: song.cover_url || '',
+    cover_position: song.cover_position || '50% 50%',
+    cover_scale: song.cover_scale || 1,
+    file_url: song.file_url || '',
+    duration: song.duration || 0,
+    trim_start: song.trim_start || 0,
+    trim_end: song.trim_end || 0,
+    lyrics: song.lyrics || '',
+    is_offline: Boolean(song.is_offline),
+  };
+}
+
+function dedupeSongs(items = []) {
+  const seen = new Set();
+  return items.filter(item => {
+    if (!item?.id || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function shuffleSongs(items = [], currentSongId = null) {
+  const deduped = dedupeSongs(items);
+  const current = currentSongId ? deduped.find(song => song.id === currentSongId) : null;
+  const rest = deduped.filter(song => song.id !== currentSongId);
+  for (let i = rest.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+  return current ? [current, ...rest] : rest;
+}
 
 export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const audioRef = useRef(null);
@@ -18,6 +58,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const loadingAudioRef = useRef(false);
   const repairingSongIdRef = useRef(null);
   const repairAttemptsRef = useRef(new Set());
+  const restoredPlaybackRef = useRef(false);
+  const restorePositionRef = useRef(0);
+  const lastSavedPlaybackRef = useRef(0);
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -218,13 +261,19 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
       setIsPlaying(false);
     };
+    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('play', handlePlay);
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('play', handlePlay);
     };
   }, [currentSongId, songs, queue, shuffle, repeat, getTrimBounds, replayCurrentTrim, shouldRepeatCurrent]);
 
@@ -252,7 +301,8 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     });
   }, []);
 
-  const loadAndPlay = useCallback(async (song) => {
+  const loadAndPlay = useCallback(async (song, options = {}) => {
+    const startAt = Number.isFinite(options.startAt) ? Math.max(0, Number(options.startAt)) : null;
     initAudioChain();
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
 
@@ -268,8 +318,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         audioRef.current.load();
       }
       const { start } = getTrimBounds(targetSong);
-      if (start > 0) {
-        const setTrimStart = () => { audioRef.current.currentTime = start; };
+      const targetStart = startAt === null ? start : start + startAt;
+      if (targetStart > 0) {
+        const setTrimStart = () => { audioRef.current.currentTime = targetStart; };
         if (audioRef.current.readyState >= 1) setTrimStart();
         else audioRef.current.addEventListener('loadedmetadata', setTrimStart, { once: true });
       }
@@ -331,39 +382,32 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     if (!cached) {
       cacheAudio(activeSong.file_url).then(() => {
         setCachedSongs(prev => new Set([...prev, activeSong.id]));
+        saveOfflineSongMeta(activeSong).catch(() => {});
       }).catch(() => {});
     } else {
       setCachedSongs(prev => new Set([...prev, activeSong.id]));
+      saveOfflineSongMeta(activeSong).catch(() => {});
     }
   }, [initAudioChain, updateMediaSession, getTrimBounds, requestMainAudioFocus]);
 
-  // Build queue from songs when shuffle changes or songs changes
+  // Keep the library queue fresh without replacing playlist queues.
   useEffect(() => {
-    if (manualQueueRef.current) {
-      return;
-    }
-    if (!songs.length) {
-      setQueue([]);
-      if (currentSongId) {
-        audioRef.current.pause();
-        setCurrentSongId(null);
-        setIsPlaying(false);
-        setProgress(0);
-      }
-      return;
-    }
-    if (shuffle) {
-      const shuffled = [...songs].sort(() => Math.random() - 0.5);
-      setQueue(shuffled);
-    } else {
-      setQueue([...songs]);
-    }
-  }, [songs, shuffle, currentSongId]);
+    if (!songs.length) return;
+    setQueue(prev => {
+      const freshById = new Map(songs.map(song => [song.id, song]));
+      if (!prev.length && !manualQueueRef.current) return dedupeSongs(songs);
+      return dedupeSongs(prev.map(item => freshById.get(item.id) || item));
+    });
+  }, [songs]);
 
   const playSong = useCallback((song) => {
     if (currentSongId === song.id) {
       if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
       else {
+        if (!audioRef.current.src) {
+          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+          return;
+        }
         if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
         requestMainAudioFocus();
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -371,18 +415,26 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       return;
     }
     manualQueueRef.current = false;
-    setQueue(shuffle ? [...songs].sort(() => Math.random() - 0.5) : [...songs]);
+    const libraryQueue = dedupeSongs(songs.length ? songs : [song]);
+    setQueue(shuffle ? shuffleSongs(libraryQueue, song.id) : libraryQueue);
     loadAndPlay(song);
-  }, [currentSongId, isPlaying, loadAndPlay, shuffle, songs, requestMainAudioFocus]);
+  }, [currentSongId, currentTime, isPlaying, loadAndPlay, shuffle, songs, requestMainAudioFocus]);
 
   const togglePlayPause = useCallback(() => {
     if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
     else {
+      if (currentSongId && !audioRef.current.src) {
+        const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+        if (song) {
+          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+          return;
+        }
+      }
       if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
       requestMainAudioFocus();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
-  }, [isPlaying, requestMainAudioFocus]);
+  }, [currentSongId, currentTime, isPlaying, loadAndPlay, queue, requestMainAudioFocus, songs]);
 
   const playNext = useCallback(() => {
     if (!queue.length) return;
@@ -402,7 +454,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   // Queue management
   const addToQueue = useCallback((song) => {
-    setQueue(prev => [...prev, song]);
+    setQueue(prev => prev.some(item => item.id === song.id) ? prev : [...prev, song]);
   }, []);
 
   const playNext_queue = useCallback((song) => {
@@ -423,12 +475,12 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   }, []);
 
   const playPlaylist = useCallback((playlistSongs, { shuffle: shouldShuffle = false, startSongId = null } = {}) => {
-    const playable = playlistSongs.filter(Boolean);
+    const playable = dedupeSongs(playlistSongs.filter(Boolean));
     if (!playable.length) return;
     let ordered = shouldShuffle
-      ? [...playable].sort(() => Math.random() - 0.5)
+      ? shuffleSongs(playable, startSongId)
       : playable;
-    if (startSongId && !shouldShuffle) {
+    if (startSongId) {
       const startIndex = ordered.findIndex(song => song.id === startSongId);
       if (startIndex > 0) ordered = [...ordered.slice(startIndex), ...ordered.slice(0, startIndex)];
     }
@@ -438,10 +490,75 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     loadAndPlay(ordered[0]);
   }, [loadAndPlay]);
 
+  useEffect(() => {
+    if (restoredPlaybackRef.current || currentSongId) return;
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(PLAYBACK_STATE_KEY) || 'null');
+    } catch {
+      saved = null;
+    }
+    if (!saved?.currentSongId) return;
+    const savedQueue = dedupeSongs(saved.queue || []);
+    const freshById = new Map(songs.map(song => [song.id, song]));
+    const restoredQueue = dedupeSongs((savedQueue.length ? savedQueue : songs).map(item => freshById.get(item.id) || item));
+    const restoredSong = freshById.get(saved.currentSongId)
+      || restoredQueue.find(song => song.id === saved.currentSongId)
+      || savedQueue.find(song => song.id === saved.currentSongId);
+    if (!restoredSong?.id) return;
+
+    restoredPlaybackRef.current = true;
+    manualQueueRef.current = Boolean(saved.manualQueue || savedQueue.length);
+    restorePositionRef.current = Math.max(0, Number(saved.currentTime || 0));
+    setQueue(restoredQueue.length ? restoredQueue : [restoredSong]);
+    setCurrentSongId(restoredSong.id);
+    setCurrentTime(restorePositionRef.current);
+    setDuration(Number(saved.duration || restoredSong.duration || 0));
+    setProgress(saved.duration ? Math.min(100, (restorePositionRef.current / saved.duration) * 100) : 0);
+    setShuffle(Boolean(saved.shuffle));
+    setRepeat(Number(saved.repeat || 0));
+    if (Number.isFinite(saved.volume)) {
+      audioRef.current.volume = saved.volume;
+      setVolumeState(saved.volume);
+    }
+    setIsPlaying(false);
+  }, [currentSongId, songs]);
+
+  useEffect(() => {
+    if (!currentSongId) return;
+    const now = Date.now();
+    if (now - lastSavedPlaybackRef.current < 1200) return;
+    lastSavedPlaybackRef.current = now;
+    const currentSong = songs.find(song => song.id === currentSongId) || queue.find(song => song.id === currentSongId);
+    const payload = {
+      currentSongId,
+      currentTime,
+      duration,
+      isPlaying,
+      shuffle,
+      repeat,
+      volume,
+      manualQueue: manualQueueRef.current,
+      queue: dedupeSongs(queue.length ? queue : (currentSong ? [currentSong] : [])).map(serializeSong).filter(Boolean),
+      savedAt: now,
+    };
+    try {
+      localStorage.setItem(PLAYBACK_STATE_KEY, JSON.stringify(payload));
+    } catch {}
+  }, [currentSongId, currentTime, duration, isPlaying, queue, repeat, shuffle, songs, volume]);
+
   // Media Session
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.setActionHandler('play', () => {
+      if (currentSongId && !audioRef.current.src) {
+        const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+        if (song) {
+          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+          navigator.mediaSession.playbackState = 'playing';
+          return;
+        }
+      }
       if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
       requestMainAudioFocus();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -453,7 +570,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
     navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-  }, [playNext, playPrev, requestMainAudioFocus]);
+  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, requestMainAudioFocus, songs]);
 
   const seek = useCallback((percent) => {
     const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
@@ -536,6 +653,13 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     Promise.resolve(addNativeMediaActionListener((event) => {
       const action = event?.action;
       if (action === 'play') {
+        if (currentSongId && !audioRef.current.src) {
+          const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+          if (song) {
+            loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+            return;
+          }
+        }
         if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
         requestMainAudioFocus();
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
@@ -556,7 +680,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       mounted = false;
       handle?.remove?.();
     };
-  }, [playNext, playPrev, requestMainAudioFocus, seekToSeconds]);
+  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, requestMainAudioFocus, seekToSeconds, songs]);
 
   useEffect(() => {
     const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
@@ -602,8 +726,13 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     setEq, addToQueue, playNextInQueue: playNext_queue, removeFromQueue, reorderQueue,
     setSleepTimer,
     setShuffle: () => {
-      manualQueueRef.current = false;
-      setShuffle(p => !p);
+      setShuffle(prev => {
+        const next = !prev;
+        if (next) {
+          setQueue(prevQueue => shuffleSongs(prevQueue.length ? prevQueue : songs, currentSongId));
+        }
+        return next;
+      });
     },
     setRepeat: () => setRepeat(p => (p + 1) % 4),
   };

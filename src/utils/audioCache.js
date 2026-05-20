@@ -65,8 +65,21 @@ async function cacheCoverBlob(url) {
   }
 }
 
-async function saveOfflineSongMeta(song, coverBlob = null) {
+export async function saveOfflineSongMeta(song, coverBlob) {
   const db = await openDB();
+  let safeCoverBlob = coverBlob;
+  if (safeCoverBlob === undefined) {
+    if (String(song.cover_url || '').startsWith('blob:') || String(song.cover_url || '').startsWith('data:')) {
+      safeCoverBlob = await new Promise((resolve) => {
+        const tx = db.transaction(META_STORE, 'readonly');
+        const req = tx.objectStore(META_STORE).get(song.id);
+        req.onsuccess = () => resolve(req.result?.cover_blob || null);
+        req.onerror = () => resolve(null);
+      });
+    } else {
+      safeCoverBlob = await cacheCoverBlob(song.cover_url);
+    }
+  }
   const tx = db.transaction(META_STORE, 'readwrite');
   tx.objectStore(META_STORE).put({
     songId: song.id,
@@ -74,7 +87,7 @@ async function saveOfflineSongMeta(song, coverBlob = null) {
     title: song.title,
     artist: song.artist,
     cover_url: song.cover_url,
-    cover_blob: coverBlob,
+    cover_blob: safeCoverBlob,
     file_url: song.file_url,
     duration: song.duration,
     trim_start: song.trim_start || 0,

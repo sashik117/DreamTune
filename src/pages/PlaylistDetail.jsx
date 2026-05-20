@@ -8,6 +8,7 @@ import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import ImageCropBox from '@/components/ImageCropBox';
+import { formatPlaylistDuration, getPlaylistSeconds } from '@/utils/duration';
 
 export default function PlaylistDetail({
   songs,
@@ -53,6 +54,7 @@ export default function PlaylistDetail({
     : [];
 
   const playlistCoverSongs = playlistSongs.filter(song => song.cover_url).slice(0, 4);
+  const playlistDuration = formatPlaylistDuration(getPlaylistSeconds(playlistSongs));
 
   const pluralSong = (count) => {
     const mod10 = count % 10;
@@ -100,6 +102,19 @@ export default function PlaylistDetail({
     } catch (err) {
       console.error(err);
       toast.error('Помилка оновлення');
+    }
+  };
+
+  const handleRemoveSong = async (song) => {
+    if (!playlist || !song?.id) return;
+    const newIds = (playlist.song_ids || []).filter(item => item !== song.id);
+    try {
+      await entities.Playlist.update(playlist.id, { song_ids: newIds });
+      setPlaylist(prev => ({ ...prev, song_ids: newIds }));
+      toast.success('Пісню прибрано з плейлиста');
+    } catch (err) {
+      console.error(err);
+      toast.error('Не вийшло прибрати пісню');
     }
   };
 
@@ -200,7 +215,7 @@ export default function PlaylistDetail({
               <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Плейлист</p>
               <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Плейлист'}</h1>
               <p className="truncate text-sm text-muted-foreground">
-                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlist.is_public ? 'Публічний' : 'Приватний'}
+                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {playlist.is_public ? 'Публічний' : 'Приватний'}
               </p>
             </div>
           </div>
@@ -248,6 +263,7 @@ export default function PlaylistDetail({
                 onPlay={handlePlayFromPlaylist}
                 onToggleFavorite={onToggleFavorite}
                 onDelete={onDelete}
+                onRemoveFromPlaylist={handleRemoveSong}
                 onEdit={onEdit}
                 onAddToQueue={onAddToQueue}
                 onPlayNext={onPlayNext}

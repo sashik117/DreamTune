@@ -22,6 +22,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
   const [coverFile, setCoverFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     setPlaylists(livePlaylists);
@@ -59,28 +60,30 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || savingRef.current) return;
+    savingRef.current = true;
     setUploading(true);
     try {
+      const cleanName = name.trim();
       let coverUrl = null;
       if (coverFile) coverUrl = await storage.uploadFile(coverFile, 'songs');
 
       if (editingId) {
-        const update = { name: name.trim(), is_public: isPublic, cover_position: `${coverPosition.x}% ${coverPosition.y}%`, cover_scale: coverScale };
+        const update = { name: cleanName, is_public: isPublic, cover_position: `${coverPosition.x}% ${coverPosition.y}%`, cover_scale: coverScale };
         if (coverUrl) update.cover_url = coverUrl;
         const updated = await entities.Playlist.update(editingId, update);
         setPlaylists(prev => prev.map(p => p.id === editingId ? { ...p, ...updated } : p));
         toast.success('Змінено');
       } else {
         const playlist = await entities.Playlist.create({
-          name: name.trim(),
+          name: cleanName,
           song_ids: [],
           cover_url: coverUrl || '',
           cover_position: `${coverPosition.x}% ${coverPosition.y}%`,
           cover_scale: coverScale,
           is_public: isPublic,
         });
-        setPlaylists(prev => [playlist, ...prev]);
+        setPlaylists(prev => prev.some(item => item.id === playlist.id) ? prev : [playlist, ...prev]);
         toast.success('Плейлист створено');
       }
 
@@ -91,6 +94,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
       toast.error('Помилка збереження');
     } finally {
       setUploading(false);
+      savingRef.current = false;
     }
   };
 
@@ -239,7 +243,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
               onChange={e => setName(e.target.value)}
               placeholder="Назва плейлиста..."
               className="bg-secondary border-border"
-              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              onKeyDown={e => e.key === 'Enter' && !e.nativeEvent?.isComposing && handleCreate()}
               autoFocus
             />
 

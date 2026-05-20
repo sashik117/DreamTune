@@ -28,6 +28,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
   const coverPointerRef = useRef(null);
   const coverPointersRef = useRef(new Map());
   const coverGestureRef = useRef({ startDistance: 1, startScale: 1 });
+  const lastTrimHandleRef = useRef('start');
 
   const formatTime = (seconds) => {
     if (!seconds || Number.isNaN(seconds)) return '0:00';
@@ -180,6 +181,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
   const handleTrimPointerDown = (event, handle) => {
     event.preventDefault();
     event.stopPropagation();
+    lastTrimHandleRef.current = handle;
     setDraggingHandle(handle);
     updateTrimFromPointer(event, handle);
   };
@@ -212,7 +214,10 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
 
     if (previewStopRef.current) audio.removeEventListener('timeupdate', previewStopRef.current);
     audio.pause();
-    audio.currentTime = start;
+    const previewStart = lastTrimHandleRef.current === 'end'
+      ? Math.max(start, Math.min(end - 1, end - 8))
+      : start;
+    audio.currentTime = previewStart;
     window.dispatchEvent(new CustomEvent('dreamtune-preview-play'));
     const pauseForMain = () => {
       audio.pause();
@@ -224,7 +229,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     const stop = () => {
       if (audio.currentTime >= end) {
         audio.pause();
-        audio.currentTime = start;
+        audio.currentTime = previewStart;
         setPreviewing(false);
         audio.removeEventListener('timeupdate', stop);
         previewStopRef.current = null;
