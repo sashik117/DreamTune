@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import SongCard from '../components/SongCard';
 import { cacheAudio } from '../utils/audioCache';
 import ImageCropBox from '@/components/ImageCropBox';
-import { formatPlaylistDuration, getPlaylistSeconds } from '@/utils/duration';
+import { formatPlaylistDuration, getPlaylistSeconds, resolvePlaylistSeconds } from '@/utils/duration';
 
 export default function CollabPlaylistDetail({
   playlist: initialPlaylist,
@@ -38,6 +38,7 @@ export default function CollabPlaylistDetail({
   });
   const [coverScale, setCoverScale] = useState(Number(initialPlaylist.cover_scale || 1));
   const [savingCover, setSavingCover] = useState(false);
+  const [playlistDurationSeconds, setPlaylistDurationSeconds] = useState(0);
   const coverInputRef = useRef(null);
   const previousSongIdsRef = useRef((initialPlaylist.song_ids || []).map(String));
 
@@ -49,7 +50,10 @@ export default function CollabPlaylistDetail({
 
   const playlistCoverSongs = playlistSongs.filter(song => song.cover_url).slice(0, 4);
   const memberCount = ((playlist.collaborator_ids || []).length || (playlist.collaborator_emails || []).length) + 1;
-  const playlistDuration = formatPlaylistDuration(getPlaylistSeconds(playlistSongs));
+  const playlistDurationKey = playlistSongs
+    .map(song => [song.id, song.file_url, song.duration || 0, song.trim_start || 0, song.trim_end || 0].join(':'))
+    .join('|');
+  const playlistDuration = formatPlaylistDuration(playlistDurationSeconds);
 
   const pluralSong = (count) => {
     const mod10 = count % 10;
@@ -66,6 +70,21 @@ export default function CollabPlaylistDetail({
     if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'учасники';
     return 'учасників';
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const knownSeconds = getPlaylistSeconds(playlistSongs);
+    setPlaylistDurationSeconds(knownSeconds);
+    if (!playlistSongs.length) return () => { cancelled = true; };
+
+    resolvePlaylistSeconds(playlistSongs, (seconds) => {
+      if (!cancelled) setPlaylistDurationSeconds(seconds);
+    }).then((seconds) => {
+      if (!cancelled) setPlaylistDurationSeconds(seconds);
+    });
+
+    return () => { cancelled = true; };
+  }, [playlistDurationKey]);
 
   useEffect(() => {
     const channel = supabase

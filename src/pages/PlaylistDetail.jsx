@@ -8,7 +8,7 @@ import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import ImageCropBox from '@/components/ImageCropBox';
-import { formatPlaylistDuration, getPlaylistSeconds } from '@/utils/duration';
+import { formatPlaylistDuration, getPlaylistSeconds, resolvePlaylistSeconds } from '@/utils/duration';
 
 export default function PlaylistDetail({
   songs,
@@ -31,6 +31,7 @@ export default function PlaylistDetail({
   const [coverPosition, setCoverPosition] = useState({ x: 50, y: 50 });
   const [coverScale, setCoverScale] = useState(1);
   const [savingCover, setSavingCover] = useState(false);
+  const [playlistDurationSeconds, setPlaylistDurationSeconds] = useState(0);
   const coverInputRef = useRef(null);
 
   useEffect(() => { loadPlaylist(); }, [id]);
@@ -53,8 +54,26 @@ export default function PlaylistDetail({
     ? (playlist.song_ids || []).map(songId => songs.find(song => song.id === songId)).filter(Boolean)
     : [];
 
+  const playlistDurationKey = playlistSongs
+    .map(song => [song.id, song.file_url, song.duration || 0, song.trim_start || 0, song.trim_end || 0].join(':'))
+    .join('|');
   const playlistCoverSongs = playlistSongs.filter(song => song.cover_url).slice(0, 4);
-  const playlistDuration = formatPlaylistDuration(getPlaylistSeconds(playlistSongs));
+  const playlistDuration = formatPlaylistDuration(playlistDurationSeconds);
+
+  useEffect(() => {
+    let cancelled = false;
+    const knownSeconds = getPlaylistSeconds(playlistSongs);
+    setPlaylistDurationSeconds(knownSeconds);
+    if (!playlistSongs.length) return () => { cancelled = true; };
+
+    resolvePlaylistSeconds(playlistSongs, (seconds) => {
+      if (!cancelled) setPlaylistDurationSeconds(seconds);
+    }).then((seconds) => {
+      if (!cancelled) setPlaylistDurationSeconds(seconds);
+    });
+
+    return () => { cancelled = true; };
+  }, [playlistDurationKey]);
 
   const pluralSong = (count) => {
     const mod10 = count % 10;
