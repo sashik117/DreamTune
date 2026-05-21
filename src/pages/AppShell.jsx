@@ -142,11 +142,11 @@ export default function AppShell() {
       }).catch(async (error) => {
         if (!mounted) return;
         const isAuthError = error?.status === 401 || error?.status === 403;
-        if (!isAuthError || !navigator.onLine || error?.isTimeout) {
+        if (!navigator.onLine) {
           await loadOfflineShell();
           return;
         }
-        setAuthToken('');
+        if (isAuthError) setAuthToken('');
         navigate('/auth', { replace: true });
         setLoading(false);
       });
@@ -155,11 +155,13 @@ export default function AppShell() {
 
   useEffect(() => {
     if (!loading) return undefined;
-    const timer = window.setTimeout(async () => {
-      const offlineSongs = await getDownloadedSongsMeta();
-      setSongs(prev => prev.length ? prev : offlineSongs);
-      setPlaylists(prev => prev.length ? prev : readOfflinePlaylists());
-      setLoading(false);
+    const timer = window.setTimeout(() => {
+      if (navigator.onLine) return;
+      getDownloadedSongsMeta().then(offlineSongs => {
+        setSongs(prev => prev.length ? prev : offlineSongs);
+        setPlaylists(prev => prev.length ? prev : readOfflinePlaylists());
+        setLoading(false);
+      });
     }, 8000);
     return () => window.clearTimeout(timer);
   }, [loading]);
@@ -360,9 +362,11 @@ export default function AppShell() {
       scheduleStaleAudioRepair(data);
     } catch (err) {
       console.error('Failed to load songs:', err);
-      if (!navigator.onLine || err?.isTimeout || !err?.status) {
+      if (!navigator.onLine) {
         const offlineSongs = await getDownloadedSongsMeta();
         setSongs(offlineSongs);
+      } else {
+        toast.error('Не вийшло підтягнути треки з акаунта. Перевір інтернет і спробуй ще раз.');
       }
     } finally {
       setLoading(false);
