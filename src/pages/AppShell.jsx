@@ -28,6 +28,20 @@ function readOfflinePlaylists() {
   }
 }
 
+function withTimeout(promise, ms, message = 'Timeout') {
+  let timeout = null;
+  const timer = new Promise((_, reject) => {
+    timeout = window.setTimeout(() => {
+      const error = new Error(message);
+      error.isTimeout = true;
+      reject(error);
+    }, ms);
+  });
+  return Promise.race([promise, timer]).finally(() => {
+    if (timeout) window.clearTimeout(timeout);
+  });
+}
+
 export default function AppShell() {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const [songs, setSongs]               = useState([]);
@@ -119,7 +133,7 @@ export default function AppShell() {
       setLoading(false);
     };
 
-    hydrateAuthToken()
+    withTimeout(hydrateAuthToken(), 8000, 'Auth storage timeout')
       .then((token) => {
         if (!token) {
           if (!navigator.onLine) loadOfflineShell();
@@ -129,7 +143,7 @@ export default function AppShell() {
           }
           return null;
         }
-        return auth.me();
+        return withTimeout(auth.me(), 12000, 'Auth check timeout');
       })
       .then(user => {
         if (!mounted || !user) return;
@@ -156,15 +170,19 @@ export default function AppShell() {
   useEffect(() => {
     if (!loading) return undefined;
     const timer = window.setTimeout(() => {
-      if (navigator.onLine) return;
+      if (navigator.onLine) {
+        navigate('/auth', { replace: true });
+        setLoading(false);
+        return;
+      }
       getDownloadedSongsMeta().then(offlineSongs => {
         setSongs(prev => prev.length ? prev : offlineSongs);
         setPlaylists(prev => prev.length ? prev : readOfflinePlaylists());
         setLoading(false);
       });
-    }, 8000);
+    }, 16000);
     return () => window.clearTimeout(timer);
-  }, [loading]);
+  }, [loading, navigate]);
 
   useEffect(() => {
     if (!loading) {

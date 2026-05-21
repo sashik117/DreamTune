@@ -58,7 +58,16 @@ async function request(path, options = {}) {
   const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const controller = new AbortController();
   const timeoutMs = Number(requestTimeoutMs || import.meta.env.VITE_API_TIMEOUT_MS || 30000);
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let timeout = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeout = window.setTimeout(() => {
+      controller.abort();
+      const error = new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+      error.isTimeout = true;
+      error.name = 'AbortError';
+      reject(error);
+    }, timeoutMs);
+  });
   let wakeShown = false;
   const wakeTimer = typeof window !== 'undefined'
     ? window.setTimeout(() => {
@@ -68,7 +77,7 @@ async function request(path, options = {}) {
     : null;
 
   try {
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await Promise.race([fetch(`${API_URL}${path}`, {
       ...fetchOptions,
       signal: fetchOptions.signal || controller.signal,
       headers: {
@@ -76,7 +85,7 @@ async function request(path, options = {}) {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...fetchOptions.headers,
       },
-    });
+    }), timeoutPromise]);
 
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json() : await response.text();
@@ -90,14 +99,14 @@ async function request(path, options = {}) {
 
     return data;
   } catch (err) {
-    if (err?.name === 'AbortError') {
+    if (err?.isTimeout || err?.name === 'AbortError') {
       const error = new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
       error.isTimeout = true;
       throw error;
     }
     throw err;
   } finally {
-    window.clearTimeout(timeout);
+    if (timeout) window.clearTimeout(timeout);
     if (wakeTimer) window.clearTimeout(wakeTimer);
     if (wakeShown && typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(API_WAKE_EVENT, { detail: { id: requestId, active: false } }));
