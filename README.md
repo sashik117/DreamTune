@@ -9,7 +9,7 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-111827?style=for-the-badge&logo=postgresql)
 ![Capacitor](https://img.shields.io/badge/Capacitor-Android-111827?style=for-the-badge&logo=capacitor)
 
-![DreamTune auth preview](screenshots/home-page.png)
+![DreamTune home preview](screenshots/home-page.png)
 
 ## ✨ Overview
 
@@ -63,9 +63,9 @@ The project includes a React frontend, an Express/PostgreSQL backend, media uplo
 
 ## 📸 Screenshots
 
-| Desktop Login | Registration Flow | Mobile View |
+| Home Page | Music Library | Mobile Player |
 | --- | --- | --- |
-| ![Desktop login](screenshots/home-page.png) | ![Registration flow](screenshots/auth-flow.png) | ![Mobile view](screenshots/mobile-view.png) |
+| ![Home page](screenshots/home-page.png) | ![Music library](screenshots/library-view.png) | ![Mobile player](screenshots/mobile-view.png) |
 
 ## 🏗 Architecture
 
