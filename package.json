@@ -1,7 +1,8 @@
 {
-  "name": "Music-Player",
+  "name": "dreamtune-music-app",
   "private": true,
   "version": "0.0.0",
+  "description": "Fullstack music player with Spotify import, YouTube audio sourcing, offline playback, and Android media controls.",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm:server\" \"npm:client\"",
