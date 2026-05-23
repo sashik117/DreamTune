@@ -4,8 +4,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioDeviceCallback;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -15,6 +19,9 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "NativeMediaSession")
 public class NativeMediaSessionPlugin extends Plugin {
+    private AudioManager audioManager;
+    private AudioDeviceCallback audioDeviceCallback;
+
     private final BroadcastReceiver mediaCommandReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -33,6 +40,7 @@ public class NativeMediaSessionPlugin extends Plugin {
 
     @Override
     public void load() {
+        audioManager = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         IntentFilter filter = new IntentFilter(DreamTunePlaybackService.ACTION_MEDIA_COMMAND);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             getContext().registerReceiver(mediaCommandReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
@@ -46,6 +54,8 @@ public class NativeMediaSessionPlugin extends Plugin {
         } else {
             getContext().registerReceiver(noisyReceiver, noisyFilter);
         }
+
+        registerAudioDeviceCallback();
     }
 
     @PluginMethod
@@ -82,6 +92,39 @@ public class NativeMediaSessionPlugin extends Plugin {
         notifyListeners("mediaAction", data, true);
     }
 
+    private void registerAudioDeviceCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || audioManager == null || audioDeviceCallback != null) return;
+        audioDeviceCallback = new AudioDeviceCallback() {
+            @Override
+            public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+                if (hasExternalAudioOutput(removedDevices)) {
+                    notifyMediaAction("pause", 0);
+                }
+            }
+        };
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, new Handler(Looper.getMainLooper()));
+    }
+
+    private boolean hasExternalAudioOutput(AudioDeviceInfo[] devices) {
+        if (devices == null) return false;
+        for (AudioDeviceInfo device : devices) {
+            if (device == null || !device.isSink()) continue;
+            int type = device.getType();
+            if (type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                    || type == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                    || type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                    || type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+                    || type == AudioDeviceInfo.TYPE_USB_HEADSET
+                    || type == AudioDeviceInfo.TYPE_USB_DEVICE
+                    || type == AudioDeviceInfo.TYPE_HEARING_AID
+                    || type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                    || type == AudioDeviceInfo.TYPE_BLE_SPEAKER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void handleOnDestroy() {
         try {
@@ -90,6 +133,10 @@ public class NativeMediaSessionPlugin extends Plugin {
         try {
             getContext().unregisterReceiver(noisyReceiver);
         } catch (Exception ignored) {}
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && audioManager != null && audioDeviceCallback != null) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback);
+            audioDeviceCallback = null;
+        }
         super.handleOnDestroy();
     }
 }
