@@ -1,6 +1,7 @@
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from './audioCache';
 import { isNativeFileUrl } from './audioUrls';
+import { persistAudioFileUrl } from './audioPersistence';
 import { canUseNativeYouTube, downloadYouTubeOnDevice, startYouTubeDownloadQueue } from './nativeYouTube';
 
 async function fetchJson(url, timeout = 9000) {
@@ -167,10 +168,11 @@ export async function repairSongAudio(song) {
     const fileUrl = await resolveReplacementAudio(candidate.video_id);
     if (!fileUrl) continue;
 
-    const repairedSong = { ...song, file_url: fileUrl };
-    const updated = await entities.Song.update(song.id, { file_url: fileUrl });
-    await downloadSong({ ...repairedSong, ...updated, file_url: fileUrl }, () => {});
-    return { ...repairedSong, ...updated, file_url: fileUrl };
+    const stableFileUrl = await persistAudioFileUrl(fileUrl, song);
+    const repairedSong = { ...song, file_url: stableFileUrl };
+    const updated = await entities.Song.update(song.id, { file_url: stableFileUrl });
+    await downloadSong({ ...repairedSong, ...updated, file_url: stableFileUrl }, () => {});
+    return { ...repairedSong, ...updated, file_url: stableFileUrl };
   }
 
   return null;

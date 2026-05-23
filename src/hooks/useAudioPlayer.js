@@ -61,6 +61,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const restoredPlaybackRef = useRef(false);
   const restorePositionRef = useRef(0);
   const lastSavedPlaybackRef = useRef(0);
+  const playbackRequestRef = useRef({ id: 0, shouldPlay: false });
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -97,6 +98,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   useEffect(() => {
     const pauseForPreview = () => {
+      playbackRequestRef.current.shouldPlay = false;
       if (!audioRef.current?.paused) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -218,6 +220,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const replayCurrentTrim = useCallback((song) => {
     const { start } = getTrimBounds(song);
     audioRef.current.currentTime = start;
+    playbackRequestRef.current.shouldPlay = true;
     requestMainAudioFocus();
     audioRef.current.play();
   }, [getTrimBounds, requestMainAudioFocus]);
@@ -303,6 +306,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   const loadAndPlay = useCallback(async (song, options = {}) => {
     const startAt = Number.isFinite(options.startAt) ? Math.max(0, Number(options.startAt)) : null;
+    const requestId = playbackRequestRef.current.id + 1;
+    playbackRequestRef.current = { id: requestId, shouldPlay: true };
+    const isActiveRequest = () => playbackRequestRef.current.id === requestId;
+    const shouldContinuePlaying = () => isActiveRequest() && playbackRequestRef.current.shouldPlay;
+
     initAudioChain();
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
 
@@ -323,6 +331,14 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         const setTrimStart = () => { audioRef.current.currentTime = targetStart; };
         if (audioRef.current.readyState >= 1) setTrimStart();
         else audioRef.current.addEventListener('loadedmetadata', setTrimStart, { once: true });
+      }
+
+      if (!shouldContinuePlaying()) {
+        loadingAudioRef.current = false;
+        setCurrentSongId(targetSong.id);
+        setIsPlaying(false);
+        updateMediaSession(targetSong);
+        return { cached, src, skipped: true };
       }
 
       requestMainAudioFocus();
@@ -358,8 +374,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           if (repairedSong?.file_url) {
             activeSong = repairedSong;
             setQueue(prev => prev.map(item => item.id === repairedSong.id ? { ...item, ...repairedSong } : item));
-            ({ cached } = await prepareAndPlay(activeSong));
             toast.success('Готово, звук відновлено', { id: `repair-${activeSong.id}` });
+            if (!isActiveRequest()) return;
+            const result = await prepareAndPlay(activeSong);
+            cached = result?.cached || null;
+            if (result?.skipped) return;
           } else {
             toast.error('Не вдалося відновити цей трек автоматично', { id: `repair-${activeSong.id}` });
             setIsPlaying(false);
@@ -402,13 +421,18 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   const playSong = useCallback((song) => {
     if (currentSongId === song.id) {
-      if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+      if (isPlaying) {
+        playbackRequestRef.current.shouldPlay = false;
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
       else {
         if (!audioRef.current.src) {
           loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
           return;
         }
         if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+        playbackRequestRef.current.shouldPlay = true;
         requestMainAudioFocus();
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       }
@@ -421,7 +445,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   }, [currentSongId, currentTime, isPlaying, loadAndPlay, shuffle, songs, requestMainAudioFocus]);
 
   const togglePlayPause = useCallback(() => {
-    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+    if (isPlaying) {
+      playbackRequestRef.current.shouldPlay = false;
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
     else {
       if (currentSongId && !audioRef.current.src) {
         const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
@@ -431,6 +459,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         }
       }
       if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+      playbackRequestRef.current.shouldPlay = true;
       requestMainAudioFocus();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
@@ -560,11 +589,13 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         }
       }
       if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+      playbackRequestRef.current.shouldPlay = true;
       requestMainAudioFocus();
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       navigator.mediaSession.playbackState = 'playing';
     });
     navigator.mediaSession.setActionHandler('pause', () => {
+      playbackRequestRef.current.shouldPlay = false;
       audioRef.current.pause(); setIsPlaying(false);
       navigator.mediaSession.playbackState = 'paused';
     });
@@ -622,6 +653,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       if (step >= steps) {
         clearInterval(timers.fade);
         timers.fade = null;
+        playbackRequestRef.current.shouldPlay = false;
         audioRef.current.pause();
         audioRef.current.volume = originalVolume;
         setVolumeState(originalVolume);
@@ -661,10 +693,12 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           }
         }
         if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+        playbackRequestRef.current.shouldPlay = true;
         requestMainAudioFocus();
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       }
       if (action === 'pause') {
+        playbackRequestRef.current.shouldPlay = false;
         audioRef.current.pause();
         setIsPlaying(false);
       }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle2, Loader2, Music2, Search, ShieldAlert, XCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
+import { persistAudioFileUrl } from '@/utils/audioPersistence';
 import { canUseNativeYouTube, downloadYouTubeOnDevice, startYouTubeDownloadQueue } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 
@@ -433,12 +434,13 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
           continue;
         }
         updateRow(index, { status: 'loading', message: 'Зберігаю в бібліотеку...' });
+        const stableFileUrl = await persistAudioFileUrl(audio.fileUrl, track);
 
         const song = await entities.Song.create({
           title: track.title,
           artist: track.artist,
           cover_url: audio.spotifyCoverUrl || audio.coverUrl,
-          file_url: audio.fileUrl,
+          file_url: stableFileUrl,
           is_favorite: false,
         });
         added.push(song);

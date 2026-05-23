@@ -15,6 +15,7 @@ import { UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { downloadSong, getDownloadedSongsMeta } from '../utils/audioCache';
 import { queueBrokenSongRepairs } from '../utils/audioRepair';
+import { persistAudioFileUrl } from '../utils/audioPersistence';
 import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads } from '../utils/nativeYouTube';
 import { toast } from 'sonner';
 
@@ -514,7 +515,7 @@ export default function AppShell() {
 
       try {
         if (item.repair && item.songId) {
-          const fileUrl = item.native_file_url || item.file_url;
+          const fileUrl = await persistAudioFileUrl(item.native_file_url || item.file_url, item);
           const updatedSong = await entities.Song.update(item.songId, { file_url: fileUrl });
           const repairedSong = {
             ...updatedSong,
@@ -528,11 +529,12 @@ export default function AppShell() {
           continue;
         }
 
+        const fileUrl = await persistAudioFileUrl(item.native_file_url || item.file_url, item);
         const song = await entities.Song.create({
           title: item.title || 'YouTube track',
           artist: item.artist || '',
           cover_url: item.cover_url || item.coverUrl || '',
-          file_url: item.native_file_url || item.file_url,
+          file_url: fileUrl,
           is_favorite: false,
         });
         await downloadSong(song, () => {});

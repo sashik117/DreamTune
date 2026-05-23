@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Search, Music, AlertCircle, ExternalLink, CheckCircle2, PlayCircle } from 'lucide-react';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
+import { persistAudioFileUrl } from '@/utils/audioPersistence';
 import { downloadYouTubeOnDevice, isNativeAudioUrl } from '@/utils/nativeYouTube';
 import { toast } from 'sonner';
 import { repairMojibake } from '@/utils/text';
@@ -334,6 +335,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       }
 
       const coverUrl = await findSpotifyCover(title, artist, result.thumbnail);
+      fileUrl = await persistAudioFileUrl(fileUrl, { title, artist });
       const song = await entities.Song.create({
         title,
         artist,
