@@ -69,7 +69,7 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
         } catch {}
       })();
 
-      toast.success('Пісню додано!');
+      toast.success('Song added!');
       onSongAdded(song);
       setFile(null);
       setFilePreviewUrl('');
@@ -78,7 +78,7 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
       onOpenChange(false);
     } catch (err) {
       console.error(err);
-      toast.error('Помилка завантаження');
+      toast.error('Upload failed');
     } finally {
       setUploading(false);
     }
@@ -88,7 +88,7 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border w-[calc(100vw-2rem)] max-w-md mx-auto max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-foreground">Додати пісню</DialogTitle>
+          <DialogTitle className="text-foreground">Add song</DialogTitle>
         </DialogHeader>
 
         <Tabs
@@ -100,9 +100,9 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
           className="pt-2"
         >
           <TabsList className="w-full bg-secondary">
-            <TabsTrigger value="search" className="flex-1 text-xs sm:text-sm">Пошук</TabsTrigger>
+            <TabsTrigger value="search" className="flex-1 text-xs sm:text-sm">Search</TabsTrigger>
             <TabsTrigger value="spotify" className="flex-1 text-xs sm:text-sm">Spotify</TabsTrigger>
-            <TabsTrigger value="file" className="flex-1 text-xs sm:text-sm">Файл</TabsTrigger>
+            <TabsTrigger value="file" className="flex-1 text-xs sm:text-sm">File</TabsTrigger>
           </TabsList>
 
           <TabsContent value="search" className="pt-4">
@@ -129,7 +129,7 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
                 className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-all"
               >
                 <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm font-medium text-foreground">Обрати аудіо файл</p>
+                <p className="text-sm font-medium text-foreground">Choose audio file</p>
                 <p className="text-xs text-muted-foreground mt-1">MP3, WAV, OGG, M4A</p>
               </div>
             ) : (
@@ -145,7 +145,7 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
                 </div>
                 {filePreviewUrl && (
                   <div className="rounded-2xl border border-border bg-background/70 p-3">
-                    <p className="text-xs font-bold text-foreground mb-2">Прослухай перед додаванням</p>
+                    <p className="text-xs font-bold text-foreground mb-2">Preview before adding</p>
                     <audio
                       src={filePreviewUrl}
                       controls
@@ -166,17 +166,17 @@ export default function UploadModal({ open, existingSongs = [], onOpenChange, on
             {file && (
               <>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Назва</Label>
-                  <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Назва пісні..." className="bg-secondary border-border" />
+                  <Label className="text-muted-foreground text-xs">Title</Label>
+                  <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Song title..." className="bg-secondary border-border" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Виконавець</Label>
-                  <Input value={artist} onChange={e => setArtist(e.target.value)} placeholder="Ім'я виконавця..." className="bg-secondary border-border" />
+                  <Label className="text-muted-foreground text-xs">Artist</Label>
+                  <Input value={artist} onChange={e => setArtist(e.target.value)} placeholder="Artist name..." className="bg-secondary border-border" />
                 </div>
                 <Button onClick={handleUpload} disabled={uploading || !title.trim()} className="w-full bg-primary hover:brightness-110">
                   {uploading
-                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Завантаження...</>
-                    : <><Sparkles className="w-4 h-4 mr-2" />Додати</>
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading...</>
+                    : <><Sparkles className="w-4 h-4 mr-2" />Add</>
                   }
                 </Button>
               </>

@@ -50,7 +50,7 @@ export default function MiniPlayer({ currentSong, isPlaying, onPlayPause, onNext
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-foreground truncate">{currentSong.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'Невідомий'}</p>
+                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'Unknown artist'}</p>
               </div>
 
               {/* Controls */}

@@ -25,7 +25,7 @@ export const supportedLanguages = [
   { code: 'ko', nameKey: 'language.korean', nativeName: '한국어' },
   { code: 'zh-CN', nameKey: 'language.chineseSimplified', nativeName: '简体中文' },
   { code: 'ar', nameKey: 'language.arabic', nativeName: 'العربية' },
-  { code: 'uk', nameKey: 'language.ukrainian', nativeName: 'Українська' },
+  { code: 'uk', nameKey: 'language.ukrainian', nativeName: 'Ukrainian' },
   { code: 'pl', nameKey: 'language.polish', nativeName: 'Polski' },
   { code: 'tr', nameKey: 'language.turkish', nativeName: 'Türkçe' },
 ];
@@ -50,12 +50,13 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
+    lng: 'en',
     fallbackLng: 'en',
     supportedLngs: supportedLanguages.map(language => language.code),
     nonExplicitSupportedLngs: false,
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator', 'htmlTag'],
+      order: ['localStorage', 'htmlTag'],
       lookupLocalStorage: 'dreamtune-language',
       caches: ['localStorage'],
     },

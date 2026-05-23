@@ -76,11 +76,7 @@ export default function PlaylistDetail({
   }, [playlistDurationKey]);
 
   const pluralSong = (count) => {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) return 'пісня';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'пісні';
-    return 'пісень';
+    return count === 1 ? 'song' : 'songs';
   };
 
   const renderPlaylistCover = () => (
@@ -120,7 +116,7 @@ export default function PlaylistDetail({
       setPlaylist(prev => ({ ...prev, song_ids: newIds }));
     } catch (err) {
       console.error(err);
-      toast.error('Помилка оновлення');
+      toast.error('Update failed');
     }
   };
 
@@ -130,17 +126,17 @@ export default function PlaylistDetail({
     try {
       await entities.Playlist.update(playlist.id, { song_ids: newIds });
       setPlaylist(prev => ({ ...prev, song_ids: newIds }));
-      toast.success('Пісню прибрано з плейлиста');
+      toast.success('Song removed from playlist');
     } catch (err) {
       console.error(err);
-      toast.error('Не вийшло прибрати пісню');
+      toast.error('Could not remove song');
     }
   };
 
   const handlePlayPlaylist = (shouldShuffle) => {
     if (!playlistSongs.length) return;
     onPlayPlaylist?.(playlistSongs, { shuffle: shouldShuffle });
-    toast.success(shouldShuffle ? `Плейлист "${playlist.name}" перемішано` : `Грає "${playlist.name}"`);
+    toast.success(shouldShuffle ? `Playlist "${playlist.name}" shuffled` : `Playing "${playlist.name}"`);
   };
 
   const handlePlayFromPlaylist = (song) => {
@@ -178,10 +174,10 @@ export default function PlaylistDetail({
       });
       setPlaylist(prev => ({ ...prev, ...updated }));
       setShowCoverEditor(false);
-      toast.success('Обкладинку оновлено');
+      toast.success('Cover updated');
     } catch (error) {
       console.error(error);
-      toast.error('Не вийшло оновити обкладинку');
+      toast.error('Could not update cover');
     } finally {
       setSavingCover(false);
     }
@@ -219,22 +215,22 @@ export default function PlaylistDetail({
       <div className="sticky top-0 z-[80] pt-3 pb-3 mb-4 bg-background/96 backdrop-blur-xl border-b border-border/60">
         <div className="space-y-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link to="/playlists" className="h-10 w-10 flex items-center justify-center hover:bg-secondary rounded-full transition-colors shrink-0" aria-label="Назад">
+            <Link to="/playlists" className="h-10 w-10 flex items-center justify-center hover:bg-secondary rounded-full transition-colors shrink-0" aria-label="Back">
               <ArrowLeft className="w-5 h-5 text-foreground" />
             </Link>
             <button
               type="button"
               onClick={openCoverEditor}
               className="shrink-0 rounded-3xl p-1 cursor-pointer hover:bg-primary/10"
-              aria-label="Обкладинка плейлиста"
+              aria-label="Playlist cover"
             >
               {renderPlaylistCover()}
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Плейлист</p>
-              <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Плейлист'}</h1>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Playlist</p>
+              <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Playlist'}</h1>
               <p className="truncate text-sm text-muted-foreground">
-                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {playlist.is_public ? 'Публічний' : 'Приватний'}
+                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {playlist.is_public ? 'Public' : 'Private'}
               </p>
             </div>
           </div>
@@ -245,7 +241,7 @@ export default function PlaylistDetail({
               onClick={() => handlePlayPlaylist(true)}
               disabled={!playlistSongs.length}
               className="min-h-11 flex items-center justify-center rounded-2xl bg-secondary/80 text-primary transition-colors hover:bg-secondary disabled:opacity-40"
-              aria-label="Перемішати"
+              aria-label="Shuffle"
             >
               <Shuffle className="w-4 h-4" />
             </motion.button>
@@ -253,7 +249,7 @@ export default function PlaylistDetail({
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowAddSongs(true)}
               className="min-h-11 flex items-center justify-center rounded-2xl bg-secondary/80 text-primary transition-colors hover:bg-secondary"
-              aria-label="Додати пісні"
+              aria-label="Add songs"
             >
               <Plus className="w-4 h-4" />
             </motion.button>
@@ -264,12 +260,12 @@ export default function PlaylistDetail({
       {playlistSongs.length === 0 ? (
         <div className="text-center py-16">
           <Music className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-          <p className="text-muted-foreground text-sm">Додай пісні до плейлиста</p>
+          <p className="text-muted-foreground text-sm">Add songs to this playlist</p>
         </div>
       ) : (
         <>
           <Button onClick={() => handlePlayPlaylist(false)} className="w-full mb-3 gap-2 rounded-2xl bg-primary hover:brightness-110">
-            <Play className="w-4 h-4 fill-current" /> Грати плейлист
+            <Play className="w-4 h-4 fill-current" /> Play playlist
           </Button>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-1">
             {playlistSongs.map((song, i) => (
@@ -295,7 +291,7 @@ export default function PlaylistDetail({
 
       <Dialog open={showAddSongs} onOpenChange={setShowAddSongs}>
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-md mx-auto max-h-[80dvh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Додати пісні</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Add songs</DialogTitle></DialogHeader>
           <div className="space-y-1 pt-2">
             {songs.map(song => {
               const isIn = (playlist.song_ids || []).includes(song.id);
@@ -304,7 +300,7 @@ export default function PlaylistDetail({
                   {renderSongCover(song)}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{song.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{song.artist || 'Невідомий'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{song.artist || 'Unknown artist'}</p>
                   </div>
                   {isIn && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
                 </div>
@@ -317,7 +313,7 @@ export default function PlaylistDetail({
       <Dialog open={showCoverEditor} onOpenChange={setShowCoverEditor}>
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Обкладинка плейлиста</DialogTitle>
+            <DialogTitle>Playlist cover</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <ImageCropBox
@@ -327,16 +323,16 @@ export default function PlaylistDetail({
               onPositionChange={setCoverPosition}
               onScaleChange={setCoverScale}
               onPick={() => coverInputRef.current?.click()}
-              emptyLabel="Додати фото"
+              emptyLabel="Add photo"
               className="mx-auto w-full max-w-[240px] rounded-3xl"
             />
             <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
             <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()} className="w-full rounded-2xl border-border">
-              <ImagePlus className="w-4 h-4 mr-2" /> Вибрати фото
+              <ImagePlus className="w-4 h-4 mr-2" /> Choose photo
             </Button>
-            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>}
             <Button onClick={saveCover} disabled={savingCover} className="w-full rounded-2xl">
-              {savingCover ? 'Зберігаю...' : 'Зберегти'}
+              {savingCover ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </DialogContent>

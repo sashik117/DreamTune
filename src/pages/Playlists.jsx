@@ -73,7 +73,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
         if (coverUrl) update.cover_url = coverUrl;
         const updated = await entities.Playlist.update(editingId, update);
         setPlaylists(prev => prev.map(p => p.id === editingId ? { ...p, ...updated } : p));
-        toast.success('Змінено');
+        toast.success('Updated');
       } else {
         const playlist = await entities.Playlist.create({
           name: cleanName,
@@ -84,14 +84,14 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
           is_public: isPublic,
         });
         setPlaylists(prev => prev.some(item => item.id === playlist.id) ? prev : [playlist, ...prev]);
-        toast.success('Плейлист створено');
+        toast.success('Playlist created');
       }
 
       resetForm();
       setShowCreate(false);
     } catch (err) {
       console.error(err);
-      toast.error('Помилка збереження');
+      toast.error('Save failed');
     } finally {
       setUploading(false);
       savingRef.current = false;
@@ -102,10 +102,10 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
     try {
       await entities.Playlist.delete(playlist.id);
       setPlaylists(prev => prev.filter(p => p.id !== playlist.id));
-      toast.success('Видалено');
+      toast.success('Deleted');
     } catch (err) {
       console.error(err);
-      toast.error('Не вийшло видалити плейлист');
+      toast.error('Could not delete playlist');
     }
   };
 
@@ -132,15 +132,15 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
       <div className="sticky top-0 z-50 pt-3 pb-3 mb-6 bg-background/92 backdrop-blur-xl border-b border-border/60">
         <div className="pl-16 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-black text-foreground">Плейлисти</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{playlists.length} плейлистів</p>
+            <h1 className="text-2xl font-black text-foreground">Playlists</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{playlists.length} playlists</p>
           </div>
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={() => { resetForm(); setShowCreate(true); }}
             className="flex h-9 w-9 items-center justify-center rounded-full text-primary-foreground shadow-md shrink-0"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
-            aria-label="Новий плейлист"
+            aria-label="New playlist"
           >
             <Plus className="w-4 h-4" />
           </motion.button>
@@ -150,7 +150,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
       {playlists.length === 0 ? (
         <div className="text-center py-16">
           <ListMusic className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Створи свій перший плейлист</p>
+          <p className="text-muted-foreground text-sm">Create your first playlist</p>
         </div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -185,7 +185,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
                   <p className="text-base font-black text-foreground truncate">{playlist.name}</p>
                   <p className="mt-1 text-xs font-bold text-muted-foreground flex items-center gap-1.5 truncate">
                     {playlist.is_public ? <Globe2 className="w-3 h-3 shrink-0" /> : <Lock className="w-3 h-3 shrink-0" />}
-                    <span className="truncate">{playlist.is_public ? 'Публічний' : 'Приватний'} · {playlist.song_ids?.length || 0} пісень</span>
+                    <span className="truncate">{playlist.is_public ? 'Public' : 'Private'} · {playlist.song_ids?.length || 0} songs</span>
                   </p>
                 </div>
               </Link>
@@ -197,17 +197,17 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     className="relative z-20 min-h-10 min-w-10 rounded-full hover:bg-secondary flex items-center justify-center"
-                    aria-label="Дії плейлиста"
+                    aria-label="Playlist actions"
                   >
                     <MoreVertical className="w-5 h-5 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-44" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEdit(playlist); }} className="rounded-xl">
-                    <Pencil className="w-4 h-4 mr-2" /> Редагувати
+                    <Pencil className="w-4 h-4 mr-2" /> Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDelete(playlist)} className="rounded-xl text-destructive focus:text-destructive">
-                    <Trash2 className="w-4 h-4 mr-2" /> Видалити
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -220,7 +220,7 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="bg-card border-border max-w-sm w-[calc(100vw-2rem)] mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Редагувати плейлист' : 'Новий плейлист'}</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit playlist' : 'New playlist'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <ImageCropBox
@@ -230,18 +230,18 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
               onPositionChange={setCoverPosition}
               onScaleChange={setCoverScale}
               onPick={() => fileRef.current?.click()}
-              emptyLabel="Додати обкладинку"
+              emptyLabel="Add cover"
               className="mx-auto w-full max-w-[220px] rounded-3xl"
             />
             <input ref={fileRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
             {coverPreview && (
-              <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>
+              <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>
             )}
 
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Назва плейлиста..."
+              placeholder="Playlist name..."
               className="bg-secondary border-border"
               onKeyDown={e => e.key === 'Enter' && !e.nativeEvent?.isComposing && handleCreate()}
               autoFocus
@@ -254,15 +254,15 @@ export default function Playlists({ songs, playlists: livePlaylists = [] }) {
             >
               {isPublic ? <Globe2 className="w-5 h-5 text-primary" /> : <Lock className="w-5 h-5 text-muted-foreground" />}
               <div>
-                <p className="text-sm font-bold text-foreground">{isPublic ? 'Публічний' : 'Приватний'}</p>
+                <p className="text-sm font-bold text-foreground">{isPublic ? 'Public' : 'Private'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {isPublic ? 'Буде показуватись у профілі' : 'Не показується у профілі'}
+                  {isPublic ? 'Visible on your profile' : 'Hidden from your profile'}
                 </p>
               </div>
             </button>
 
             <Button onClick={handleCreate} disabled={!name.trim() || uploading} className="w-full bg-primary hover:brightness-110">
-              {uploading ? 'Збереження...' : editingId ? 'Зберегти' : 'Створити'}
+              {uploading ? 'Saving...' : editingId ? 'Save' : 'Create'}
             </Button>
           </div>
         </DialogContent>

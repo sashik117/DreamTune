@@ -28,7 +28,7 @@ export default function OfflineDownloadButton({ song, size = 'sm' }) {
     if (downloaded) {
       await removeSongFromCache(song.id, song.file_url);
       setDownloaded(false);
-      toast.success('Видалено з офлайн');
+      toast.success('Removed from offline');
       return;
     }
 
@@ -38,9 +38,9 @@ export default function OfflineDownloadButton({ song, size = 'sm' }) {
     setDownloading(false);
     if (ok) {
       setDownloaded(true);
-      toast.success(`"${song.title}" збережено офлайн`);
+      toast.success(`"${song.title}" saved offline`);
     } else {
-      toast.error('Не вдалося завантажити');
+      toast.error('Could not download');
     }
   };
 
@@ -54,8 +54,8 @@ export default function OfflineDownloadButton({ song, size = 'sm' }) {
       disabled={downloading}
       className={`${btnSize} flex items-center justify-center rounded-full transition-all flex-shrink-0
         ${downloaded ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-secondary text-muted-foreground'}`}
-      title={downloaded ? 'Видалити офлайн копію' : 'Зберегти офлайн'}
-      aria-label={downloaded ? 'Видалити офлайн копію' : 'Зберегти офлайн'}
+      title={downloaded ? 'Remove offline copy' : 'Save offline'}
+      aria-label={downloaded ? 'Remove offline copy' : 'Save offline'}
     >
       <AnimatePresence mode="wait">
         {downloading ? (

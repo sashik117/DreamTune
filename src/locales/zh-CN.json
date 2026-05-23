@@ -1,4 +1,4 @@
-{
+﻿{
   "app.name": "DreamTune",
   "nav.home": "首页",
   "nav.library": "曲库",
@@ -28,7 +28,7 @@
   "language.korean": "한국어",
   "language.chineseSimplified": "简体中文",
   "language.arabic": "العربية",
-  "language.ukrainian": "Українська",
+  "language.ukrainian": "Ukrainian",
   "language.polish": "Polski",
   "language.turkish": "Türkçe",
   "actions.selected": "已选择",

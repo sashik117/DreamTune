@@ -22,14 +22,14 @@ function formatRemaining(seconds) {
 }
 
 function repeatToastMessage(value) {
-  if (!value) return '\u041f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u043d\u044f \u0432\u0438\u043c\u043a\u043d\u0435\u043d\u043e';
-  const suffix = value === 1 ? '\u0440\u0430\u0437' : '\u0440\u0430\u0437\u0438';
-  return `\u041f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u043d\u044f \u0443\u0432\u0456\u043c\u043a\u043d\u0435\u043d\u043e: ${value} ${suffix}`;
+  if (!value) return 'Repeat is off';
+  const suffix = value === 1 ? 'time' : 'times';
+  return `Repeat enabled: ${value} ${suffix}`;
 }
 
 const TABS = [
-  { key: 'player', label: '\u041f\u043b\u0435\u0454\u0440' },
-  { key: 'lyrics', label: '\u0422\u0435\u043a\u0441\u0442' },
+  { key: 'player', label: 'Player' },
+  { key: 'lyrics', label: 'Lyrics' },
   { key: 'eq', label: 'EQ' },
 ];
 
@@ -44,7 +44,7 @@ export default function FullPlayer({
 }) {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const dragControls = useDragControls();
-  // Handle lyrics line click в†’ seek
+  // Handle lyrics line click -> seek
   useEffect(() => {
     const handler = (e) => {
       if (!duration || duration === 0) return;
@@ -69,7 +69,7 @@ export default function FullPlayer({
     await onAddSongsToPlaylist([currentSong.id], playlistId);
     setShowPlaylistPicker(false);
     setShowMoreMenu(false);
-    toast.success('\u0414\u043e\u0434\u0430\u043d\u043e \u0432 \u043f\u043b\u0435\u0439\u043b\u0438\u0441\u0442');
+    toast.success('Added to playlist');
   };
 
   const handleShare = async () => {
@@ -78,10 +78,10 @@ export default function FullPlayer({
       if (navigator.share) await navigator.share({ title: currentSong.title, text });
       else {
         await navigator.clipboard?.writeText(text);
-        toast.success('\u041d\u0430\u0437\u0432\u0443 \u0441\u043a\u043e\u043f\u0456\u0439\u043e\u0432\u0430\u043d\u043e');
+        toast.success('Title copied');
       }
     } catch {
-      toast.error('\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e \u043f\u043e\u0434\u0456\u043b\u0438\u0442\u0438\u0441\u044f');
+      toast.error('Could not share');
     } finally {
       setShowMoreMenu(false);
     }
@@ -155,7 +155,7 @@ export default function FullPlayer({
                   className="absolute right-0 top-12 w-64 rounded-3xl border border-border bg-card p-2 shadow-2xl shadow-black/30"
                 >
                   <button onClick={() => setShowPlaylistPicker(value => !value)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
-                    <Plus className="w-4 h-4 text-primary" /> {'\u0414\u043e\u0434\u0430\u0442\u0438 \u0434\u043e \u043f\u043b\u0435\u0439\u043b\u0438\u0441\u0442\u0430'}
+                    <Plus className="w-4 h-4 text-primary" /> Add to playlist
                   </button>
                   {showPlaylistPicker && (
                     <div className="mx-1 mb-1 max-h-44 overflow-y-auto rounded-2xl bg-secondary p-1">
@@ -163,20 +163,20 @@ export default function FullPlayer({
                         <button key={playlist.id} onClick={() => handleAddToPlaylist(playlist.id)} className="block w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-foreground hover:bg-card">
                           {playlist.name}
                         </button>
-                      )) : <p className="px-3 py-2 text-xs text-muted-foreground">{'\u041f\u043b\u0435\u0439\u043b\u0438\u0441\u0442\u0456\u0432 \u0449\u0435 \u043d\u0435\u043c\u0430\u0454'}</p>}
+                      )) : <p className="px-3 py-2 text-xs text-muted-foreground">No playlists yet</p>}
                     </div>
                   )}
-                  <button onClick={() => { onAddCurrentToQueue?.(currentSong); setShowMoreMenu(false); toast.success('\u0414\u043e\u0434\u0430\u043d\u043e \u0434\u043e \u0447\u0435\u0440\u0433\u0438'); }} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
-                    <ListPlus className="w-4 h-4 text-primary" /> {'\u0414\u043e\u0434\u0430\u0442\u0438 \u0434\u043e \u0447\u0435\u0440\u0433\u0438'}
+                  <button onClick={() => { onAddCurrentToQueue?.(currentSong); setShowMoreMenu(false); toast.success('Added to queue'); }} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
+                    <ListPlus className="w-4 h-4 text-primary" /> Add to queue
                   </button>
                   <button onClick={() => { onEditCurrent?.(currentSong); setShowMoreMenu(false); }} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
-                    <Scissors className="w-4 h-4 text-primary" /> {'\u0420\u0435\u0434\u0430\u0433\u0443\u0432\u0430\u0442\u0438'}
+                    <Scissors className="w-4 h-4 text-primary" /> Edit
                   </button>
                   <button onClick={handleShare} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
-                    <Share2 className="w-4 h-4 text-primary" /> {'\u041f\u043e\u0434\u0456\u043b\u0438\u0442\u0438\u0441\u044f'}
+                    <Share2 className="w-4 h-4 text-primary" /> Share
                   </button>
                   <button onClick={() => { setShowInlineQueue(value => !value); setShowMoreMenu(false); }} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-bold text-foreground hover:bg-secondary">
-                    <ListMusic className="w-4 h-4 text-primary" /> {'\u0427\u0435\u0440\u0433\u0430'}
+                    <ListMusic className="w-4 h-4 text-primary" /> Queue
                   </button>
                 </motion.div>
               )}
@@ -203,7 +203,7 @@ export default function FullPlayer({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h2 className="text-lg sm:text-xl font-bold text-foreground truncate">{currentSong.title}</h2>
-                  <p className="text-sm text-muted-foreground truncate mt-0.5">{currentSong.artist || 'РќРµРІС–РґРѕРјРёР№'}</p>
+                  <p className="text-sm text-muted-foreground truncate mt-0.5">{currentSong.artist || 'Unknown artist'}</p>
                 </div>
                 {canFavorite && (
                   <FavoriteButton
@@ -232,7 +232,7 @@ export default function FullPlayer({
                   onClick={() => {
                     const nextShuffle = !shuffle;
                     onShuffleToggle();
-                    toast.success(nextShuffle ? '\u041f\u0435\u0440\u0435\u043c\u0456\u0448\u0443\u0432\u0430\u043d\u043d\u044f \u0443\u0432\u0456\u043c\u043a\u043d\u0435\u043d\u043e' : '\u041f\u0435\u0440\u0435\u043c\u0456\u0448\u0443\u0432\u0430\u043d\u043d\u044f \u0432\u0438\u043c\u043a\u043d\u0435\u043d\u043e');
+                    toast.success(nextShuffle ? 'Shuffle enabled' : 'Shuffle disabled');
                   }}
                   className={`p-2 rounded-full transition-colors ${shuffle ? 'text-primary' : 'text-muted-foreground'}`}
                 >
@@ -307,7 +307,7 @@ export default function FullPlayer({
                     aria-label="Cancel sleep timer"
                   >
                     <TimerOff className="w-4 h-4" />
-                    {'\u0421\u043a\u0438\u043d\u0443\u0442\u0438'}
+                    Reset
                   </button>
                 )}
                 <AnimatePresence>
@@ -319,7 +319,7 @@ export default function FullPlayer({
                       className="absolute bottom-12 left-0 right-0 rounded-3xl border border-border bg-card p-3 shadow-2xl shadow-black/30"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-black text-foreground">{'\u0420\u0435\u0436\u0438\u043c \u0441\u043d\u0443'}</p>
+                        <p className="text-sm font-black text-foreground">Sleep timer</p>
                         <button onClick={() => setShowSleepMenu(false)} className="rounded-full p-1.5 hover:bg-secondary">
                           <X className="w-4 h-4" />
                         </button>
@@ -356,7 +356,7 @@ export default function FullPlayer({
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <ListMusic className="w-4 h-4 text-primary" />
-                        <p className="text-sm font-black text-foreground">{'\u041d\u0430\u0441\u0442\u0443\u043f\u043d\u0456'}</p>
+                        <p className="text-sm font-black text-foreground">Up next</p>
                         <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">{queue?.length || 0}</span>
                       </div>
                       <button onClick={() => setShowInlineQueue(false)} className="rounded-full p-1.5 hover:bg-secondary">
@@ -365,7 +365,7 @@ export default function FullPlayer({
                     </div>
                     {!queue?.length ? (
                       <div className="flex items-center gap-2 rounded-2xl bg-secondary/60 p-3 text-sm text-muted-foreground">
-                        <Music className="w-4 h-4" /> {'\u0427\u0435\u0440\u0433\u0430 \u043f\u043e\u0440\u043e\u0436\u043d\u044f'}
+                        <Music className="w-4 h-4" /> Queue is empty
                       </div>
                     ) : (
                       <div className="max-h-[min(48dvh,340px)] space-y-1 overflow-y-auto pr-1">
@@ -378,10 +378,10 @@ export default function FullPlayer({
                               <CoverArt song={song} className={`h-10 w-10 ${smallCoverRadius} shrink-0`} fallbackClassName="text-xs" />
                               <button onClick={() => onQueuePlay?.(song)} className="min-w-0 flex-1 text-left">
                                 <p className="truncate text-sm font-bold text-foreground">{song.title}</p>
-                                <p className="truncate text-xs text-muted-foreground">{song.artist || '\u041d\u0435\u0432\u0456\u0434\u043e\u043c\u0438\u0439'}</p>
+                                <p className="truncate text-xs text-muted-foreground">{song.artist || 'Unknown artist'}</p>
                               </button>
                             </div>
-                            <button onClick={() => onQueueRemove?.(song.id)} className="rounded-full p-2 hover:bg-card" aria-label="Прибрати з черги">
+                            <button onClick={() => onQueueRemove?.(song.id)} className="rounded-full p-2 hover:bg-card" aria-label="Remove from queue">
                               <X className="w-4 h-4 text-muted-foreground" />
                             </button>
                           </div>
@@ -403,7 +403,7 @@ export default function FullPlayer({
               <CoverArt song={currentSong} className={`w-10 h-10 ${smallCoverRadius} flex-shrink-0`} fallbackClassName="text-xs" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{currentSong.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'РќРµРІС–РґРѕРјРёР№'}</p>
+                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'Unknown artist'}</p>
               </div>
               <motion.button whileTap={{ scale: 0.88 }} onClick={onPlayPause} className="p-2 rounded-full flex-shrink-0 shadow-md" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}>
                 <AnimatePresence mode="wait">
@@ -425,7 +425,7 @@ export default function FullPlayer({
               <CoverArt song={currentSong} className={`w-10 h-10 ${smallCoverRadius} flex-shrink-0`} fallbackClassName="text-xs" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{currentSong.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'РќРµРІС–РґРѕРјРёР№'}</p>
+                <p className="text-xs text-muted-foreground truncate">{currentSong.artist || 'Unknown artist'}</p>
               </div>
               <motion.button whileTap={{ scale: 0.88 }} onClick={onPlayPause} className="p-2 rounded-full flex-shrink-0 shadow-md" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}>
                 {isPlaying

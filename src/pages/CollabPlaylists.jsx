@@ -56,7 +56,7 @@ export default function CollabPlaylists({
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'collab_playlists' }, (payload) => {
         if (payload.new?.owner_id !== currentUser?.id && !(payload.new?.collaborator_ids || []).includes(currentUser?.id) && payload.new?.access_level !== 'public') return;
         setPlaylists(prev => prev.some(item => item.id === payload.new.id) ? prev.map(item => item.id === payload.new.id ? payload.new : item) : [payload.new, ...prev]);
-        toast(`Створено спільний плейлист "${payload.new.name}"`);
+        toast(`Created collaborative playlist "${payload.new.name}"`);
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'collab_playlists' }, (payload) => {
         const hasAccess = payload.new?.owner_id === currentUser?.id || (payload.new?.collaborator_ids || []).includes(currentUser?.id) || payload.new?.access_level === 'public';
@@ -66,7 +66,7 @@ export default function CollabPlaylists({
         }
         setPlaylists(prev => prev.some(p => p.id === payload.new.id) ? prev.map(p => p.id === payload.new.id ? payload.new : p) : [payload.new, ...prev]);
         if (payload.new.last_edited_by && payload.new.last_edited_by !== currentUser?.email) {
-          toast(`${payload.new.last_edited_by} оновив "${payload.new.name}"`);
+          toast(`${payload.new.last_edited_by} updated "${payload.new.name}"`);
         }
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'collab_playlists' }, (payload) => {
@@ -143,7 +143,7 @@ export default function CollabPlaylists({
           last_edited_at: Date.now(),
         });
         setPlaylists(prev => prev.map(item => item.id === updated.id ? { ...item, ...updated } : item));
-        toast.success('Спільний плейлист оновлено');
+        toast.success('Collaborative playlist updated');
       } else {
         const created = await entities.CollabPlaylist.create({
           ...payload,
@@ -151,13 +151,13 @@ export default function CollabPlaylists({
           collaborator_ids: [],
         });
         setPlaylists(prev => prev.some(item => item.id === created.id) ? prev : [created, ...prev]);
-        toast.success('Спільний плейлист створено');
+        toast.success('Collaborative playlist created');
       }
       resetForm();
       setShowCreate(false);
     } catch (err) {
       console.error(err);
-      toast.error('Помилка збереження');
+      toast.error('Save failed');
     } finally {
       setSaving(false);
       savingRef.current = false;
@@ -167,7 +167,7 @@ export default function CollabPlaylists({
   const handleDelete = async (pl) => {
     try {
       await entities.CollabPlaylist.delete(pl.id);
-      toast.success('Плейлист видалено');
+      toast.success('Playlist deleted');
     } catch (err) {
       console.error(err);
     }
@@ -218,9 +218,9 @@ export default function CollabPlaylists({
           <div className="min-w-0">
             <p className="text-xs font-bold text-muted-foreground">DreamTune</p>
             <h1 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2 truncate">
-              <Users className="w-5 h-5 text-primary shrink-0" /> {'\u0421\u043f\u0456\u043b\u044c\u043d\u0456'}
+              <Users className="w-5 h-5 text-primary shrink-0" /> Shared
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{playlists.length} {'\u043f\u043b\u0435\u0439\u043b\u0438\u0441\u0442\u0456\u0432'}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{playlists.length} playlists</p>
           </div>
           <motion.button
             whileTap={{ scale: 0.88 }}
@@ -243,7 +243,7 @@ export default function CollabPlaylists({
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Users className="w-10 h-10 text-primary/50" />
           </div>
-          <p className="text-muted-foreground text-sm font-medium">Створи перший спільний плейлист</p>
+          <p className="text-muted-foreground text-sm font-medium">Create your first collaborative playlist</p>
         </motion.div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -289,7 +289,7 @@ export default function CollabPlaylists({
                       <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                       <p className="text-base font-black text-foreground truncate">{pl.name}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{songCount} пісень · {collabCount + 1} учасників</p>
+                    <p className="text-xs text-muted-foreground">{songCount} songs · {collabCount + 1} members</p>
                     {pl.last_edited_by && (
                       <p className="text-[11px] text-muted-foreground/70 mt-0.5 truncate">{pl.last_edited_by}</p>
                     )}
@@ -304,20 +304,20 @@ export default function CollabPlaylists({
                           onTouchStart={(e) => e.stopPropagation()}
                           onClick={(e) => e.stopPropagation()}
                           className="relative z-20 min-h-10 min-w-10 rounded-full hover:bg-secondary flex items-center justify-center"
-                          aria-label="Дії спільного плейлиста"
+                          aria-label="Collaborative playlist actions"
                         >
                           <MoreVertical className="w-5 h-5 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEditDialog(pl); }} className="rounded-xl">
-                          <Pencil className="w-4 h-4 mr-2" /> Перейменувати
+                          <Pencil className="w-4 h-4 mr-2" /> Rename
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={(event) => { event.preventDefault(); openEditDialog(pl); }} className="rounded-xl">
-                          <ImagePlus className="w-4 h-4 mr-2" /> Додати фото
+                          <ImagePlus className="w-4 h-4 mr-2" /> Add photo
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(pl)} className="rounded-xl text-destructive focus:text-destructive">
-                          <Trash2 className="w-4 h-4 mr-2" /> Видалити
+                          <Trash2 className="w-4 h-4 mr-2" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -333,7 +333,7 @@ export default function CollabPlaylists({
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> {editingPlaylist ? 'Редагувати спільний плейлист' : 'Новий спільний плейлист'}
+              <Users className="w-4 h-4 text-primary" /> {editingPlaylist ? 'Edit collaborative playlist' : 'New collaborative playlist'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
@@ -344,21 +344,21 @@ export default function CollabPlaylists({
               onPositionChange={setCoverPosition}
               onScaleChange={setCoverScale}
               onPick={() => coverInputRef.current?.click()}
-              emptyLabel="Додати фото"
+              emptyLabel="Add photo"
               className="mx-auto w-full max-w-[220px] rounded-3xl"
             />
             <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
-            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>}
             <Input
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              placeholder="Назва плейлиста..."
+              placeholder="Playlist name..."
               className="bg-secondary border-border rounded-xl"
               onKeyDown={e => e.key === 'Enter' && !e.nativeEvent?.isComposing && handleCreate()}
               autoFocus
             />
             <Button onClick={handleCreate} disabled={!newName.trim() || saving} className="w-full rounded-xl">
-              {saving ? 'Збереження...' : editingPlaylist ? 'Зберегти' : 'Створити'}
+              {saving ? 'Saving...' : editingPlaylist ? 'Save' : 'Create'}
             </Button>
           </div>
         </DialogContent>

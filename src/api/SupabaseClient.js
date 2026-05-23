@@ -62,7 +62,7 @@ async function request(path, options = {}) {
   const timeoutPromise = new Promise((_, reject) => {
     timeout = window.setTimeout(() => {
       controller.abort();
-      const error = new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+      const error = new Error('The server is taking too long. Try again in a few seconds.');
       error.isTimeout = true;
       error.name = 'AbortError';
       reject(error);
@@ -100,7 +100,7 @@ async function request(path, options = {}) {
     return data;
   } catch (err) {
     if (err?.isTimeout || err?.name === 'AbortError') {
-      const error = new Error('Сервер довго відповідає. Спробуй ще раз за кілька секунд.');
+      const error = new Error('The server is taking too long. Try again in a few seconds.');
       error.isTimeout = true;
       throw error;
     }

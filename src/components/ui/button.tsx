@@ -29,7 +29,7 @@ const buttonVariants = cva(
   }
 )
 
-// Додаємо інтерфейс для пропсів
+// Add a shared props interface for button variants.
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {

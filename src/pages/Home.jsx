@@ -82,7 +82,7 @@ export default function Home({
         if (!cancelled) setGlobalChart(data.tracks || []);
       })
       .catch(() => {
-        if (!cancelled) setChartError('\u0427\u0430\u0440\u0442 \u0442\u0438\u043c\u0447\u0430\u0441\u043e\u0432\u043e \u043d\u0435 \u043f\u0456\u0434\u0442\u044f\u0433\u043d\u0443\u0432\u0441\u044f');
+        if (!cancelled) setChartError('The chart is temporarily unavailable');
       });
     return () => {
       cancelled = true;
@@ -106,7 +106,7 @@ export default function Home({
         if (!cancelled) setSpotifyChart(data.tracks || []);
       })
       .catch(() => {
-        if (!cancelled) setSpotifyChartError('Spotify \u0442\u043e\u043f \u0442\u0438\u043c\u0447\u0430\u0441\u043e\u0432\u043e \u043d\u0435 \u043f\u0456\u0434\u0442\u044f\u0433\u043d\u0443\u0432\u0441\u044f');
+        if (!cancelled) setSpotifyChartError('Spotify Top 20 is temporarily unavailable');
       });
     return () => {
       cancelled = true;
@@ -135,7 +135,7 @@ export default function Home({
         )}
       </CoverArt>
       <p className="text-sm font-bold text-foreground truncate mt-2">{song.title}</p>
-      <p className="text-xs text-muted-foreground truncate">{song.artist || '\u041d\u0435\u0432\u0456\u0434\u043e\u043c\u0438\u0439'}</p>
+      <p className="text-xs text-muted-foreground truncate">{song.artist || 'Unknown artist'}</p>
     </motion.button>
   );
 
@@ -185,7 +185,7 @@ export default function Home({
       onClick={onClick}
       className="inline-flex h-7 shrink-0 items-center rounded-full bg-primary/12 px-1.5 text-[11px] font-black text-primary underline-offset-4 transition hover:bg-primary/18 hover:underline active:scale-95 disabled:pointer-events-none disabled:opacity-30 sm:h-8 sm:px-2.5 sm:text-xs"
     >
-      {'\u041f\u0435\u0440\u0435\u0433\u043b\u044f\u043d\u0443\u0442\u0438'}
+      See all
     </button>
   );
 
@@ -241,7 +241,7 @@ export default function Home({
                 <p className="text-sm font-black text-foreground truncate">{track.title}</p>
                 <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
               </div>
-              <span className="text-[11px] font-bold text-primary/85 shrink-0">{'\u0414\u043e\u0434\u0430\u0442\u0438'}</span>
+              <span className="text-[11px] font-bold text-primary/85 shrink-0">Add</span>
             </button>
           ))}
         </div>
@@ -289,7 +289,7 @@ export default function Home({
                     }}
                     className="mt-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-black text-primary"
                   >
-                    {'\u0414\u043e\u0434\u0430\u0442\u0438'}
+                    Add
                   </button>
                 </div>
               </div>
@@ -298,7 +298,7 @@ export default function Home({
         </div>
       ) : (
         <div className="rounded-3xl border border-border bg-card/85 p-4 text-sm text-muted-foreground">
-          {error || '\u041f\u0456\u0434\u0442\u044f\u0433\u0443\u044e \u0447\u0430\u0440\u0442...'}
+          {error || 'Loading chart...'}
         </div>
       )}
     </section>
@@ -313,13 +313,13 @@ export default function Home({
       >
         <div className="pl-16">
           <p className="text-sm text-muted-foreground font-bold">DreamTune</p>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight">{'\u0429\u043e \u043f\u043e\u0441\u043b\u0443\u0445\u0430\u0454\u043c\u043e \u0441\u044c\u043e\u0433\u043e\u0434\u043d\u0456?'}</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight">What are we listening to today?</h1>
         </div>
       </motion.div>
 
       {favoriteSongs.length > 0 && (
         <section className="mb-4 min-w-0 overflow-visible">
-          {renderSectionHeader({ title: '\u0423\u043b\u044e\u0431\u043b\u0435\u043d\u0456', heart: true, controls: renderRowControls(favoritesRef, () => setShowAllFavorites(true)) })}
+          {renderSectionHeader({ title: 'Favorites', heart: true, controls: renderRowControls(favoritesRef, () => setShowAllFavorites(true)) })}
           <div ref={favoritesRef} onWheel={handleHorizontalWheel} className="dream-scroll-row flex gap-2.5 sm:gap-3 overflow-x-auto overflow-y-hidden pb-1">
             {favoriteSongs.map(renderShelfCard)}
           </div>
@@ -328,15 +328,15 @@ export default function Home({
 
       {recentSongs.length > 0 && (
         <section className="mb-4 min-w-0 overflow-visible">
-          {renderSectionHeader({ title: '\u041d\u0435\u0449\u043e\u0434\u0430\u0432\u043d\u043e \u0434\u043e\u0434\u0430\u043d\u0456', controls: renderRowControls(recentRef, () => setShowAllRecent(true)) })}
+          {renderSectionHeader({ title: 'Recently added', controls: renderRowControls(recentRef, () => setShowAllRecent(true)) })}
           <div ref={recentRef} onWheel={handleHorizontalWheel} className="dream-scroll-row flex gap-2.5 sm:gap-3 overflow-x-auto overflow-y-hidden pb-1">
             {recentSongs.map(renderShelfCard)}
           </div>
         </section>
       )}
 
-      {renderChartShelf({ title: '\u0422\u043e\u043f \u0443 \u0441\u0432\u0456\u0442\u0456', tracks: globalChart, error: chartError || '\u041f\u0456\u0434\u0442\u044f\u0433\u0443\u044e \u0441\u0432\u0456\u0442\u043e\u0432\u0438\u0439 \u0447\u0430\u0440\u0442...', sourceLabel: 'live', icon: TrendingUp, onSeeAll: () => setShowAllGlobal(true), rowRef: globalRef })}
-      {renderChartShelf({ title: '\u0422\u043e\u043f Spotify 20', tracks: spotifyChart, error: spotifyChartError || '\u041f\u0456\u0434\u0442\u044f\u0433\u0443\u044e Spotify Top 20...', sourceLabel: 'Spotify', icon: Music, onSeeAll: () => setShowAllSpotify(true), rowRef: spotifyRef })}
+      {renderChartShelf({ title: 'Global Top', tracks: globalChart, error: chartError || 'Loading global chart...', sourceLabel: 'live', icon: TrendingUp, onSeeAll: () => setShowAllGlobal(true), rowRef: globalRef })}
+      {renderChartShelf({ title: 'Spotify Top 20', tracks: spotifyChart, error: spotifyChartError || 'Loading Spotify Top 20...', sourceLabel: 'Spotify', icon: Music, onSeeAll: () => setShowAllSpotify(true), rowRef: spotifyRef })}
 
       <Recommendations songs={songs} onDownloadRecommendation={setRecDownload} />
 
@@ -345,20 +345,20 @@ export default function Home({
           <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
             <Music className="w-10 h-10 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">{'\u041f\u043e\u043a\u0438 \u0449\u043e \u043f\u0443\u0441\u0442\u043e'}</h3>
-          <p className="text-sm text-muted-foreground">{'\u041d\u0430\u0442\u0438\u0441\u043d\u0438 \u043a\u043d\u043e\u043f\u043a\u0443 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f \u0432\u043d\u0438\u0437\u0443, \u0449\u043e\u0431 \u0434\u043e\u0434\u0430\u0442\u0438 \u043f\u0435\u0440\u0448\u0443 \u043f\u0456\u0441\u043d\u044e'}</p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Nothing here yet</h3>
+          <p className="text-sm text-muted-foreground">Tap the add button below to add your first song</p>
         </motion.div>
       )}
 
-      {renderSongDialog('\u0423\u043b\u044e\u0431\u043b\u0435\u043d\u0456 \u0442\u0440\u0435\u043a\u0438', showAllFavorites, setShowAllFavorites, favoriteSongs)}
-      {renderSongDialog('\u0412\u0441\u0456 \u0442\u0440\u0435\u043a\u0438 \u0437\u0430 \u043f\u043e\u0440\u044f\u0434\u043a\u043e\u043c \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f', showAllRecent, setShowAllRecent, allRecent)}
+      {renderSongDialog('Favorite tracks', showAllFavorites, setShowAllFavorites, favoriteSongs)}
+      {renderSongDialog('All tracks by date added', showAllRecent, setShowAllRecent, allRecent)}
 
-      {renderChartDialog('\u0422\u043e\u043f \u0443 \u0441\u0432\u0456\u0442\u0456', showAllGlobal, setShowAllGlobal, globalChart)}
-      {renderChartDialog('\u0422\u043e\u043f Spotify 20', showAllSpotify, setShowAllSpotify, spotifyChart)}
+      {renderChartDialog('Global Top', showAllGlobal, setShowAllGlobal, globalChart)}
+      {renderChartDialog('Spotify Top 20', showAllSpotify, setShowAllSpotify, spotifyChart)}
       <Dialog open={!!recDownload} onOpenChange={() => setRecDownload(null)}>
         <DialogContent className="bg-card border-border w-[calc(100vw-2rem)] max-w-md mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{'\u0417\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438'}: {recDownload?.title}</DialogTitle>
+            <DialogTitle>Download: {recDownload?.title}</DialogTitle>
           </DialogHeader>
           {recDownload && (
             <YouTubeDownload

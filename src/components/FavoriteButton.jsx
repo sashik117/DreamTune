@@ -16,7 +16,7 @@ export default function FavoriteButton({
   size = 'sm',
   className = '',
   iconClassName = '',
-  ariaLabel = 'Улюблене',
+  ariaLabel = 'Favorite',
 }) {
   const [burstId, setBurstId] = useState(0);
   const [visualActive, setVisualActive] = useState(Boolean(active));

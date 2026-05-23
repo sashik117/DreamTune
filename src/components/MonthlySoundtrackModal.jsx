@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { entities } from '@/api/SupabaseClient';
 import CoverArt from './CoverArt';
 
-const MONTHS = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function getAutoReportWindow(now = new Date()) {
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -47,7 +47,7 @@ async function buildStats(songs, windowInfo) {
   const topTracks = Object.entries(songCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([id, count]) => ({ ...(songs.find(song => song.id === id) || { id, title: 'Трек', artist: '' }), count }));
+    .map(([id, count]) => ({ ...(songs.find(song => song.id === id) || { id, title: 'Track', artist: '' }), count }));
 
   const topArtists = Object.entries(artistCounts)
     .sort((a, b) => b[1] - a[1])
@@ -93,9 +93,9 @@ export default function MonthlySoundtrackModal({ songs, forceOpen = false, onFor
     if (!stats) return [];
     const monthName = MONTHS[stats.month];
     return [
-      { type: 'intro', title: `Твій саундтрек ${monthName}`, subtitle: `DreamTune нарахував ${stats.minutes} хвилин музики цього місяця.` },
-      { type: 'tracks', title: 'Топ-3 треки', items: stats.topTracks },
-      { type: 'artists', title: 'Улюблені виконавці', items: stats.topArtists },
+      { type: 'intro', title: `Your ${monthName} soundtrack`, subtitle: `DreamTune counted ${stats.minutes} minutes of music this month.` },
+      { type: 'tracks', title: 'Top 3 tracks', items: stats.topTracks },
+      { type: 'artists', title: 'Favorite artists', items: stats.topArtists },
     ];
   }, [stats]);
 
@@ -105,7 +105,7 @@ export default function MonthlySoundtrackModal({ songs, forceOpen = false, onFor
     onForceOpenChange?.(false);
   };
   const share = async () => {
-    const text = `${current?.title || 'DreamTune'}: ${stats?.minutes || 0} хвилин музики цього місяця`;
+    const text = `${current?.title || 'DreamTune'}: ${stats?.minutes || 0} minutes of music this month`;
     if (navigator.share) await navigator.share({ title: 'DreamTune', text });
   };
 
@@ -144,7 +144,7 @@ export default function MonthlySoundtrackModal({ songs, forceOpen = false, onFor
                 <div>
                   <h2 className="text-3xl font-extrabold mb-6 text-foreground">{current.title}</h2>
                   <div className="space-y-3">
-                    {(current.items.length ? current.items : [{ title: 'Поки немає прослуховувань', artist: '', count: 0 }]).map((song, index) => (
+                    {(current.items.length ? current.items : [{ title: 'No listens yet', artist: '', count: 0 }]).map((song, index) => (
                       <div key={song.id || index} className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border">
                         <span className="text-xl font-black text-primary w-7">{index + 1}</span>
                         <CoverArt song={song} className="w-12 h-12 rounded-xl" fallbackClassName="text-xs" />
@@ -163,13 +163,13 @@ export default function MonthlySoundtrackModal({ songs, forceOpen = false, onFor
                 <div>
                   <h2 className="text-3xl font-extrabold mb-8 text-foreground">{current.title}</h2>
                   <div className="flex justify-center gap-4">
-                    {(current.items.length ? current.items : [{ name: 'Ще збираємо статистику', count: 0 }]).map((artist) => (
+                    {(current.items.length ? current.items : [{ name: 'Still collecting stats', count: 0 }]).map((artist) => (
                       <div key={artist.name} className="text-center max-w-[112px]">
                         <div className="w-20 h-20 mx-auto rounded-full bg-card border border-border flex items-center justify-center shadow-lg mb-3">
                           <Mic2 className="w-8 h-8 text-primary" />
                         </div>
                         <p className="text-sm font-bold truncate text-foreground">{artist.name}</p>
-                        <p className="text-xs text-muted-foreground">{artist.count} разів</p>
+                        <p className="text-xs text-muted-foreground">{artist.count} times</p>
                       </div>
                     ))}
                   </div>
@@ -184,12 +184,12 @@ export default function MonthlySoundtrackModal({ songs, forceOpen = false, onFor
             </Button>
             {page < pages.length - 1 ? (
               <Button onClick={() => setPage(p => p + 1)} className="flex-1 rounded-2xl gap-2">
-                Далі <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-4 h-4" />
               </Button>
             ) : (
               <>
-                <Button onClick={share} className="flex-1 rounded-2xl gap-2"><Share2 className="w-4 h-4" />Поділитися</Button>
-                <Button variant="outline" onClick={close} className="rounded-2xl border-border">Закрити</Button>
+                <Button onClick={share} className="flex-1 rounded-2xl gap-2"><Share2 className="w-4 h-4" />Share</Button>
+                <Button variant="outline" onClick={close} className="rounded-2xl border-border">Close</Button>
               </>
             )}
           </div>

@@ -262,7 +262,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     };
     const handleError = () => {
       if (loadingAudioRef.current || repairingSongIdRef.current) return;
-      toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
+      toast.error('Could not load audio. Try again.');
       setIsPlaying(false);
     };
     const handlePause = () => setIsPlaying(false);
@@ -299,8 +299,8 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const updateMediaSession = useCallback((song) => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.title || 'Невідома пісня',
-      artist: song.artist || 'Невідомий',
+      title: song.title || 'Unknown song',
+      artist: song.artist || 'Unknown artist',
       artwork: song.cover_url ? [{ src: song.cover_url, sizes: '512x512', type: 'image/jpeg' }] : []
     });
   }, []);
@@ -368,32 +368,32 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       if (activeSong?.id && !repairAttemptsRef.current.has(activeSong.id)) {
         repairAttemptsRef.current.add(activeSong.id);
         repairingSongIdRef.current = activeSong.id;
-        toast.loading('Звук зламався, перескачую трек заново...', { id: `repair-${activeSong.id}` });
+        toast.loading('Audio is unavailable, repairing this track...', { id: `repair-${activeSong.id}` });
         try {
           const repairedSong = await repairSongAudio(activeSong);
           repairingSongIdRef.current = null;
           if (repairedSong?.file_url) {
             activeSong = repairedSong;
             setQueue(prev => prev.map(item => item.id === repairedSong.id ? { ...item, ...repairedSong } : item));
-            toast.success('Готово, звук відновлено', { id: `repair-${activeSong.id}` });
+            toast.success('Done, audio restored', { id: `repair-${activeSong.id}` });
             if (!isActiveRequest()) return;
             const result = await prepareAndPlay(activeSong);
             cached = result?.cached || null;
             if (result?.skipped) return;
           } else {
-            toast.error('Не вдалося відновити цей трек автоматично', { id: `repair-${activeSong.id}` });
+            toast.error('Could not restore this track automatically', { id: `repair-${activeSong.id}` });
             setIsPlaying(false);
             return;
           }
         } catch (repairError) {
           repairingSongIdRef.current = null;
           console.warn('Audio repair failed:', repairError);
-          toast.error('Не вдалося відновити цей трек автоматично', { id: `repair-${activeSong.id}` });
+          toast.error('Could not restore this track automatically', { id: `repair-${activeSong.id}` });
           setIsPlaying(false);
           return;
         }
       } else {
-        toast.error('Ой, не вдалося завантажити звук, спробуй ще раз! 🌸');
+        toast.error('Could not load audio. Try again.');
         setIsPlaying(false);
         return;
       }

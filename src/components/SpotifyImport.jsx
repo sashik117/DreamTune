@@ -204,7 +204,7 @@ function BusyWarning() {
     <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-3 text-xs text-foreground flex gap-2">
       <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
       <p>
-        Не закривай сторінку і не виходь з додатка, поки йде процес. Якщо перейти або оновити сторінку, завантаження перерветься.
+        Keep this screen open while the process runs. Navigating away or refreshing can interrupt the download.
       </p>
     </div>
   );
@@ -291,7 +291,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
     try {
       const { name, tracks: found, limited } = await fetchSpotifyTracks(queryValue);
       if (!found.length) {
-        setError('Не вдалося отримати треки. Перевір, що плейлист публічний або посилання правильне.');
+        setError('Could not load tracks. Check that the playlist is public and the link is correct.');
         setStep('idle');
         return;
       }
@@ -300,8 +300,8 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
       const skipped = found.length - freshTracks.length;
       if (!freshTracks.length) {
         setError(limited
-          ? `Ці ${found.length} треків уже є в бібліотеці. Без Spotify API ключів сервер бачить тільки першу сотню цього плейлиста.`
-          : 'У цьому плейлисті не знайшла нових треків: усе вже є в бібліотеці.');
+          ? `These ${found.length} tracks are already in your library. Without Spotify API keys, the server can only see the first 100 tracks in this playlist.`
+          : 'No new tracks found in this playlist: everything is already in your library.');
         setStep('idle');
         return;
       }
@@ -313,7 +313,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
       setStep('preview');
     } catch (err) {
       console.error(err);
-      setError('Помилка Spotify. Спробуй ще раз або встав інше посилання.');
+      setError('Spotify failed. Try again or paste another link.');
       setStep('idle');
     }
   };
@@ -326,7 +326,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
     try {
       const found = await searchSpotifyTracks(queryValue);
       if (!found.length) {
-        setError('Трек не знайдено. Спробуй точнішу назву або Spotify-посилання на трек.');
+        setError('Track not found. Try a more specific title or a Spotify track link.');
         setStep('idle');
         return;
       }
@@ -338,7 +338,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
       setStep('preview');
     } catch (err) {
       console.error(err);
-      setError('Пошук Spotify тимчасово не спрацював. Спробуй ще раз.');
+      setError('Spotify search is temporarily unavailable. Try again.');
       setStep('idle');
     }
   };
@@ -347,8 +347,8 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
     const queryValue = syncInputQuery();
     if (!queryValue) {
       setError(mode === 'playlist'
-        ? 'Встав посилання на Spotify-плейлист.'
-        : 'Введи назву треку або Spotify-посилання.');
+        ? 'Paste a Spotify playlist link.'
+        : 'Enter a track title or Spotify link.');
       return;
     }
     if (mode === 'playlist') handleFetchPlaylist(queryValue);
@@ -358,7 +358,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
   const handleImport = async () => {
     const chosen = tracks.filter((_, index) => mode === 'playlist' || selected.has(index));
     if (!chosen.length) {
-      toast.error('Вибери хоча б один трек');
+      toast.error('Select at least one track');
       return;
     }
 
@@ -376,7 +376,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
         is_public: false,
       });
       onPlaylistAdded?.(targetPlaylist);
-      toast.success('\u041f\u043b\u0435\u0439\u043b\u0438\u0441\u0442 Spotify \u0441\u0442\u0432\u043e\u0440\u0435\u043d\u043e');
+      toast.success('Spotify playlist created');
     }
     setImportRows(chosen.map((track, index) => ({
       id: `${track.title}-${track.artist}-${index}`,
@@ -424,16 +424,16 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
     for (let index = 0; index < chosen.length; index++) {
       const track = chosen[index];
       setProgress({ done, total, current: `${track.artist || ''} — ${track.title || ''}` });
-      updateRow(index, { status: 'loading', message: 'Шукаю аудіо на YouTube...' });
+      updateRow(index, { status: 'loading', message: 'Searching YouTube audio...' });
 
       try {
         const audio = await getAudioForTrack(track);
         if (!audio?.fileUrl) {
-          updateRow(index, { status: 'failed', message: 'Не знайшла аудіо' });
+          updateRow(index, { status: 'failed', message: 'Audio not found' });
           done++;
           continue;
         }
-        updateRow(index, { status: 'loading', message: 'Зберігаю в бібліотеку...' });
+        updateRow(index, { status: 'loading', message: 'Saving to library...' });
         const stableFileUrl = await persistAudioFileUrl(audio.fileUrl, track);
 
         const song = await entities.Song.create({
@@ -446,7 +446,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
         added.push(song);
         playlistSongIds.push(song.id);
         onSongsAdded?.([song]);
-        updateRow(index, { status: 'loading', message: '\u0417\u0431\u0435\u0440\u0456\u0433\u0430\u044e \u043e\u0444\u043b\u0430\u0439\u043d-\u043a\u043e\u043f\u0456\u044e...' });
+        updateRow(index, { status: 'loading', message: 'Saving offline copy...' });
         const offlineSaved = await downloadSong(song, () => {});
         if (targetPlaylist) {
           const updatedPlaylist = await entities.Playlist.update(targetPlaylist.id, {
@@ -459,8 +459,8 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
         updateRow(index, {
           status: 'done',
           message: offlineSaved
-            ? '\u0414\u043e\u0434\u0430\u043d\u043e \u043e\u0444\u043b\u0430\u0439\u043d'
-            : '\u0414\u043e\u0434\u0430\u043d\u043e, \u043e\u0444\u043b\u0430\u0439\u043d \u043d\u0435 \u0437\u0431\u0435\u0440\u0435\u0433\u043b\u043e\u0441\u044f',
+            ? 'Added offline'
+            : 'Added, offline copy was not saved',
           cover_url: audio.spotifyCoverUrl || audio.coverUrl,
         });
 
@@ -472,14 +472,14 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
         })();
       } catch (e) {
         console.warn('Track failed:', track.title, e);
-        updateRow(index, { status: 'failed', message: 'Помилка додавання' });
+        updateRow(index, { status: 'failed', message: 'Add failed' });
       }
 
       done++;
       setProgress({ done, total, current: '' });
     }
 
-    toast.success(`Додано ${added.length} з ${total} треків`);
+    toast.success(`Added ${added.length} of ${total} tracks`);
     setStep('done');
   };
 
@@ -491,8 +491,8 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
         <>
           <div className="grid grid-cols-2 gap-2">
             {[
-              ['playlist', 'Плейлист'],
-              ['track', 'Трек'],
+              ['playlist', 'Playlist'],
+              ['track', 'Track'],
             ].map(([key, label]) => (
               <button
                 key={key}
@@ -507,8 +507,8 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
 
           <p className="text-xs text-muted-foreground">
             {mode === 'playlist'
-              ? 'Встав посилання на публічний Spotify-плейлист. Якщо Spotify API доступний, DreamTune забере максимум треків з усіх сторінок.'
-              : 'Введи назву треку, артиста або Spotify-посилання на трек. Потім вибери потрібний варіант.'}
+              ? 'Paste a public Spotify playlist link. If Spotify API access is available, DreamTune will pull as many tracks as possible across pages.'
+              : 'Enter a track title, artist, or Spotify track link. Then choose the right result.'}
           </p>
 
           <Input
@@ -533,9 +533,9 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
 
           <Button onClick={handleSubmit} disabled={!canSubmit} className={`w-full bg-primary hover:brightness-110 ${hasQuery ? 'shadow-lg shadow-primary/25 opacity-100' : 'opacity-70'}`}>
             {busy ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{mode === 'playlist' ? 'Отримую треки...' : 'Шукаю трек...'}</>
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{mode === 'playlist' ? 'Loading tracks...' : 'Searching track...'}</>
             ) : (
-              <>{mode === 'playlist' ? <Music2 className="w-4 h-4 mr-2" /> : <Search className="w-4 h-4 mr-2" />}{mode === 'playlist' ? 'Знайти плейлист' : 'Знайти трек'}</>
+              <>{mode === 'playlist' ? <Music2 className="w-4 h-4 mr-2" /> : <Search className="w-4 h-4 mr-2" />}{mode === 'playlist' ? 'Find playlist' : 'Find track'}</>
             )}
           </Button>
         </>
@@ -549,12 +549,12 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
           </div>
           <p className="text-xs text-muted-foreground">
             {mode === 'playlist'
-              ? `${tracks.length} нових з ${playlistMeta.total || tracks.length} треків. ${playlistMeta.skipped ? `${playlistMeta.skipped} уже є в бібліотеці.` : 'Імпортуються всі нові.'}`
-              : `${selected.size} з ${tracks.length} треків вибрано.`}
+              ? `${tracks.length} new of ${playlistMeta.total || tracks.length} tracks. ${playlistMeta.skipped ? `${playlistMeta.skipped} already in your library.` : 'All new tracks will be imported.'}`
+              : `${selected.size} of ${tracks.length} tracks selected.`}
           </p>
           {mode === 'playlist' && playlistMeta.limited && (
             <p className="text-[11px] leading-relaxed text-amber-500">
-              Spotify без API ключів показує тільки першу сотню. Якщо в цій сотні все вже додано, наступні треки сервер не побачить без ключів.
+              Without Spotify API keys, Spotify only exposes the first 100 tracks. If those are already added, the server cannot see the next tracks without keys.
             </p>
           )}
 
@@ -584,10 +584,10 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={resetResults} className="flex-1 border-border">
-              Назад
+              Back
             </Button>
             <Button onClick={handleImport} className="flex-1 bg-primary hover:brightness-110">
-              Імпортувати
+              Import
             </Button>
           </div>
         </>
@@ -607,7 +607,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
           <div className="space-y-2">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span className="truncate max-w-[70%]">
-                {progress.current || (step === 'done' ? 'Імпорт завершено' : 'Додаю пісні...')}
+                {progress.current || (step === 'done' ? 'Import complete' : 'Adding songs...')}
               </span>
               <span>{progress.done} / {progress.total}</span>
             </div>
@@ -636,7 +636,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
           </div>
           {step === 'done' && (
             <Button onClick={onClose} className="w-full rounded-2xl bg-primary hover:brightness-110">
-              Готово
+              Done
             </Button>
           )}
         </div>

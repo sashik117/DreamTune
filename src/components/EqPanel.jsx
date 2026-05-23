@@ -81,7 +81,7 @@ export default function EqPanel({ eq, onEqChange, analyser, isPlaying }) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-primary" />
-            <span className="text-sm font-bold text-foreground">Жорсткий bass boost</span>
+            <span className="text-sm font-bold text-foreground">Hard bass boost</span>
           </div>
           <span className={`text-sm font-bold tabular-nums ${hardBassValue > 7 ? 'text-primary' : 'text-muted-foreground'}`}>
             {hardBassValue > 0 ? `+${hardBassValue}` : hardBassValue} dB
@@ -98,7 +98,7 @@ export default function EqPanel({ eq, onEqChange, analyser, isPlaying }) {
           style={{ accentColor: 'hsl(var(--primary))' }}
         />
         <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-          <span>м'яко</span><span>качає</span><span>дуже жорстко</span>
+          <span>soft</span><span>punchy</span><span>very hard</span>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function EqPanel({ eq, onEqChange, analyser, isPlaying }) {
       </div>
 
       <div>
-        <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Пресети під вайб</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-2">Vibe presets</p>
         <div className="flex flex-wrap gap-2">
           {Object.entries(PRESETS).map(([key, p]) => (
             <motion.button
@@ -126,7 +126,7 @@ export default function EqPanel({ eq, onEqChange, analyser, isPlaying }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">6-смуговий EQ</span>
+            <span className="text-sm font-semibold text-foreground">6-band EQ</span>
           </div>
           <button onClick={() => applyPreset('flat')} className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground">
             <RotateCcw className="w-4 h-4" />

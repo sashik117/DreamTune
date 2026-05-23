@@ -7,7 +7,7 @@ export default function Albums({ songs }) {
   const albums = useMemo(() => {
     const map = {};
     songs.forEach(song => {
-      const artist = song.artist || 'Невідомий';
+      const artist = song.artist || 'Unknown artist';
       // Use "album" field if present, otherwise group all songs per artist as one album
       const albumKey = song.album ? `${artist}__${song.album}` : `${artist}__`;
       if (!map[albumKey]) {
@@ -27,15 +27,15 @@ export default function Albums({ songs }) {
 
   return (
     <div className="px-4 pt-6 pb-4">
-      <h1 className="text-2xl font-bold text-foreground mb-1">Альбоми</h1>
-      <p className="text-sm text-muted-foreground mb-6">{albums.length} альбомів</p>
+      <h1 className="text-2xl font-bold text-foreground mb-1">Albums</h1>
+      <p className="text-sm text-muted-foreground mb-6">{albums.length} albums</p>
 
       {albums.length === 0 ? (
         <div className="text-center py-16">
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
             <Disc3 className="w-8 h-8 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-sm">Додай пісні, щоб альбоми з'явились тут</p>
+          <p className="text-muted-foreground text-sm">Add songs to make albums appear here</p>
         </div>
       ) : (
         <motion.div

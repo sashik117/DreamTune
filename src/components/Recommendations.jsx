@@ -122,7 +122,7 @@ export default function Recommendations({ songs, onDownloadRecommendation }) {
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary shrink-0" />
-          <h2 className="min-w-0 truncate text-base sm:text-lg font-black text-foreground">Схоже для тебе</h2>
+          <h2 className="min-w-0 truncate text-base sm:text-lg font-black text-foreground">Made for you</h2>
           {loading && <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin shrink-0" />}
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function Recommendations({ songs, onDownloadRecommendation }) {
 
       {!loading && recs.length === 0 && (
         <div className="rounded-3xl border border-border bg-card/85 p-4 text-sm text-muted-foreground">
-          Додай більше улюблених треків, і DreamTune підбере схожі пісні.
+          Add more favorite tracks and DreamTune will suggest similar songs.
         </div>
       )}
 

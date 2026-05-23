@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import SongCard from '../components/SongCard';
 
 const SORT_OPTIONS = [
-  { value: 'title', label: 'Назва А-Я' },
-  { value: 'artist', label: 'Виконавець' },
-  { value: 'newest', label: 'Нові' },
+  { value: 'title', label: 'Title A-Z' },
+  { value: 'artist', label: 'Artist' },
+  { value: 'newest', label: 'Newest' },
 ];
 
 export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs }) {
@@ -35,14 +35,14 @@ export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, on
 
   return (
     <div className="px-4 pt-6 pb-4">
-      <h1 className="text-2xl font-bold text-foreground mb-4">Пошук</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-4">Search</h1>
 
       <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Пісня, виконавець..."
+          placeholder="Song, artist..."
           className="pl-10 bg-secondary border-border rounded-xl h-11"
         />
       </div>
@@ -62,14 +62,14 @@ export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, on
 
       {showResults && filtered.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground text-sm">Нічого не знайдено</p>
+          <p className="text-muted-foreground text-sm">Nothing found</p>
         </div>
       )}
 
       {!showResults && (
         <div className="text-center py-12">
           <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Шукай серед своїх пісень</p>
+          <p className="text-muted-foreground text-sm">Search your songs</p>
         </div>
       )}
 

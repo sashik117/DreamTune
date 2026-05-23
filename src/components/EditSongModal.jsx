@@ -325,12 +325,12 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
 
       if (coverFile) update.cover_url = await storage.uploadFile(coverFile, 'songs');
       const updated = await entities.Song.update(song.id, update);
-      toast.success('Збережено');
+      toast.success('Saved');
       onSongUpdated({ ...song, ...updated });
       onOpenChange(false);
     } catch (err) {
       console.error(err);
-      toast.error('Помилка збереження');
+      toast.error('Save failed');
     } finally {
       setSaving(false);
     }
@@ -345,7 +345,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border w-[calc(100vw-1.25rem)] max-w-md mx-auto max-h-[calc(100dvh-1.25rem)] overflow-hidden flex flex-col p-0">
         <DialogHeader>
-          <DialogTitle className="px-5 pt-5">Редагувати пісню</DialogTitle>
+          <DialogTitle className="px-5 pt-5">Edit song</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 px-5 pb-5 pt-2 overflow-y-auto overscroll-contain">
           <div className="grid grid-cols-[112px,1fr] gap-4 items-start">
@@ -379,15 +379,15 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
                     <ImagePlus className="w-7 h-7" />
-                    <span className="text-[10px]">Обкладинка</span>
+                    <span className="text-[10px]">Cover</span>
                   </div>
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleCoverSelect} className="hidden" />
-              {coverPreview && <p className="mt-2 text-[10px] text-muted-foreground">{'\u041f\u0435\u0440\u0435\u0442\u044f\u0433\u043d\u0438 \u0442\u043e\u0447\u043a\u0443 \u043f\u043e \u0444\u043e\u0442\u043e'}</p>}
+              {coverPreview && <p className="mt-2 text-[10px] text-muted-foreground">Drag the point across the photo</p>}
               {coverPreview && (
                 <div className="hidden">
-                  <Label className="text-[10px] text-muted-foreground">{'\u041c\u0430\u0441\u0448\u0442\u0430\u0431'}</Label>
+                  <Label className="text-[10px] text-muted-foreground">Scale</Label>
                   <input
                     type="range"
                     min="1"
@@ -403,11 +403,11 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
 
             <div className="space-y-3 min-w-0">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Назва пісні</Label>
+                <Label className="text-xs text-muted-foreground">Song title</Label>
                 <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-secondary border-border" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Виконавець</Label>
+                <Label className="text-xs text-muted-foreground">Artist</Label>
                 <Input value={artist} onChange={e => setArtist(e.target.value)} className="bg-secondary border-border" />
               </div>
             </div>
@@ -416,8 +416,8 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
           <div className="space-y-3 rounded-2xl border border-primary/25 bg-primary/5 p-3 shadow-inner shadow-primary/10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">Обрізати трек</p>
-                <p className="text-[11px] text-muted-foreground">Затисни межу і рухай по хвилі</p>
+                <p className="text-sm font-semibold text-foreground">Trim track</p>
+                <p className="text-[11px] text-muted-foreground">Hold an edge and move it along the waveform</p>
               </div>
               <Scissors className="w-4 h-4 text-primary flex-shrink-0" />
             </div>
@@ -448,24 +448,24 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
                   onPointerDown={(event) => handleTrimPointerDown(event, handle)}
                   className="absolute top-1/2 z-30 h-14 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-lg shadow-primary/35 border-2 border-white/80 cursor-ew-resize"
                   style={{ left: `${percent}%` }}
-                  aria-label={handle === 'start' ? 'Початок обрізання' : 'Кінець обрізання'}
+                  aria-label={handle === 'start' ? 'Trim start' : 'Trim end'}
                 />
               ))}
             </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={previewTrim} className="flex-1 gap-1.5 border-border">
                 {previewing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                {previewing ? 'Пауза' : 'Послухати'}
+                {previewing ? 'Pause' : 'Preview'}
               </Button>
               <Button type="button" variant="outline" onClick={resetTrim} className="gap-1.5 border-border px-3">
                 <RotateCcw className="w-3.5 h-3.5" />
-                Скинути
+                Reset
               </Button>
             </div>
           </div>
 
           <Button onClick={handleSave} disabled={saving || !title.trim()} className="w-full bg-primary hover:brightness-110">
-            {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Зберігаю...</> : <><Save className="w-4 h-4 mr-2" />Зберегти</>}
+            {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save</>}
           </Button>
         </div>
       </DialogContent>

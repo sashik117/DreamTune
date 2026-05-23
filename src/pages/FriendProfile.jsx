@@ -63,10 +63,10 @@ export default function FriendProfile() {
     return (
       <div className="px-3 sm:px-4 pb-4">
         <button type="button" onClick={() => navigate(-1)} className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground">
-          <ArrowLeft className="w-4 h-4" /> РќР°Р·Р°Рґ
+          <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <div className="mt-10 rounded-3xl border border-border bg-card/95 p-6 text-center">
-          <p className="font-bold text-foreground">РџСЂРѕС„С–Р»СЊ РЅРµ Р·РЅР°Р№РґРµРЅРѕ</p>
+          <p className="font-bold text-foreground">Profile not found</p>
         </div>
       </div>
     );
@@ -77,7 +77,7 @@ export default function FriendProfile() {
   return (
     <div className="px-3 sm:px-4 pb-4">
       <div className="sticky top-0 z-50 pt-3 pb-3 mb-4 bg-background/92 backdrop-blur-xl border-b border-border/60">
-        <button type="button" onClick={() => navigate(-1)} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Назад">
+        <button type="button" onClick={() => navigate(-1)} className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-secondary" aria-label="Back">
           <ArrowLeft className="w-5 h-5" />
         </button>
       </div>
@@ -90,17 +90,17 @@ export default function FriendProfile() {
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-black text-foreground">{data.user.nickname}</h1>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarDays className="h-4 w-4" /> Р— РЅР°РјРё Р· {joined}
+              <CalendarDays className="h-4 w-4" /> Joined {joined}
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Users className="h-4 w-4" /> {data.relationship === 'friend' ? 'Р’ РґСЂСѓР·СЏС…' : data.relationship === 'self' ? 'Р¦Рµ С‚РІС–Р№ РїСЂРѕС„С–Р»СЊ' : 'РџСѓР±Р»С–С‡РЅРёР№ РїСЂРѕС„С–Р»СЊ'}
+              <Users className="h-4 w-4" /> {data.relationship === 'friend' ? 'Friend' : data.relationship === 'self' ? 'Your profile' : 'Public profile'}
             </p>
           </div>
         </div>
       </section>
 
       <section className="mt-4 rounded-3xl border border-border bg-card/95 p-4">
-        <h2 className="mb-3 text-base font-black text-foreground">РџСѓР±Р»С–С‡РЅС– РїР»РµР№Р»РёСЃС‚Рё</h2>
+        <h2 className="mb-3 text-base font-black text-foreground">Public playlists</h2>
         <div className="space-y-2">
           {data.playlists?.length ? data.playlists.map(playlist => (
             <div key={playlist.id} className="flex items-center gap-3 rounded-2xl bg-secondary/70 p-3">
@@ -109,12 +109,12 @@ export default function FriendProfile() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-bold text-foreground">{playlist.name}</p>
-                <p className="text-xs text-muted-foreground">{playlist.song_ids?.length || 0} РїС–СЃРµРЅСЊ</p>
+                <p className="text-xs text-muted-foreground">{playlist.song_ids?.length || 0} songs</p>
               </div>
               <Globe2 className="h-4 w-4 text-muted-foreground" />
             </div>
           )) : (
-            <p className="text-sm text-muted-foreground">РџСѓР±Р»С–С‡РЅРёС… РїР»РµР№Р»РёСЃС‚С–РІ С‰Рµ РЅРµРјР°С”.</p>
+            <p className="text-sm text-muted-foreground">No public playlists yet.</p>
           )}
         </div>
       </section>

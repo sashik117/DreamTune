@@ -30,7 +30,7 @@ export default function QueuePanel({ queue, currentSongId, onReorder, onRemove, 
       <div className="flex items-center justify-between px-5 pt-6 pb-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
           <ListMusic className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold text-foreground">Черга</h2>
+          <h2 className="text-lg font-bold text-foreground">Queue</h2>
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{queue.length}</span>
         </div>
         <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition-colors">
@@ -41,11 +41,11 @@ export default function QueuePanel({ queue, currentSongId, onReorder, onRemove, 
       {queue.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
           <Music className="w-12 h-12 opacity-30" />
-          <p className="text-sm">Черга порожня</p>
+          <p className="text-sm">Queue is empty</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 py-3">
-          <p className="text-xs text-muted-foreground mb-3 px-1">Утримуй і перетягуй, щоб змінити порядок</p>
+          <p className="text-xs text-muted-foreground mb-3 px-1">Hold and drag to reorder</p>
           <Reorder.Group axis="y" values={queue} onReorder={onReorder} className="space-y-1">
             <AnimatePresence>
               {queue.map((song, i) => {
@@ -78,7 +78,7 @@ export default function QueuePanel({ queue, currentSongId, onReorder, onRemove, 
 
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{song.artist || 'Невідомий'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{song.artist || 'Unknown artist'}</p>
                     </div>
 
                     {isActive ? (

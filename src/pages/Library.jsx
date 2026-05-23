@@ -14,12 +14,12 @@ import { toast } from 'sonner';
 import { normalizeSearchText } from '@/utils/text';
 
 const SORT_OPTIONS = [
-  { value: 'artist', label: 'Виконавець' },
-  { value: 'title', label: 'Назва А-Я' },
-  { value: 'newest', label: 'Нові' },
+  { value: 'artist', label: 'Artist' },
+  { value: 'title', label: 'Title A-Z' },
+  { value: 'newest', label: 'Newest' },
 ];
 
-const unknownArtist = 'Невідомий';
+const unknownArtist = 'Unknown artist';
 
 export default function Library({
   songs,
@@ -113,11 +113,11 @@ export default function Library({
     if (!selectedIds.length) return;
     try {
       await onAddSongsToPlaylist?.(selectedIds, playlist.id);
-      toast.success(`${selectedCount} пісень додано в "${playlist.name}"`);
+      toast.success(`${selectedCount} songs added to "${playlist.name}"`);
       clearSelection();
     } catch (err) {
       console.error(err);
-      toast.error('Не вийшло додати в плейлист');
+      toast.error('Could not add to playlist');
     }
   };
 
@@ -126,11 +126,11 @@ export default function Library({
     try {
       const deleted = await onDeleteMany?.(selectedIds);
       if (deleted === false) return;
-      toast.success(`${selectedCount} пісень видалено`);
+      toast.success(`${selectedCount} songs deleted`);
       clearSelection();
     } catch (err) {
       console.error(err);
-      toast.error('Не вийшло видалити вибрані пісні');
+      toast.error('Could not delete selected songs');
     }
   };
 
@@ -145,21 +145,21 @@ export default function Library({
       >
         <div className="pl-16 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-extrabold text-foreground mb-0.5 truncate">Бібліотека</h1>
-            <p className="text-sm text-muted-foreground truncate">{songs.length} пісень · {grouped.length} виконавців</p>
+            <h1 className="text-2xl font-extrabold text-foreground mb-0.5 truncate">Library</h1>
+            <p className="text-sm text-muted-foreground truncate">{songs.length} songs · {grouped.length} artists</p>
           </div>
-          <Button variant="outline" size="icon" onClick={toggleSelectionMode} className="rounded-2xl border-border shrink-0" aria-label={selectionMode ? 'Готово' : 'Вибрати'}>
+          <Button variant="outline" size="icon" onClick={toggleSelectionMode} className="rounded-2xl border-border shrink-0" aria-label={selectionMode ? 'Done' : 'Select'}>
             {selectionMode ? <X className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
           </Button>
           <Button
             size="icon"
             onClick={() => {
               onPlayPlaylist?.(visibleSongs, { shuffle: true });
-              toast.success('Бібліотеку перемішано');
+              toast.success('Library shuffled');
             }}
             disabled={!visibleSongs.length}
             className="rounded-2xl shrink-0"
-            aria-label="Мікс"
+            aria-label="Shuffle"
           >
             <Shuffle className="w-4 h-4" />
           </Button>
@@ -172,7 +172,7 @@ export default function Library({
           <Input
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Пісня, виконавець..."
+            placeholder="Song, artist..."
             className="pl-10 bg-secondary border-border rounded-xl h-11"
           />
         </div>
@@ -197,12 +197,12 @@ export default function Library({
         >
           <div className="flex items-center justify-around gap-1">
             <span className="min-w-12 text-center text-xs font-black text-foreground">{selectedCount}</span>
-            <Button size="icon" variant="outline" onClick={selectAllVisible} className="rounded-2xl border-border" aria-label={allVisibleSelected ? 'Зняти всі' : 'Вибрати всі'}>
+            <Button size="icon" variant="outline" onClick={selectAllVisible} className="rounded-2xl border-border" aria-label={allVisibleSelected ? 'Clear all' : 'Select all'}>
               {allVisibleSelected ? <Square className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" disabled={!selectedCount} className="rounded-2xl" aria-label="В плейлист">
+                <Button size="icon" disabled={!selectedCount} className="rounded-2xl" aria-label="Add to playlist">
                   <ListPlus className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -212,7 +212,7 @@ export default function Library({
                     {playlist.name}
                   </DropdownMenuItem>
                 )) : (
-                  <div className="px-3 py-2 text-xs font-bold text-muted-foreground">Спочатку створи плейлист</div>
+                  <div className="px-3 py-2 text-xs font-bold text-muted-foreground">Create a playlist first</div>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -222,11 +222,11 @@ export default function Library({
               disabled={!selectedCount}
               onClick={deleteSelected}
               className="rounded-2xl border-border text-destructive"
-              aria-label="Видалити"
+              aria-label="Delete"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={clearSelection} className="rounded-2xl" aria-label="Закрити вибір">
+            <Button size="icon" variant="ghost" onClick={clearSelection} className="rounded-2xl" aria-label="Close selection">
               <X className="w-4 h-4" />
             </Button>
           </div>
@@ -239,7 +239,7 @@ export default function Library({
             <Music className="w-10 h-10 text-primary" />
           </div>
           <p className="text-muted-foreground text-sm font-medium">
-            {songs.length ? 'Нічого не знайдено' : 'Додай пісні, щоб вони зʼявилися тут'}
+            {songs.length ? 'Nothing found' : 'Add songs to make them appear here'}
           </p>
         </motion.div>
       ) : (

@@ -8,8 +8,8 @@ export default function Favorites({ songs, currentSongId, isPlaying, onPlay, onT
   return (
     <div className="px-4 pt-5 sm:pt-6 pb-4">
       <div className="pl-14 mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-1">Улюблені</h1>
-        <p className="text-sm text-muted-foreground">{favoriteSongs.length} пісень</p>
+        <h1 className="text-2xl font-bold text-foreground mb-1">Favorites</h1>
+        <p className="text-sm text-muted-foreground">{favoriteSongs.length} songs</p>
       </div>
 
       {favoriteSongs.length === 0 ? (
@@ -17,7 +17,7 @@ export default function Favorites({ songs, currentSongId, isPlaying, onPlay, onT
           <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
             <Heart className="w-8 h-8 text-muted-foreground" />
           </div>
-          <p className="text-muted-foreground text-sm">Натисни серце на пісні, щоб додати її в улюблені</p>
+          <p className="text-muted-foreground text-sm">Tap the heart on a song to add it to favorites</p>
         </div>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-1">

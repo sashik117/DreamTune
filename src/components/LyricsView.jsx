@@ -106,12 +106,12 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
         setText(data.lyrics);
         await entities.Song.update(song.id, { lyrics: data.lyrics });
         onLyricsUpdated({ ...song, lyrics: data.lyrics });
-        toast.success(data.synced ? 'Синхронний текст знайдено' : 'Текст знайдено');
+        toast.success(data.synced ? 'Synced lyrics found' : 'Lyrics found');
       } else {
-        throw new Error('Текст не знайдено');
+        throw new Error('Lyrics not found');
       }
     } catch {
-      setFetchError('Текст не знайдено. Можеш додати його вручну.');
+      setFetchError('Lyrics not found. You can add them manually.');
       setEditing(true);
       setText(song.lyrics || '');
     } finally {
@@ -125,7 +125,7 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
       await entities.Song.update(song.id, { lyrics: text });
       onLyricsUpdated({ ...song, lyrics: text });
       setEditing(false);
-      toast.success('Текст збережено');
+      toast.success('Lyrics saved');
     } finally {
       setSaving(false);
     }
@@ -141,7 +141,7 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
-          {lrcLines ? 'Синхро' : song.lyrics ? 'Текст по часу' : 'Текст'}
+          {lrcLines ? 'Synced' : song.lyrics ? 'Timed lyrics' : 'Lyrics'}
         </span>
         <div className="flex gap-2">
           {!editing && (
@@ -149,7 +149,7 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
               <Button size="sm" variant="ghost" onClick={handleFetchLyrics} disabled={fetching}
                 className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground">
                 {fetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                {fetching ? 'Шукаю...' : 'Знайти'}
+                {fetching ? 'Searching...' : 'Find'}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setEditing(true)}
                 className="h-7 px-2 text-muted-foreground hover:text-foreground">
@@ -178,7 +178,7 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
           value={text}
           onChange={e => setText(e.target.value)}
           className="flex-1 min-h-[260px] bg-secondary/50 rounded-xl p-3 text-sm text-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary border border-border"
-          placeholder={`Встав текст пісні. Для ідеальної синхри можна LRC:\n[00:15.20] перший рядок\n[00:18.50] другий рядок`}
+          placeholder={`Paste song lyrics. For perfect sync, you can use LRC:\n[00:15.20] first line\n[00:18.50] second line`}
         />
       ) : (
         <div ref={containerRef} className="flex-1 overflow-y-auto px-1">
@@ -209,16 +209,16 @@ export default function LyricsView({ song, currentTime, duration = 0, isPlaying,
           ) : (
             <div className="text-center py-8">
               <Music className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground mb-3">{fetchError || 'Текст не додано'}</p>
+              <p className="text-sm text-muted-foreground mb-3">{fetchError || 'No lyrics added'}</p>
               <div className="flex justify-center gap-2">
                 <Button size="sm" variant="outline" onClick={handleFetchLyrics} disabled={fetching}
                   className="border-border gap-1.5 text-xs">
                   {fetching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  {fetching ? 'Шукаю...' : 'Знайти текст'}
+                  {fetching ? 'Searching...' : 'Find lyrics'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setEditing(true)}
                   className="border-border gap-1.5 text-xs">
-                  <Pencil className="w-3 h-3" /> Додати вручну
+                  <Pencil className="w-3 h-3" /> Add manually
                 </Button>
               </div>
             </div>

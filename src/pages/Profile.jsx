@@ -40,45 +40,45 @@ import { useTranslation } from 'react-i18next';
 import i18n, { supportedLanguages } from '../i18n';
 
 const ACCENTS = [
-  { key: 'rose', name: '\u0420\u043e\u0436\u0435\u0432\u0430', primary: '326 82% 72%', accent: '188 76% 72%' },
-  { key: 'violet', name: '\u0424\u0456\u043e\u043b\u0435\u0442\u043e\u0432\u0430', primary: '266 92% 76%', accent: '190 90% 72%' },
-  { key: 'blue', name: '\u0421\u0438\u043d\u044f', primary: '210 95% 68%', accent: '176 78% 62%' },
-  { key: 'ruby', name: '\u0420\u0443\u0431\u0456\u043d\u043e\u0432\u0430', primary: '350 86% 66%', accent: '28 92% 65%' },
-  { key: 'mint', name: '\u041c\u02bc\u044f\u0442\u043d\u0430', primary: '168 74% 58%', accent: '285 78% 76%' },
-  { key: 'peach', name: '\u041f\u0435\u0440\u0441\u0438\u043a', primary: '20 92% 70%', accent: '330 78% 74%' },
-  { key: 'ice', name: '\u041b\u0456\u0434', primary: '185 84% 72%', accent: '220 90% 78%' },
-  { key: 'gold', name: '\u0417\u043e\u043b\u043e\u0442\u043e', primary: '45 92% 58%', accent: '20 90% 68%' },
-  { key: 'graphite', name: '\u0413\u0440\u0430\u0444\u0456\u0442', primary: '220 16% 72%', accent: '180 18% 68%' },
-  { key: 'sage', name: '\u0428\u0430\u0432\u043b\u0456\u044f', primary: '142 42% 55%', accent: '178 48% 64%' },
-  { key: 'velvet', name: '\u041e\u043a\u0441\u0430\u043c\u0438\u0442', primary: '336 74% 58%', accent: '18 78% 66%' },
-  { key: 'burgundy', name: '\u0411\u043e\u0440\u0434\u043e', primary: '348 78% 50%', accent: '12 82% 64%' },
-  { key: 'midnight', name: '\u041e\u043f\u0456\u0432\u043d\u0456\u0447\u043d\u0430', primary: '218 78% 66%', accent: '188 72% 62%' },
-  { key: 'ember', name: '\u0416\u0430\u0440', primary: '16 95% 58%', accent: '45 96% 62%' },
-  { key: 'neon', name: '\u041d\u0435\u043e\u043d', primary: '292 92% 64%', accent: '174 92% 54%' },
-  { key: 'citrus', name: '\u0426\u0438\u0442\u0440\u0443\u0441', primary: '74 86% 52%', accent: '32 96% 58%' },
-  { key: 'berry', name: '\u042f\u0433\u043e\u0434\u0430', primary: '335 82% 56%', accent: '268 84% 66%' },
+  { key: 'rose', name: 'Rose', primary: '326 82% 72%', accent: '188 76% 72%' },
+  { key: 'violet', name: 'Violet', primary: '266 92% 76%', accent: '190 90% 72%' },
+  { key: 'blue', name: 'Blue', primary: '210 95% 68%', accent: '176 78% 62%' },
+  { key: 'ruby', name: 'Ruby', primary: '350 86% 66%', accent: '28 92% 65%' },
+  { key: 'mint', name: 'Mint', primary: '168 74% 58%', accent: '285 78% 76%' },
+  { key: 'peach', name: 'Peach', primary: '20 92% 70%', accent: '330 78% 74%' },
+  { key: 'ice', name: 'Ice', primary: '185 84% 72%', accent: '220 90% 78%' },
+  { key: 'gold', name: 'Gold', primary: '45 92% 58%', accent: '20 90% 68%' },
+  { key: 'graphite', name: 'Graphite', primary: '220 16% 72%', accent: '180 18% 68%' },
+  { key: 'sage', name: 'Sage', primary: '142 42% 55%', accent: '178 48% 64%' },
+  { key: 'velvet', name: 'Velvet', primary: '336 74% 58%', accent: '18 78% 66%' },
+  { key: 'burgundy', name: 'Burgundy', primary: '348 78% 50%', accent: '12 82% 64%' },
+  { key: 'midnight', name: 'Midnight', primary: '218 78% 66%', accent: '188 72% 62%' },
+  { key: 'ember', name: 'Ember', primary: '16 95% 58%', accent: '45 96% 62%' },
+  { key: 'neon', name: 'Neon', primary: '292 92% 64%', accent: '174 92% 54%' },
+  { key: 'citrus', name: 'Citrus', primary: '74 86% 52%', accent: '32 96% 58%' },
+  { key: 'berry', name: 'Berry', primary: '335 82% 56%', accent: '268 84% 66%' },
 ];
 
 const BACKGROUNDS = [
-  { key: 'pastel-rose', name: '\u041f\u0443\u0434\u0440\u043e\u0432\u0430 \u0442\u0440\u043e\u044f\u043d\u0434\u0430', preview: 'radial-gradient(circle at 20% 0%,#e89bbc,transparent 36%),linear-gradient(145deg,#efd3df,#e4eef4)' },
-  { key: 'pastel-sky', name: '\u041c\u043e\u043b\u043e\u0447\u043d\u0435 \u043d\u0435\u0431\u043e', preview: 'radial-gradient(circle at 80% 10%,#7cbedf,transparent 36%),linear-gradient(145deg,#d6eaf4,#f0e2ed)' },
-  { key: 'pastel-mint', name: '\u0422\u0438\u0445\u0430 \u043c\u02bc\u044f\u0442\u0430', preview: 'radial-gradient(circle at 15% 0%,#85cdac,transparent 36%),linear-gradient(145deg,#d8eee3,#f1e5ed)' },
-  { key: 'pastel-lilac', name: '\u041b\u0456\u043b\u043e\u0432\u0438\u0439 \u0442\u0443\u043c\u0430\u043d', preview: 'radial-gradient(circle at 80% 10%,#b19ee1,transparent 36%),linear-gradient(145deg,#e4d9f2,#e4edf4)' },
-  { key: 'pastel-peach', name: '\u041d\u0456\u0436\u043d\u0438\u0439 \u043f\u0435\u0440\u0441\u0438\u043a', preview: 'radial-gradient(circle at 18% 0%,#e8ab89,transparent 36%),linear-gradient(145deg,#f1d9cd,#e8edf4)' },
-  { key: 'light-blush', name: '\u0420\u0443\u043c\u02bc\u044f\u043d\u0435\u0446\u044c', preview: 'radial-gradient(circle at 20% 0%,#f4b7d5,transparent 36%),linear-gradient(145deg,#f9dfe9,#e9f3f6)' },
-  { key: 'light-sky', name: '\u0421\u0432\u0456\u0442\u043b\u0435 \u043d\u0435\u0431\u043e', preview: 'radial-gradient(circle at 80% 10%,#97d5ef,transparent 36%),linear-gradient(145deg,#dcedf7,#f5e8f3)' },
-  { key: 'light-mint', name: '\u0421\u0432\u0456\u0442\u043b\u0430 \u043c\u02bc\u044f\u0442\u0430', preview: 'radial-gradient(circle at 15% 0%,#9cdbb7,transparent 36%),linear-gradient(145deg,#dff2e7,#f5ecef)' },
-  { key: 'light-lavender', name: '\u041b\u0430\u0432\u0430\u043d\u0434\u0430', preview: 'radial-gradient(circle at 80% 10%,#cabefd,transparent 36%),linear-gradient(145deg,#eee4f6,#e8f0f6)' },
-  { key: 'plum', name: '\u0421\u043b\u0438\u0432\u0430', preview: 'radial-gradient(circle at 20% 0%,#7c3aed66,transparent 35%),linear-gradient(145deg,#090511,#1c1230)' },
-  { key: 'rose', name: '\u0420\u043e\u0436\u0435\u0432\u0438\u0439 \u0434\u0438\u043c', preview: 'radial-gradient(circle at 20% 0%,#ec489966,transparent 35%),linear-gradient(145deg,#120711,#24101c)' },
-  { key: 'ocean', name: '\u041e\u043a\u0435\u0430\u043d', preview: 'radial-gradient(circle at 80% 10%,#22d3ee66,transparent 35%),linear-gradient(145deg,#04121d,#0b2235)' },
-  { key: 'forest', name: '\u041b\u0456\u0441', preview: 'radial-gradient(circle at 18% 0%,#34d39966,transparent 35%),linear-gradient(145deg,#04140e,#10251b)' },
-  { key: 'sunset', name: '\u0417\u0430\u0445\u0456\u0434', preview: 'radial-gradient(circle at 18% 0%,#f9731666,transparent 35%),linear-gradient(145deg,#170a07,#2a1710)' },
-  { key: 'velvet', name: '\u041e\u043a\u0441\u0430\u043c\u0438\u0442', preview: 'radial-gradient(circle at 18% 0%,#be185d66,transparent 35%),radial-gradient(circle at 84% 16%,#f9731660,transparent 35%),linear-gradient(145deg,#13070d,#25101a)' },
-  { key: 'noir', name: '\u041d\u0443\u0430\u0440', preview: 'radial-gradient(circle at 78% 8%,#94a3b866,transparent 35%),radial-gradient(circle at 18% 20%,#64748b44,transparent 35%),linear-gradient(145deg,#05070b,#171923)' },
-  { key: 'cyber', name: '\u041a\u0456\u0431\u0435\u0440\u043d\u0456\u0447', preview: 'radial-gradient(circle at 85% 8%,#22d3ee66,transparent 35%),radial-gradient(circle at 14% 18%,#a855f766,transparent 35%),linear-gradient(145deg,#030712,#0b1024)' },
-  { key: 'wine', name: '\u0412\u0438\u043d\u043d\u0438\u0439', preview: 'radial-gradient(circle at 18% 0%,#e11d4866,transparent 35%),radial-gradient(circle at 82% 18%,#7f1d1d66,transparent 35%),linear-gradient(145deg,#140407,#2a0f14)' },
-  { key: 'deepsea', name: '\u0413\u043b\u0438\u0431\u0438\u043d\u0430', preview: 'radial-gradient(circle at 84% 8%,#0ea5e966,transparent 35%),radial-gradient(circle at 12% 18%,#14b8a666,transparent 35%),linear-gradient(145deg,#021018,#08202d)' },
+  { key: 'pastel-rose', name: 'Powder rose', preview: 'radial-gradient(circle at 20% 0%,#e89bbc,transparent 36%),linear-gradient(145deg,#efd3df,#e4eef4)' },
+  { key: 'pastel-sky', name: 'Milky sky', preview: 'radial-gradient(circle at 80% 10%,#7cbedf,transparent 36%),linear-gradient(145deg,#d6eaf4,#f0e2ed)' },
+  { key: 'pastel-mint', name: 'Quiet mint', preview: 'radial-gradient(circle at 15% 0%,#85cdac,transparent 36%),linear-gradient(145deg,#d8eee3,#f1e5ed)' },
+  { key: 'pastel-lilac', name: 'Lilac mist', preview: 'radial-gradient(circle at 80% 10%,#b19ee1,transparent 36%),linear-gradient(145deg,#e4d9f2,#e4edf4)' },
+  { key: 'pastel-peach', name: 'Soft peach', preview: 'radial-gradient(circle at 18% 0%,#e8ab89,transparent 36%),linear-gradient(145deg,#f1d9cd,#e8edf4)' },
+  { key: 'light-blush', name: 'Blush', preview: 'radial-gradient(circle at 20% 0%,#f4b7d5,transparent 36%),linear-gradient(145deg,#f9dfe9,#e9f3f6)' },
+  { key: 'light-sky', name: 'Light sky', preview: 'radial-gradient(circle at 80% 10%,#97d5ef,transparent 36%),linear-gradient(145deg,#dcedf7,#f5e8f3)' },
+  { key: 'light-mint', name: 'Light mint', preview: 'radial-gradient(circle at 15% 0%,#9cdbb7,transparent 36%),linear-gradient(145deg,#dff2e7,#f5ecef)' },
+  { key: 'light-lavender', name: 'Lavender', preview: 'radial-gradient(circle at 80% 10%,#cabefd,transparent 36%),linear-gradient(145deg,#eee4f6,#e8f0f6)' },
+  { key: 'plum', name: 'Plum', preview: 'radial-gradient(circle at 20% 0%,#7c3aed66,transparent 35%),linear-gradient(145deg,#090511,#1c1230)' },
+  { key: 'rose', name: 'Rose smoke', preview: 'radial-gradient(circle at 20% 0%,#ec489966,transparent 35%),linear-gradient(145deg,#120711,#24101c)' },
+  { key: 'ocean', name: 'Ocean', preview: 'radial-gradient(circle at 80% 10%,#22d3ee66,transparent 35%),linear-gradient(145deg,#04121d,#0b2235)' },
+  { key: 'forest', name: 'Forest', preview: 'radial-gradient(circle at 18% 0%,#34d39966,transparent 35%),linear-gradient(145deg,#04140e,#10251b)' },
+  { key: 'sunset', name: 'Sunset', preview: 'radial-gradient(circle at 18% 0%,#f9731666,transparent 35%),linear-gradient(145deg,#170a07,#2a1710)' },
+  { key: 'velvet', name: 'Velvet', preview: 'radial-gradient(circle at 18% 0%,#be185d66,transparent 35%),radial-gradient(circle at 84% 16%,#f9731660,transparent 35%),linear-gradient(145deg,#13070d,#25101a)' },
+  { key: 'noir', name: 'Noir', preview: 'radial-gradient(circle at 78% 8%,#94a3b866,transparent 35%),radial-gradient(circle at 18% 20%,#64748b44,transparent 35%),linear-gradient(145deg,#05070b,#171923)' },
+  { key: 'cyber', name: 'Cybernight', preview: 'radial-gradient(circle at 85% 8%,#22d3ee66,transparent 35%),radial-gradient(circle at 14% 18%,#a855f766,transparent 35%),linear-gradient(145deg,#030712,#0b1024)' },
+  { key: 'wine', name: 'Wine', preview: 'radial-gradient(circle at 18% 0%,#e11d4866,transparent 35%),radial-gradient(circle at 82% 18%,#7f1d1d66,transparent 35%),linear-gradient(145deg,#140407,#2a0f14)' },
+  { key: 'deepsea', name: 'Deep sea', preview: 'radial-gradient(circle at 84% 8%,#0ea5e966,transparent 35%),radial-gradient(circle at 12% 18%,#14b8a666,transparent 35%),linear-gradient(145deg,#021018,#08202d)' },
 ];
 
 const ACCENT_BACKGROUNDS = {
@@ -112,7 +112,7 @@ const TITLES = {
 };
 
 function formatRemaining(seconds) {
-  if (!seconds) return 'Вимкнено';
+  if (!seconds) return 'Off';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
@@ -213,7 +213,7 @@ export default function Profile({
       artists: new Set(listenedSongs.map(song => song.artist).filter(Boolean)).size,
       topTrack: listens.reduce((acc, item) => {
         const key = item.song_id || `${item.song_title}-${item.song_artist}`;
-        acc[key] = acc[key] || { title: item.song_title || 'Невідомий трек', artist: item.song_artist || '', count: 0 };
+        acc[key] = acc[key] || { title: item.song_title || 'Unknown track', artist: item.song_artist || '', count: 0 };
         acc[key].count += 1;
         return acc;
       }, {}),
@@ -234,16 +234,16 @@ export default function Profile({
 
   const saveNickname = async () => {
     const next = nicknameDraft.trim().replace(/^@/, '');
-    if (next.length < 2) return toast.error('Нікнейм має бути довший');
+    if (next.length < 2) return toast.error('Nickname must be longer');
     setLocalProfileNickname(next);
     onProfileNicknameChange?.(next);
     setNicknameDraft(next);
     setEditingNickname(false);
     try {
       await auth.updateProfile?.({ nickname: next });
-      toast.success('Нікнейм оновлено');
+      toast.success('Nickname updated');
     } catch {
-      toast.success('Нікнейм оновлено на цьому пристрої');
+      toast.success('Nickname updated on this device');
     }
   };
 
@@ -301,25 +301,25 @@ export default function Profile({
       const result = await social.requestFriend({ nickname });
       setFriendQuery('');
       if (result.accepted || result.already_friends) {
-        toast.success(`@${nickname} додано в друзі`);
+        toast.success(`@${nickname} added to friends`);
         loadFriends();
         onFriendRequestCountRefresh?.();
       } else {
-        toast.success(`Запит для @${nickname} надіслано`);
+        toast.success(`Request sent to @${nickname}`);
       }
     } catch (error) {
-      toast.error(error.message === 'User not found' ? 'Користувача не знайдено' : error.message || 'Не вийшло надіслати запит');
+      toast.error(error.message === 'User not found' ? 'User not found' : error.message || 'Could not send request');
     }
   };
 
   const acceptFriend = async (requestId) => {
     try {
       await social.acceptFriendRequest(requestId);
-      toast.success('Запит прийнято');
+      toast.success('Request accepted');
       loadFriends();
       onFriendRequestCountRefresh?.();
     } catch (error) {
-      toast.error(error.message || 'Не вийшло прийняти запит');
+      toast.error(error.message || 'Could not accept request');
     }
   };
 
@@ -327,21 +327,21 @@ export default function Profile({
     try {
       await social.declineFriendRequest(requestId);
       setFriendRequests(prev => prev.filter(request => request.id !== requestId));
-      toast.success('Запит відхилено');
+      toast.success('Request declined');
       onFriendRequestCountRefresh?.();
     } catch (error) {
-      toast.error(error.message || 'Не вийшло відхилити запит');
+      toast.error(error.message || 'Could not decline request');
     }
   };
 
   const acceptCollabInvite = async (requestId) => {
     try {
       await social.acceptCollabInvite(requestId);
-      toast.success('Запрошення в плейлист прийнято');
+      toast.success('Playlist invitation accepted');
       loadFriends();
       onFriendRequestCountRefresh?.();
     } catch (error) {
-      toast.error(error.message || 'Не вийшло прийняти запрошення');
+      toast.error(error.message || 'Could not accept invitation');
     }
   };
 
@@ -349,24 +349,24 @@ export default function Profile({
     try {
       await social.declineCollabInvite(requestId);
       setFriendRequests(prev => prev.filter(request => request.id !== requestId));
-      toast.success('Запрошення відхилено');
+      toast.success('Invitation declined');
       onFriendRequestCountRefresh?.();
     } catch (error) {
-      toast.error(error.message || 'Не вийшло відхилити запрошення');
+      toast.error(error.message || 'Could not decline invitation');
     }
   };
 
   const removeFriend = async (friend) => {
     if (!friend?.id) return;
-    const ok = window.confirm(`Видалити @${friend.nickname} з друзів?`);
+    const ok = window.confirm(`Remove @${friend.nickname} from friends?`);
     if (!ok) return;
     try {
       await social.removeFriend(friend.id);
       setFriends(prev => prev.filter(item => item.id !== friend.id));
       setUserResults(prev => prev.map(item => item.id === friend.id ? { ...item, relationship: 'none' } : item));
-      toast.success('Друга видалено');
+      toast.success('Friend removed');
     } catch (error) {
-      toast.error(error.message || 'Не вийшло видалити друга');
+      toast.error(error.message || 'Could not remove friend');
     }
   };
 
@@ -415,7 +415,7 @@ export default function Profile({
       setAvatarDraft(previewUrl);
     } catch (error) {
       console.error(error);
-      toast.error('Не вийшло відкрити фото');
+      toast.error('Could not open photo');
     } finally {
       event.target.value = '';
     }
@@ -438,10 +438,10 @@ export default function Profile({
         await auth.updateProfile?.({ avatar_url: cropped }).catch(() => {});
       }
       setAvatarEditorOpen(false);
-      toast.success('Аватарку оновлено');
+      toast.success('Avatar updated');
     } catch (error) {
       console.error(error);
-      toast.error('Не вийшло зберегти фото');
+      toast.error('Could not save photo');
     } finally {
       setSavingAvatar(false);
     }
@@ -460,10 +460,10 @@ export default function Profile({
       storage.uploadFile(file, 'backgrounds')
         .then(url => onThemePhotoChange?.(url))
         .catch(() => {});
-      toast.success('\u0424\u043e\u043d \u043e\u043d\u043e\u0432\u043b\u0435\u043d\u043e');
+      toast.success('Background updated');
     } catch (error) {
       console.error(error);
-      toast.error('\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438 \u0444\u043e\u0442\u043e');
+      toast.error('Could not upload photo');
     } finally {
       event.target.value = '';
     }
@@ -495,9 +495,9 @@ export default function Profile({
 
   const setCustomSleepTimer = () => {
     const minutes = Number(customSleep);
-    if (!Number.isFinite(minutes) || minutes <= 0) return toast.error('Введи час у хвилинах');
+    if (!Number.isFinite(minutes) || minutes <= 0) return toast.error('Enter time in minutes');
     onSleepTimerChange(minutes);
-    toast.success(`Таймер сну: ${minutes} хв`);
+    toast.success(`Sleep timer: ${minutes} min`);
   };
 
   const chooseLanguage = (nextLanguage) => {
@@ -515,7 +515,7 @@ export default function Profile({
     onProfileNicknameChange?.('DreamTune');
     setFriends([]);
     setConfirmDelete(false);
-    toast.success('Профіль очищено');
+    toast.success('Profile cleared');
   };
 
   const openSupport = () => {
@@ -590,7 +590,7 @@ export default function Profile({
                     </Button>
                   </div>
                 )}
-                <p className="text-sm text-muted-foreground">{songs.length} пісень · {favoriteCount} улюблених · {artistCount} артистів</p>
+                <p className="text-sm text-muted-foreground">{songs.length} songs · {favoriteCount} favorites · {artistCount} artists</p>
                 <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-secondary/70 px-3 py-1 text-xs font-bold text-foreground">
                   <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="truncate">{email}</span>
@@ -600,7 +600,7 @@ export default function Profile({
           </motion.section>
 
           <section className="rounded-3xl border border-border bg-card/95 p-4">
-            <h2 className="text-base font-black text-foreground mb-3">Публічні плейлисти</h2>
+            <h2 className="text-base font-black text-foreground mb-3">Public playlists</h2>
             <div className="space-y-2">
               {publicPlaylists.length ? publicPlaylists.map(playlist => (
                 <Link key={playlist.id} to={`/playlists/${playlist.id}`} className="flex items-center gap-3 rounded-2xl bg-secondary/70 p-3">
@@ -609,11 +609,11 @@ export default function Profile({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-foreground truncate">{playlist.name}</p>
-                    <p className="text-xs text-muted-foreground">{playlist.song_ids?.length || 0} пісень</p>
+                    <p className="text-xs text-muted-foreground">{playlist.song_ids?.length || 0} songs</p>
                   </div>
                   <Globe2 className="w-4 h-4 text-muted-foreground" />
                 </Link>
-              )) : <p className="text-sm text-muted-foreground">Публічних плейлистів ще немає.</p>}
+              )) : <p className="text-sm text-muted-foreground">No public playlists yet.</p>}
             </div>
           </section>
         </>
@@ -622,7 +622,7 @@ export default function Profile({
       <Dialog open={avatarEditorOpen} onOpenChange={setAvatarEditorOpen}>
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto">
           <DialogHeader>
-            <DialogTitle>Аватарка</DialogTitle>
+            <DialogTitle>Avatar</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <ImageCropBox
@@ -632,16 +632,16 @@ export default function Profile({
               onPositionChange={setAvatarPosition}
               onScaleChange={setAvatarScale}
               onPick={() => avatarInputRef.current?.click()}
-              emptyLabel="Додати фото"
+              emptyLabel="Add photo"
               className="mx-auto w-full max-w-[220px] rounded-full"
               marker={false}
             />
-            {avatarDraft && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
+            {avatarDraft && <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>}
             <Button type="button" variant="outline" onClick={() => avatarInputRef.current?.click()} className="w-full rounded-2xl border-border">
-              <Camera className="w-4 h-4 mr-2" /> Вибрати фото
+              <Camera className="w-4 h-4 mr-2" /> Choose photo
             </Button>
             <Button onClick={saveAvatar} disabled={savingAvatar || !avatarDraft} className="w-full rounded-2xl">
-              {savingAvatar ? 'Збереження...' : 'Зберегти'}
+              {savingAvatar ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </DialogContent>
@@ -651,12 +651,12 @@ export default function Profile({
         <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={friendQuery} onChange={e => setFriendQuery(e.target.value)} placeholder="Нікнейм друга..." className="pl-10 bg-secondary border-border rounded-2xl" onKeyDown={e => e.key === 'Enter' && addFriend()} />
+            <Input value={friendQuery} onChange={e => setFriendQuery(e.target.value)} placeholder="Friend nickname..." className="pl-10 bg-secondary border-border rounded-2xl" onKeyDown={e => e.key === 'Enter' && addFriend()} />
           </div>
-          <Button onClick={addFriend} className="w-full rounded-2xl">Додати друга</Button>
+          <Button onClick={addFriend} className="w-full rounded-2xl">Add friend</Button>
           {userResults.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Знайдені користувачі</p>
+              <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Found users</p>
               {userResults.map(user => (
                 <div key={user.id} className="flex items-center gap-3 rounded-2xl bg-secondary/70 p-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center overflow-hidden shrink-0">
@@ -664,12 +664,12 @@ export default function Profile({
                   </div>
                   <Link to={`/profile/user/${user.id}`} className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground truncate">{user.nickname}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.relationship === 'friend' ? 'В друзях' : user.relationship === 'pending' ? 'Запит надіслано' : 'Можна додати'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.relationship === 'friend' ? 'Friends' : user.relationship === 'pending' ? 'Request sent' : 'Can be added'}</p>
                   </Link>
                   {user.relationship === 'friend' ? (
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">Друг</span>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-black text-primary">Friend</span>
                   ) : user.relationship === 'pending' ? (
-                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">Очікує</span>
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-black text-muted-foreground">Pending</span>
                   ) : (
                     <Button
                       size="sm"
@@ -678,13 +678,13 @@ export default function Profile({
                         try {
                           await social.requestFriend({ friend_id: user.id });
                           setUserResults(prev => prev.map(item => item.id === user.id ? { ...item, relationship: 'pending' } : item));
-                          toast.success(`Запит для @${user.nickname} надіслано`);
+                          toast.success(`Request sent to @${user.nickname}`);
                         } catch (error) {
-                          toast.error(error.message || 'Не вийшло надіслати запит');
+                          toast.error(error.message || 'Could not send request');
                         }
                       }}
                     >
-                      Додати
+                      Add
                     </Button>
                   )}
                 </div>
@@ -693,12 +693,12 @@ export default function Profile({
           )}
           {friendSearchDone && friendQuery.trim().length >= 2 && userResults.length === 0 && (
             <div className="rounded-2xl bg-secondary/70 p-3 text-sm font-bold text-muted-foreground">
-              Користувача не знайдено
+              User not found
             </div>
           )}
           {friendRequests.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Запити</p>
+              <p className="text-xs font-black uppercase tracking-wide text-muted-foreground">Requests</p>
               {friendRequests.map(request => {
                 const isCollab = request.request_type === 'collab_playlist';
                 return (
@@ -712,15 +712,15 @@ export default function Profile({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-foreground truncate">@{request.sender_nickname}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {isCollab ? `Запрошує в плейлист "${request.playlist_name}"` : 'Хоче додатися в друзі'}
+                        {isCollab ? `Invites you to "${request.playlist_name}"` : 'Wants to add you as a friend'}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => isCollab ? declineCollabInvite(request.id) : declineFriend(request.id)} className="rounded-xl border-border">
-                        Ні
+                        No
                       </Button>
                       <Button size="sm" onClick={() => isCollab ? acceptCollabInvite(request.id) : acceptFriend(request.id)} className="rounded-xl">
-                        Прийняти
+                        Accept
                       </Button>
                     </div>
                   </div>
@@ -734,18 +734,18 @@ export default function Profile({
                 <Users className="w-5 h-5 text-primary" />
                 <Link to={`/profile/user/${friend.id}`} className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-foreground">@{friend.nickname}</p>
-                  <p className="text-xs text-muted-foreground">Можна додавати в спільні плейлисти</p>
+                  <p className="text-xs text-muted-foreground">Available for collaborative playlists</p>
                 </Link>
                 <Button asChild size="sm" variant="outline" className="rounded-xl border-border">
                   <Link to={`/profile/user/${friend.id}`}>
-                  Профіль
+                  Profile
                   </Link>
                 </Button>
                 <Button size="sm" variant="outline" className="rounded-xl border-border text-destructive hover:text-destructive" onClick={() => removeFriend(friend)}>
-                  Видалити
+                  Remove
                 </Button>
               </div>
-            )) : <p className="text-sm text-muted-foreground">Додай друзів за нікнеймом, щоб потім створювати з ними спільні плейлисти.</p>}
+            )) : <p className="text-sm text-muted-foreground">Add friends by nickname to create collaborative playlists with them later.</p>}
           </div>
         </section>
       )}
@@ -753,7 +753,7 @@ export default function Profile({
       {section === 'stats' && (
         <div className="space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {[[7, 'Тиждень'], [30, 'Місяць'], [180, 'Півроку'], [365, 'Рік']].map(([days, label]) => (
+            {[[7, 'Week'], [30, 'Month'], [180, 'Half year'], [365, 'Year']].map(([days, label]) => (
               <button key={days} onClick={() => setPeriod(days)} className={`px-4 py-2 rounded-2xl text-sm font-bold whitespace-nowrap ${period === days ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-secondary text-foreground'}`}>
                 {label}
               </button>
@@ -761,9 +761,9 @@ export default function Profile({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              ['Прослуховувань', periodStats.listens],
-              ['Треків слухала', periodStats.tracks],
-              ['Артистів звучало', periodStats.artists],
+              ['Listens', periodStats.listens],
+              ['Tracks played', periodStats.tracks],
+              ['Artists heard', periodStats.artists],
             ].map(([label, value]) => (
               <div key={label} className="rounded-3xl border border-border bg-card/95 p-5">
                 <BarChart3 className="w-5 h-5 text-primary mb-3" />
@@ -774,14 +774,14 @@ export default function Profile({
           </div>
           {periodStats.listens === 0 ? (
             <div className="rounded-3xl border border-border bg-card/95 p-5 text-center">
-              <p className="text-base font-black text-foreground">Даних за цей період ще немає</p>
-              <p className="mt-1 text-sm text-muted-foreground">Починай слухати, щоб ми зібрали твій вайб!</p>
+              <p className="text-base font-black text-foreground">No data for this period yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">Start listening so DreamTune can build your vibe.</p>
             </div>
           ) : topTrack && (
             <div className="rounded-3xl border border-border bg-card/95 p-5">
-              <p className="text-sm text-muted-foreground">Найчастіше звучав</p>
+              <p className="text-sm text-muted-foreground">Most played</p>
               <p className="mt-1 text-xl font-black text-foreground truncate">{topTrack.title}</p>
-              <p className="text-sm text-muted-foreground truncate">{topTrack.artist || 'Невідомий'} · {topTrack.count} разів</p>
+              <p className="text-sm text-muted-foreground truncate">{topTrack.artist || 'Unknown artist'} · {topTrack.count} times</p>
             </div>
           )}
         </div>
@@ -790,12 +790,12 @@ export default function Profile({
       {section === 'theme' && (
         <div className="space-y-5">
           <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-3">
-            <h2 className="text-base font-black text-foreground">Режим</h2>
+            <h2 className="text-base font-black text-foreground">Mode</h2>
             <div className="grid grid-cols-3 gap-2">
               {[
-                ['light', 'Світла', Sun],
-                ['dark', 'Темна', Moon],
-                ['custom', 'Своя', Sparkles],
+                ['light', 'Light', Sun],
+                ['dark', 'Dark', Moon],
+                ['custom', 'Custom', Sparkles],
               ].map(([mode, label, Icon]) => (
                 <button key={mode} onClick={() => chooseMode(mode)} className={`rounded-2xl border p-3 text-sm font-black transition ${localThemeMode === mode ? 'border-primary bg-primary/15 text-primary ring-2 ring-primary/25' : 'border-border bg-secondary text-foreground'}`}>
                   <Icon className="w-5 h-5 mx-auto mb-1" />
@@ -808,7 +808,7 @@ export default function Profile({
           {localThemeMode === 'custom' && (
             <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-3">
               <button onClick={() => setShowBackgrounds(value => !value)} className="w-full rounded-2xl bg-secondary text-foreground px-4 py-3 text-sm font-bold text-left">
-                {showBackgrounds ? 'Сховати фони' : 'Відкрити фони'}
+                {showBackgrounds ? 'Hide backgrounds' : 'Show backgrounds'}
               </button>
               {showBackgrounds && (
                 <div className="space-y-3">
@@ -818,15 +818,15 @@ export default function Profile({
                         {themePhoto ? <img src={themePhoto} alt="" className="h-full w-full object-cover" /> : <Camera className="h-6 w-6 text-primary" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-foreground">{'\u0421\u0432\u043e\u0454 \u0444\u043e\u0442\u043e \u043d\u0430 \u0444\u043e\u043d'}</p>
-                        <p className="text-xs text-muted-foreground">{'\u041f\u043e\u0441\u0442\u0430\u0432 \u0431\u0443\u0434\u044c-\u044f\u043a\u0443 \u043a\u0430\u0440\u0442\u0438\u043d\u043a\u0443 \u044f\u043a \u0444\u043e\u043d \u0434\u043e\u0434\u0430\u0442\u043a\u0443.'}</p>
+                        <p className="text-sm font-black text-foreground">Custom background photo</p>
+                        <p className="text-xs text-muted-foreground">Use any image as the app background.</p>
                       </div>
-                      <Button type="button" size="sm" onClick={() => bgInputRef.current?.click()} className="rounded-2xl">{'\u0412\u0438\u0431\u0440\u0430\u0442\u0438'}</Button>
+                      <Button type="button" size="sm" onClick={() => bgInputRef.current?.click()} className="rounded-2xl">Choose</Button>
                     </div>
                     <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleThemePhotoSelect} />
                     {themePhoto && (
                       <Button type="button" variant="ghost" size="sm" onClick={() => { onThemePhotoChange?.(''); if (themeBackground === 'photo') onThemeBackgroundChange?.('pastel-lilac'); }} className="mt-2 rounded-2xl text-muted-foreground">
-                        {'\u041f\u0440\u0438\u0431\u0440\u0430\u0442\u0438 \u0444\u043e\u0442\u043e'}
+                        Remove photo
                       </Button>
                     )}
                   </div>
@@ -845,7 +845,7 @@ export default function Profile({
 
           <section className="rounded-3xl border border-border bg-card/95 p-4 space-y-3">
             <button onClick={() => setShowPalettes(value => !value)} className="w-full rounded-2xl bg-secondary text-foreground px-4 py-3 text-sm font-bold text-left">
-              {showPalettes ? 'Сховати палітру' : 'Відкрити палітру'}
+              {showPalettes ? 'Hide palette' : 'Show palette'}
             </button>
             {showPalettes && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -865,18 +865,18 @@ export default function Profile({
         <section className="rounded-3xl border border-border bg-card/95 p-5 space-y-4">
           <Clock3 className="w-6 h-6 text-primary" />
           <div>
-            <p className="text-sm text-muted-foreground">Залишилось</p>
+            <p className="text-sm text-muted-foreground">Remaining</p>
             <p className="text-3xl font-black text-foreground">{formatRemaining(sleepRemaining)}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[15, 30, 60].map(minutes => (
-              <Button key={minutes} variant="outline" onClick={() => onSleepTimerChange(minutes)} className="rounded-2xl border-border">{minutes} хв</Button>
+              <Button key={minutes} variant="outline" onClick={() => onSleepTimerChange(minutes)} className="rounded-2xl border-border">{minutes} min</Button>
             ))}
-            <Button variant="outline" onClick={() => onSleepTimerChange(0)} className="rounded-2xl border-border gap-2"><TimerOff className="w-4 h-4" /> Скинути</Button>
+            <Button variant="outline" onClick={() => onSleepTimerChange(0)} className="rounded-2xl border-border gap-2"><TimerOff className="w-4 h-4" /> Reset</Button>
           </div>
           <div className="flex gap-2">
-            <Input value={customSleep} onChange={e => setCustomSleep(e.target.value)} inputMode="numeric" placeholder="Свій час у хвилинах" className="bg-secondary border-border rounded-2xl" />
-            <Button onClick={setCustomSleepTimer} className="rounded-2xl">Старт</Button>
+            <Input value={customSleep} onChange={e => setCustomSleep(e.target.value)} inputMode="numeric" placeholder="Custom time in minutes" className="bg-secondary border-border rounded-2xl" />
+            <Button onClick={setCustomSleepTimer} className="rounded-2xl">Start</Button>
           </div>
         </section>
       )}
@@ -917,19 +917,19 @@ export default function Profile({
           <SettingCard
             id="privacy"
             icon={Shield}
-            title="Приватність"
-            description="Публічність плейлистів змінюється в режимі редагування кожного окремого плейлиста."
+            title="Privacy"
+            description="Playlist visibility is changed in each playlist edit dialog."
           >
             <p className="rounded-2xl bg-secondary/70 p-3 text-sm text-muted-foreground">
-              Публічні плейлисти видно у профілі. Приватні лишаються тільки для тебе.
+              Public playlists appear on your profile. Private playlists stay visible only to you.
             </p>
           </SettingCard>
 
           <SettingCard
             id="support"
             icon={LifeBuoy}
-            title="Підтримка"
-            description="Напиши нам, якщо щось не працює або потрібна допомога."
+            title="Support"
+            description="Contact us if something is not working or you need help."
           >
             <button
               type="button"
@@ -937,49 +937,49 @@ export default function Profile({
               className="w-full rounded-2xl bg-secondary/70 p-3 text-left text-sm font-bold text-foreground hover:bg-secondary"
             >
               dreamtuneteam@gmail.com
-              <span className="block text-xs font-medium text-muted-foreground">Тема листа підставиться автоматично.</span>
+              <span className="block text-xs font-medium text-muted-foreground">The email subject will be filled in automatically.</span>
             </button>
           </SettingCard>
 
           <SettingCard
             id="about"
             icon={Info}
-            title="Про програму"
-            description="DreamTune зберігає твою музику, плейлисти й налаштування локально."
+            title="About"
+            description="DreamTune keeps your music, playlists, and settings close at hand."
           >
             <div className="rounded-2xl bg-secondary/70 p-3 text-sm text-muted-foreground space-y-2">
-              <p>DreamTune — це твій особистий музичний простір для треків, плейлистів, тем і спільного слухання.</p>
-              <p>Додаток створений так, щоб музика, обкладинки й налаштування були під рукою без зайвого шуму.</p>
+              <p>DreamTune is your personal music space for tracks, playlists, themes, and collaborative listening.</p>
+              <p>The app is designed to keep music, covers, and settings close without extra noise.</p>
             </div>
           </SettingCard>
 
           <SettingCard
             id="account"
             icon={AlertTriangle}
-            title="Акаунт"
-            description="Вийди з профілю або видали акаунт, якщо більше не хочеш зберігати дані."
+            title="Account"
+            description="Sign out or delete your account if you no longer want to keep data here."
             danger
           >
             <div className="space-y-2">
               <Button variant="outline" className="w-full rounded-2xl border-border justify-start" onClick={async () => {
                 await onSignOut?.();
-                toast.success('Вийшли з профілю');
+                toast.success('Signed out');
               }}>
-                <LogOut className="w-4 h-4 mr-2" /> Вийти з профілю
+                <LogOut className="w-4 h-4 mr-2" /> Sign out
               </Button>
               {confirmDelete ? (
                 <div className="rounded-2xl bg-destructive/10 border border-destructive/30 p-3 space-y-3">
-                  <p className="text-sm font-bold text-foreground">Ви впевнені? Це видалить усі ваші дані назавжди.</p>
+                  <p className="text-sm font-bold text-foreground">Are you sure? This will delete all your data forever.</p>
                   <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 rounded-2xl border-border" onClick={() => setConfirmDelete(false)}>Скасувати</Button>
+                    <Button variant="outline" className="flex-1 rounded-2xl border-border" onClick={() => setConfirmDelete(false)}>Cancel</Button>
                     <Button variant="destructive" className="flex-1 rounded-2xl gap-2" onClick={deleteLocalProfile}>
-                      <Trash2 className="w-4 h-4" /> Видалити
+                      <Trash2 className="w-4 h-4" /> Delete
                     </Button>
                   </div>
                 </div>
               ) : (
                 <Button variant="destructive" className="w-full rounded-2xl justify-start" onClick={() => setConfirmDelete(true)}>
-                  <Trash2 className="w-4 h-4 mr-2" /> Видалити акаунт
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete account
                 </Button>
               )}
             </div>

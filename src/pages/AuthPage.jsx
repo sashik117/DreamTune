@@ -6,22 +6,22 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 const text = {
-  login: '\u0423\u0432\u0456\u0439\u0442\u0438',
-  register: '\u0420\u0435\u0454\u0441\u0442\u0440\u0430\u0446\u0456\u044f',
-  create: '\u0421\u0442\u0432\u043e\u0440\u0438\u0442\u0438',
-  verify: '\u041f\u0435\u0440\u0435\u0432\u0456\u0440\u043a\u0430 \u043f\u043e\u0448\u0442\u0438',
-  email: '\u041f\u043e\u0448\u0442\u0430',
-  nickname: '\u041d\u0456\u043a\u043d\u0435\u0439\u043c',
-  loginField: '\u041f\u043e\u0448\u0442\u0430 \u0430\u0431\u043e \u043d\u0456\u043a\u043d\u0435\u0439\u043c',
-  password: '\u041f\u0430\u0440\u043e\u043b\u044c',
-  confirmPassword: '\u041f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u044f \u043f\u0430\u0440\u043e\u043b\u044e',
-  wait: '\u0417\u0430\u0447\u0435\u043a\u0430\u0439...',
-  makeProfile: '\u0421\u0442\u0432\u043e\u0440\u0438\u0442\u0438 \u043f\u0440\u043e\u0444\u0456\u043b\u044c',
-  codeFromEmail: '\u041a\u043e\u0434 \u0437 \u043f\u043e\u0448\u0442\u0438',
-  confirmAndLogin: '\u041f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0438 \u0456 \u0443\u0432\u0456\u0439\u0442\u0438',
-  changeEmail: '\u0417\u043c\u0456\u043d\u0438\u0442\u0438 \u043f\u043e\u0448\u0442\u0443 \u0430\u0431\u043e \u043d\u0456\u043a\u043d\u0435\u0439\u043c',
-  minPassword: '\u043c\u0456\u043d\u0456\u043c\u0443\u043c 6 \u0441\u0438\u043c\u0432\u043e\u043b\u0456\u0432',
-  repeatPassword: '\u043f\u043e\u0432\u0442\u043e\u0440\u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+  login: 'Sign in',
+  register: 'Create account',
+  create: 'Create',
+  verify: 'Email verification',
+  email: 'Email',
+  nickname: 'Nickname',
+  loginField: 'Email or nickname',
+  password: 'Password',
+  confirmPassword: 'Confirm password',
+  wait: 'Please wait...',
+  makeProfile: 'Create profile',
+  codeFromEmail: 'Email code',
+  confirmAndLogin: 'Confirm and sign in',
+  changeEmail: 'Change email or nickname',
+  minPassword: 'minimum 6 characters',
+  repeatPassword: 'repeat password',
 };
 
 export default function AuthPage() {
@@ -42,11 +42,11 @@ export default function AuthPage() {
 
     if (mode === 'register') {
       if (password.length < 6) {
-        toast.error('\u041f\u0430\u0440\u043e\u043b\u044c \u043c\u0430\u0454 \u043c\u0430\u0442\u0438 \u043c\u0456\u043d\u0456\u043c\u0443\u043c 6 \u0441\u0438\u043c\u0432\u043e\u043b\u0456\u0432');
+        toast.error('Password must be at least 6 characters');
         return;
       }
       if (password !== confirmPassword) {
-        toast.error('\u041f\u0430\u0440\u043e\u043b\u0456 \u043d\u0435 \u0437\u0431\u0456\u0433\u0430\u044e\u0442\u044c\u0441\u044f');
+        toast.error('Passwords do not match');
         return;
       }
     }
@@ -55,7 +55,7 @@ export default function AuthPage() {
     try {
       if (mode === 'login') {
         await auth.signIn({ login, password });
-        toast.success('\u0412\u0445\u0456\u0434 \u0432\u0438\u043a\u043e\u043d\u0430\u043d\u043e');
+        toast.success('Signed in');
         window.location.href = '/';
         return;
       }
@@ -63,7 +63,7 @@ export default function AuthPage() {
       if (mode === 'verify') {
         await auth.verifyEmailCode({ email, code });
         setLogin(nickname);
-        toast.success('\u041f\u043e\u0448\u0442\u0443 \u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043e, \u0432\u0445\u043e\u0434\u0438\u043c\u043e');
+        toast.success('Email verified, signing in');
         window.location.href = '/';
         return;
       }
@@ -72,7 +72,7 @@ export default function AuthPage() {
       setDevCode(data.verification_code || '');
       setLogin(nickname);
       setMode('verify');
-      toast.success('\u041a\u043e\u0434 \u043f\u0456\u0434\u0442\u0432\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u044f \u0432\u0456\u0434\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e \u043d\u0430 \u043f\u043e\u0448\u0442\u0443');
+      toast.success('Verification code sent to your email');
     } catch (err) {
       if (err.needs_verification) {
         if (err.email) setEmail(err.email);
@@ -82,10 +82,10 @@ export default function AuthPage() {
         }
         if (err.verification_code) setDevCode(err.verification_code);
         setMode('verify');
-        toast.message('Введи код підтвердження пошти');
+        toast.message('Enter the email verification code');
         return;
       }
-      toast.error(err.message || '\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e');
+      toast.error(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -127,13 +127,13 @@ export default function AuthPage() {
         {mode === 'verify' ? (
           <>
             <p className="text-sm text-muted-foreground">
-              {'\u041c\u0438 \u0432\u0456\u0434\u043f\u0440\u0430\u0432\u0438\u043b\u0438 \u043a\u043e\u0434 \u043d\u0430 '}
+              {'We sent a code to '}
               <span className="font-bold text-foreground">{email}</span>
-              {'\u002e \u0412\u0432\u0435\u0434\u0438 \u0439\u043e\u0433\u043e \u043d\u0438\u0436\u0447\u0435, \u0456 \u043f\u0440\u043e\u0444\u0456\u043b\u044c \u043e\u0434\u0440\u0430\u0437\u0443 \u0443\u0432\u0456\u0439\u0434\u0435 \u0432 \u0434\u043e\u0434\u0430\u0442\u043e\u043a.'}
+              {'. Enter it below and your profile will sign in right away.'}
             </p>
             {devCode && (
               <div className="rounded-2xl bg-secondary/80 border border-border p-3 text-sm">
-                <p className="font-bold text-foreground">{'\u0422\u0435\u0441\u0442\u043e\u0432\u0438\u0439 \u043a\u043e\u0434 \u0434\u043b\u044f \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0437\u0430\u043f\u0443\u0441\u043a\u0443:'}</p>
+                <p className="font-bold text-foreground">Test code for local development:</p>
                 <p className="text-2xl font-black text-primary tracking-[0.25em] mt-1">{devCode}</p>
               </div>
             )}
@@ -167,7 +167,7 @@ export default function AuthPage() {
             <span className="text-xs font-bold text-muted-foreground">{text.loginField}</span>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={login} onChange={e => setLogin(e.target.value)} placeholder="example@mail.com або dreamer" className="pl-10 bg-secondary border-border rounded-2xl" required />
+              <Input value={login} onChange={e => setLogin(e.target.value)} placeholder="example@mail.com or dreamer" className="pl-10 bg-secondary border-border rounded-2xl" required />
             </div>
           </label>
         )}
@@ -179,7 +179,7 @@ export default function AuthPage() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} minLength={6} placeholder={text.minPassword} className="pl-10 pr-11 bg-secondary border-border rounded-2xl" required />
-                <PasswordEye shown={showPassword} onToggle={() => setShowPassword(value => !value)} label={showPassword ? '\u0421\u0445\u043e\u0432\u0430\u0442\u0438 \u043f\u0430\u0440\u043e\u043b\u044c' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u0438 \u043f\u0430\u0440\u043e\u043b\u044c'} />
+                <PasswordEye shown={showPassword} onToggle={() => setShowPassword(value => !value)} label={showPassword ? 'Hide password' : 'Show password'} />
               </div>
             </label>
 
@@ -189,7 +189,7 @@ export default function AuthPage() {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} type={showConfirmPassword ? 'text' : 'password'} minLength={6} placeholder={text.repeatPassword} className="pl-10 pr-11 bg-secondary border-border rounded-2xl" required />
-                  <PasswordEye shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(value => !value)} label={showConfirmPassword ? '\u0421\u0445\u043e\u0432\u0430\u0442\u0438 \u043f\u0430\u0440\u043e\u043b\u044c' : '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u0438 \u043f\u0430\u0440\u043e\u043b\u044c'} />
+                  <PasswordEye shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(value => !value)} label={showConfirmPassword ? 'Hide password' : 'Show password'} />
                 </div>
               </label>
             )}

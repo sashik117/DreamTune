@@ -10,25 +10,25 @@ export default function AlbumDetail({ songs, currentSongId, isPlaying, onPlay, o
 
   const album = useMemo(() => {
     const albumSongs = songs.filter(song => {
-      const artist = song.artist || 'Невідомий';
+      const artist = song.artist || 'Unknown artist';
       const key = song.album ? `${artist}__${song.album}` : `${artist}__`;
       return key === albumId;
     });
     if (!albumSongs.length) return null;
-    const artist = albumSongs[0].artist || 'Невідомий';
+    const artist = albumSongs[0].artist || 'Unknown artist';
     const name = albumSongs[0].album || artist;
     const cover = albumSongs.find(s => s.cover_url)?.cover_url || null;
     return { name, artist, cover, songs: albumSongs };
   }, [songs, albumId]);
 
   if (!album) return (
-    <div className="px-4 pt-6 text-center text-muted-foreground">Альбом не знайдено</div>
+    <div className="px-4 pt-6 text-center text-muted-foreground">Album not found</div>
   );
 
   return (
     <div className="px-4 pt-6 pb-4">
       <Link to="/albums" className="flex items-center gap-1 text-sm text-muted-foreground mb-4 hover:text-foreground transition-colors">
-        <ChevronLeft className="w-4 h-4" /> Альбоми
+        <ChevronLeft className="w-4 h-4" /> Albums
       </Link>
 
       {/* Album header */}
@@ -45,7 +45,7 @@ export default function AlbumDetail({ songs, currentSongId, isPlaying, onPlay, o
         <div className="flex flex-col justify-center min-w-0">
           <h1 className="text-xl font-bold text-foreground truncate">{album.name}</h1>
           <p className="text-sm text-muted-foreground truncate">{album.artist}</p>
-          <p className="text-xs text-muted-foreground mt-1">{album.songs.length} пісень</p>
+          <p className="text-xs text-muted-foreground mt-1">{album.songs.length} songs</p>
         </div>
       </div>
 

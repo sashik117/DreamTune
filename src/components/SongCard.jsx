@@ -34,7 +34,7 @@ export default function SongCard({
 }) {
   const addToPlaylist = async (playlist) => {
     await onAddSongsToPlaylist?.([song.id], playlist.id);
-    toast.success(`Додано в "${playlist.name}"`);
+    toast.success(`Added to "${playlist.name}"`);
   };
 
   const handleCardClick = () => {
@@ -106,7 +106,7 @@ export default function SongCard({
 
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-semibold truncate leading-tight ${isActive ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{song.artist || 'Невідомий'}</p>
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{song.artist || 'Unknown artist'}</p>
         </div>
 
         <div className="flex items-center gap-0.5 opacity-100" onClick={e => e.stopPropagation()}>
@@ -129,13 +129,13 @@ export default function SongCard({
             <DropdownMenuContent align="end" collisionPadding={12} className="z-[140] bg-card border-border rounded-2xl shadow-xl min-w-52 max-w-[calc(100vw-1.5rem)]">
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(song)} className="rounded-xl">
-                  <Pencil className="w-4 h-4 mr-2" /> Редагувати
+                  <Pencil className="w-4 h-4 mr-2" /> Edit
                 </DropdownMenuItem>
               )}
               {!hidePlaylistActions && playlists.length > 0 && onAddSongsToPlaylist && (
                 <div className="py-1">
                   <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-black text-muted-foreground">
-                    <ListPlus className="w-4 h-4" /> Додати в плейлист
+                    <ListPlus className="w-4 h-4" /> Add to playlist
                   </div>
                   <div className="max-h-[42dvh] overflow-y-auto overscroll-contain pr-1">
                     {playlists.map(playlist => (
@@ -147,23 +147,23 @@ export default function SongCard({
                 </div>
               )}
               {onPlayNext && (
-                <DropdownMenuItem onClick={() => { onPlayNext(song); toast.success('Грати наступною'); }} className="rounded-xl">
-                  <ListStart className="w-4 h-4 mr-2" /> Грати наступною
+                <DropdownMenuItem onClick={() => { onPlayNext(song); toast.success('Will play next'); }} className="rounded-xl">
+                  <ListStart className="w-4 h-4 mr-2" /> Play next
                 </DropdownMenuItem>
               )}
               {onAddToQueue && (
-                <DropdownMenuItem onClick={() => { onAddToQueue(song); toast.success('Додано в чергу'); }} className="rounded-xl">
-                  <ListEnd className="w-4 h-4 mr-2" /> В кінець черги
+                <DropdownMenuItem onClick={() => { onAddToQueue(song); toast.success('Added to queue'); }} className="rounded-xl">
+                  <ListEnd className="w-4 h-4 mr-2" /> Add to queue
                 </DropdownMenuItem>
               )}
               {onRemoveFromPlaylist && (
                 <DropdownMenuItem onClick={() => onRemoveFromPlaylist(song)} className="rounded-xl">
-                  <ListMinus className="w-4 h-4 mr-2" /> Прибрати з плейлиста
+                  <ListMinus className="w-4 h-4 mr-2" /> Remove from playlist
                 </DropdownMenuItem>
               )}
               {onDelete && (
                 <DropdownMenuItem onClick={() => onDelete(song)} className="text-destructive focus:text-destructive rounded-xl">
-                <Trash2 className="w-4 h-4 mr-2" /> Видалити
+                <Trash2 className="w-4 h-4 mr-2" /> Delete
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

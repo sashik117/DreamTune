@@ -56,19 +56,11 @@ export default function CollabPlaylistDetail({
   const playlistDuration = formatPlaylistDuration(playlistDurationSeconds);
 
   const pluralSong = (count) => {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) return 'пісня';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'пісні';
-    return 'пісень';
+    return count === 1 ? 'song' : 'songs';
   };
 
   const pluralMember = (count) => {
-    const mod10 = count % 10;
-    const mod100 = count % 100;
-    if (mod10 === 1 && mod100 !== 11) return 'учасник';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'учасники';
-    return 'учасників';
+    return count === 1 ? 'member' : 'members';
   };
 
   useEffect(() => {
@@ -103,11 +95,11 @@ export default function CollabPlaylistDetail({
           onUpdated(updated);
           if (updated.last_edited_by && updated.last_edited_by !== currentUser?.email) {
             if (addedIds.length) {
-              toast.success(`${updated.last_edited_by} додав трек у плейлист`);
+              toast.success(`${updated.last_edited_by} added a track to the playlist`);
             } else if (removedIds.length) {
-              toast(`${updated.last_edited_by} прибрав трек із плейлиста`);
+              toast(`${updated.last_edited_by} removed a track from the playlist`);
             } else {
-              toast(`${updated.last_edited_by} оновив плейлист`);
+              toast(`${updated.last_edited_by} updated the playlist`);
             }
           }
         }
@@ -149,14 +141,14 @@ export default function CollabPlaylistDetail({
   const handleRemoveSong = async (songId) => {
     const newIds = (playlist.song_ids || []).filter(id => id !== songId);
     await update({ song_ids: newIds });
-    toast.success('Пісню прибрано з плейлиста');
+    toast.success('Song removed from playlist');
   };
 
   const handleInvite = async (friend) => {
     if (!friend?.id) return;
     await social.inviteToCollabPlaylist({ playlist_id: playlist.id, receiver_id: friend.id });
     setShowInvite(false);
-    toast.success(`Запит для ${friend.nickname} надіслано`);
+    toast.success(`Invite sent to ${friend.nickname}`);
   };
 
   const handleRemoveCollaborator = async (idOrEmail) => {
@@ -175,15 +167,15 @@ export default function CollabPlaylistDetail({
 
   const handlePlayPlaylist = (shouldShuffle) => {
     const playable = playlistSongs.filter(song => song?.file_url);
-    if (!playable.length) return toast.error('У плейлисті немає доступних аудіо');
+    if (!playable.length) return toast.error('This playlist has no playable audio');
     onPlayPlaylist?.(playable, { shuffle: shouldShuffle });
     warmPlaylistAudio(playable);
-    if (shouldShuffle) toast.success('Плейлист перемішано');
+    if (shouldShuffle) toast.success('Playlist shuffled');
   };
 
   const handlePlayFromPlaylist = (song) => {
     const playable = playlistSongs.filter(item => item?.file_url);
-    if (!playable.length) return toast.error('У плейлисті немає доступних аудіо');
+    if (!playable.length) return toast.error('This playlist has no playable audio');
     onPlayPlaylist?.(playable, { startSongId: song.id });
     warmPlaylistAudio(playable);
   };
@@ -241,10 +233,10 @@ export default function CollabPlaylistDetail({
         cover_scale: coverScale,
       });
       setShowCoverEditor(false);
-      toast.success('\u041e\u0431\u043a\u043b\u0430\u0434\u0438\u043d\u043a\u0443 \u043e\u043d\u043e\u0432\u043b\u0435\u043d\u043e');
+      toast.success('Cover updated');
     } catch (error) {
       console.error(error);
-      toast.error('\u041d\u0435 \u0432\u0438\u0439\u0448\u043b\u043e \u043e\u043d\u043e\u0432\u0438\u0442\u0438 \u043e\u0431\u043a\u043b\u0430\u0434\u0438\u043d\u043a\u0443');
+      toast.error('Could not update cover');
     } finally {
       setSavingCover(false);
     }
@@ -280,7 +272,7 @@ export default function CollabPlaylistDetail({
               whileTap={{ scale: 0.88 }}
               onClick={onBack}
               className="h-10 w-10 flex items-center justify-center hover:bg-secondary rounded-full transition-colors shrink-0"
-              aria-label="Назад"
+              aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5 text-foreground" />
             </motion.button>
@@ -288,15 +280,15 @@ export default function CollabPlaylistDetail({
               type="button"
               onClick={isOwner ? openCoverEditor : undefined}
               className={`shrink-0 rounded-3xl p-1 ${isOwner ? 'cursor-pointer hover:bg-primary/10' : ''}`}
-              aria-label="Обкладинка плейлиста"
+              aria-label="Playlist cover"
             >
               {renderPlaylistCover('w-14 h-14 rounded-2xl shadow-lg shadow-primary/10')}
             </button>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Спільний плейлист</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Collaborative playlist</p>
               <div className="flex items-center gap-1.5 min-w-0">
                 {isOwner && <Crown className="w-3.5 h-3.5 text-yellow-500 shrink-0" />}
-                <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Спільний плейлист'}</h1>
+                <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Collaborative playlist'}</h1>
               </div>
               <p className="truncate text-sm text-muted-foreground">
                 {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {memberCount} {pluralMember(memberCount)}
@@ -310,7 +302,7 @@ export default function CollabPlaylistDetail({
               onClick={() => handlePlayPlaylist(true)}
               className="min-h-11 flex items-center justify-center rounded-2xl bg-secondary/80 text-primary transition-colors hover:bg-secondary disabled:opacity-40"
               disabled={!playlistSongs.length}
-              aria-label="Перемішати"
+              aria-label="Shuffle"
             >
               <Shuffle className="w-4 h-4" />
             </motion.button>
@@ -318,7 +310,7 @@ export default function CollabPlaylistDetail({
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowInvite(true)}
               className="min-h-11 flex items-center justify-center rounded-2xl bg-secondary/80 text-primary transition-colors hover:bg-secondary"
-              aria-label="Додати учасника"
+              aria-label="Add member"
             >
               <UserPlus className="w-4 h-4" />
             </motion.button>
@@ -326,7 +318,7 @@ export default function CollabPlaylistDetail({
               whileTap={{ scale: 0.9 }}
               onClick={() => setShowAddSongs(true)}
               className="min-h-11 flex items-center justify-center rounded-2xl bg-secondary/80 text-primary transition-colors hover:bg-secondary"
-              aria-label="Додати пісні"
+              aria-label="Add songs"
             >
               <Plus className="w-4 h-4" />
             </motion.button>
@@ -337,10 +329,10 @@ export default function CollabPlaylistDetail({
       {((playlist.collaborator_ids || []).length > 0 || (playlist.collaborator_emails || []).length > 0) && (
         <div className="dream-scroll-row flex gap-2 mb-3 overflow-x-auto pb-1">
           {[
-            { id: playlist.owner_id, label: playlist.owner_email || currentUser?.nickname || 'Власник' },
+            { id: playlist.owner_id, label: playlist.owner_email || currentUser?.nickname || 'Owner' },
             ...(playlist.collaborator_ids || []).map(id => {
               const friend = friends.find(item => item.id === id);
-              return { id, label: friend?.nickname || (playlist.collaborator_emails || [])[0] || 'Співавтор' };
+              return { id, label: friend?.nickname || (playlist.collaborator_emails || [])[0] || 'Collaborator' };
             }),
             ...(!(playlist.collaborator_ids || []).length ? (playlist.collaborator_emails || []).map(email => ({ id: email, label: email })) : []),
           ].filter(item => item.id || item.label).map((member, i) => (
@@ -360,12 +352,12 @@ export default function CollabPlaylistDetail({
       {playlistSongs.length === 0 ? (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
           <Music className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-          <p className="text-muted-foreground text-sm">Додай пісні</p>
+          <p className="text-muted-foreground text-sm">Add songs</p>
         </motion.div>
       ) : (
         <>
           <Button onClick={() => handlePlayPlaylist(false)} className="w-full mb-3 gap-2 rounded-2xl bg-primary hover:brightness-110">
-            <Play className="w-4 h-4 fill-current" /> Грати плейлист
+            <Play className="w-4 h-4 fill-current" /> Play playlist
           </Button>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} layout className="space-y-1">
             <AnimatePresence initial={false}>
@@ -401,7 +393,7 @@ export default function CollabPlaylistDetail({
 
       <Dialog open={showAddSongs} onOpenChange={setShowAddSongs}>
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-md mx-auto max-h-[70vh] overflow-hidden flex flex-col">
-          <DialogHeader><DialogTitle>Додати пісні</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Add songs</DialogTitle></DialogHeader>
           <div className="overflow-y-auto flex-1 space-y-1 pt-2 -mx-1 px-1">
             {songs.map(song => {
               const isIn = (playlist.song_ids || []).includes(song.id);
@@ -414,7 +406,7 @@ export default function CollabPlaylistDetail({
                   {renderSongCover(song, 'w-10 h-10 rounded-lg')}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{song.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{song.artist || 'Невідомий'}</p>
+                    <p className="text-xs text-muted-foreground truncate">{song.artist || 'Unknown artist'}</p>
                   </div>
                   {isIn && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
                 </div>
@@ -428,7 +420,7 @@ export default function CollabPlaylistDetail({
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary" /> Запросити учасника
+              <UserPlus className="w-4 h-4 text-primary" /> Invite member
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-1">
@@ -448,7 +440,7 @@ export default function CollabPlaylistDetail({
                 </button>
               );
             }) : (
-              <p className="text-sm text-muted-foreground">Немає друзів для запрошення. Якщо всі уже додані, вони тут не показуються.</p>
+              <p className="text-sm text-muted-foreground">No friends available to invite. Friends already added are hidden here.</p>
             )}
           </div>
         </DialogContent>
@@ -457,7 +449,7 @@ export default function CollabPlaylistDetail({
       <Dialog open={showCoverEditor} onOpenChange={setShowCoverEditor}>
         <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{'\u041e\u0431\u043a\u043b\u0430\u0434\u0438\u043d\u043a\u0430 \u043f\u043b\u0435\u0439\u043b\u0438\u0441\u0442\u0430'}</DialogTitle>
+            <DialogTitle>Playlist cover</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <ImageCropBox
@@ -467,16 +459,16 @@ export default function CollabPlaylistDetail({
               onPositionChange={setCoverPosition}
               onScaleChange={setCoverScale}
               onPick={() => coverInputRef.current?.click()}
-              emptyLabel="Додати фото"
+              emptyLabel="Add photo"
               className="mx-auto w-full max-w-[240px] rounded-3xl"
             />
             <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
             <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()} className="w-full rounded-2xl border-border">
-              <ImagePlus className="w-4 h-4 mr-2" /> {'\u0412\u0438\u0431\u0440\u0430\u0442\u0438 \u0444\u043e\u0442\u043e'}
+              <ImagePlus className="w-4 h-4 mr-2" /> Choose photo
             </Button>
-            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Перетягни фото або розведи пальці для масштабу</p>}
+            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>}
             <Button onClick={saveCover} disabled={savingCover} className="w-full rounded-2xl">
-              {savingCover ? '\u0417\u0431\u0435\u0440\u0456\u0433\u0430\u044e...' : '\u0417\u0431\u0435\u0440\u0435\u0433\u0442\u0438'}
+              {savingCover ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </DialogContent>

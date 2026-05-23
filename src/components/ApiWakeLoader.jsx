@@ -38,8 +38,8 @@ export default function ApiWakeLoader() {
           <div className="h-4 w-4 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">DreamTune ще підтягує дані</p>
-          <p className="truncate text-xs text-muted-foreground">Можна продовжувати користуватись додатком.</p>
+          <p className="truncate text-sm font-semibold text-foreground">DreamTune is still loading data</p>
+          <p className="truncate text-xs text-muted-foreground">You can keep using the app.</p>
         </div>
       </div>
     </div>

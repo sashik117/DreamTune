@@ -47,7 +47,7 @@ export default function OfflineBanner() {
             : <WifiOff className="w-4 h-4 flex-shrink-0" />
           }
           <span className="flex-1">
-            {isOnline ? 'З\'єднання відновлено 🎉' : 'Немає мережі — доступно офлайн ☁️'}
+            {isOnline ? 'Connection restored' : 'No network - offline mode available'}
           </span>
           <button onClick={() => setDismissed(true)} className="p-0.5 hover:opacity-60 transition-opacity">
             <X className="w-3.5 h-3.5" />

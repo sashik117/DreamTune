@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 const MOODS = [
-  { key: 'all',        label: 'Для тебе', icon: Sparkles, color: 'from-pink-400/20 to-rose-400/20' },
-  { key: 'energetic',  label: 'Енергія',  icon: Zap,      color: 'from-orange-400/20 to-yellow-400/20' },
-  { key: 'chill',      label: 'Чіл',      icon: Coffee,   color: 'from-blue-400/20 to-cyan-400/20' },
-  { key: 'happy',      label: 'Настрій',  icon: Sun,      color: 'from-yellow-400/20 to-lime-400/20' },
-  { key: 'melancholic',label: 'Лірика',   icon: Moon,     color: 'from-purple-400/20 to-indigo-400/20' },
-  { key: 'focus',      label: 'Фокус',    icon: Brain,    color: 'from-teal-400/20 to-emerald-400/20' },
+  { key: 'all',        label: 'For you', icon: Sparkles, color: 'from-pink-400/20 to-rose-400/20' },
+  { key: 'energetic',  label: 'Energy',  icon: Zap,      color: 'from-orange-400/20 to-yellow-400/20' },
+  { key: 'chill',      label: 'Chill',   icon: Coffee,   color: 'from-blue-400/20 to-cyan-400/20' },
+  { key: 'happy',      label: 'Mood',    icon: Sun,      color: 'from-yellow-400/20 to-lime-400/20' },
+  { key: 'melancholic',label: 'Lyrics',  icon: Moon,     color: 'from-purple-400/20 to-indigo-400/20' },
+  { key: 'focus',      label: 'Focus',   icon: Brain,    color: 'from-teal-400/20 to-emerald-400/20' },
 ];
 
 const MOOD_PROMPTS = {
@@ -77,7 +77,7 @@ export default function SmartRecommendations({ songs, onDownloadRecommendation, 
       setRecs(prev => ({ ...prev, [mood]: result }));
     } catch (err) {
       console.error('SmartRecs error:', err);
-      toast.error('Не вдалось завантажити рекомендації');
+      toast.error('Could not load recommendations');
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ export default function SmartRecommendations({ songs, onDownloadRecommendation, 
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
-          <h2 className="text-base font-bold text-foreground">ШІ-рекомендації</h2>
+          <h2 className="text-base font-bold text-foreground">AI recommendations</h2>
           {loading && <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin" />}
         </div>
         <motion.button

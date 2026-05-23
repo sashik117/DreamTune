@@ -43,7 +43,7 @@ export default function PlaylistDownloadBar({ songs }) {
 
   const downloadAll = async () => {
     if (!isOnline) {
-      toast.error('Немає зʼєднання з мережею');
+      toast.error('No network connection');
       return;
     }
 
@@ -59,7 +59,7 @@ export default function PlaylistDownloadBar({ songs }) {
     }
 
     setDownloading(false);
-    toast.success('Плейлист збережено офлайн');
+    toast.success('Playlist saved offline');
   };
 
   const removeAll = async () => {
@@ -67,7 +67,7 @@ export default function PlaylistDownloadBar({ songs }) {
       if (downloadedIds.has(song.id)) await removeSongFromCache(song.id, song.file_url);
     }
     setDownloadedIds(new Set());
-    toast.success('Офлайн копії видалено');
+    toast.success('Offline copies removed');
   };
 
   if (songs.length === 0) return null;
@@ -84,7 +84,7 @@ export default function PlaylistDownloadBar({ songs }) {
             <Download className="w-4 h-4 text-primary flex-shrink-0" />
           )}
           <span className="text-xs font-semibold text-foreground truncate">
-            {allDownloaded ? 'Доступно офлайн' : someDownloaded ? `${downloadedIds.size}/${songs.length} збережено` : 'Зберегти офлайн'}
+            {allDownloaded ? 'Available offline' : someDownloaded ? `${downloadedIds.size}/${songs.length} saved` : 'Save offline'}
           </span>
         </div>
         {downloading && (
@@ -100,7 +100,7 @@ export default function PlaylistDownloadBar({ songs }) {
       </div>
 
       {!isOnline && !allDownloaded && (
-        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">Офлайн</span>
+        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full">Offline</span>
       )}
 
       {isOnline && !allDownloaded && (
@@ -112,7 +112,7 @@ export default function PlaylistDownloadBar({ songs }) {
           style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
         >
           {downloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-          {downloading ? `${progress}%` : 'Завантажити'}
+          {downloading ? `${progress}%` : 'Download'}
         </motion.button>
       )}
 
@@ -122,7 +122,7 @@ export default function PlaylistDownloadBar({ songs }) {
           onClick={removeAll}
           className="text-[11px] text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-full hover:bg-destructive/10"
         >
-          Видалити
+          Remove
         </motion.button>
       )}
 
@@ -131,7 +131,7 @@ export default function PlaylistDownloadBar({ songs }) {
           whileTap={{ scale: 0.88 }}
           onClick={downloadAll}
           className="p-1.5 hover:bg-secondary rounded-full transition-colors"
-          title="Синхронізувати решту"
+          title="Sync the rest"
         >
           <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
         </motion.button>

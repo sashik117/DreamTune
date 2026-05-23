@@ -385,7 +385,7 @@ export default function AppShell() {
         const offlineSongs = await getDownloadedSongsMeta();
         setSongs(offlineSongs);
       } else {
-        toast.error('Не вийшло підтягнути треки з акаунта. Перевір інтернет і спробуй ще раз.');
+        toast.error('Could not load tracks from your account. Check your connection and try again.');
       }
     } finally {
       setLoading(false);
@@ -455,7 +455,7 @@ export default function AppShell() {
   }, [currentUser?.id]);
 
   const handleDelete = useCallback(async (song) => {
-    if (typeof window !== 'undefined' && !window.confirm(`Видалити "${song.title || 'трек'}" назавжди?`)) return false;
+    if (typeof window !== 'undefined' && !window.confirm(`Delete "${song.title || 'track'}" forever?`)) return false;
     setSongs(prev => prev.filter(s => s.id !== song.id));
     setPlaylists(prev => prev.map(pl => ({
       ...pl,
@@ -466,7 +466,7 @@ export default function AppShell() {
   }, []);
 
   const handleDeleteMany = useCallback(async (songIds) => {
-    if (typeof window !== 'undefined' && !window.confirm(`Видалити ${songIds.length} пісень назавжди?`)) return false;
+    if (typeof window !== 'undefined' && !window.confirm(`Delete ${songIds.length} songs forever?`)) return false;
     setSongs(prev => prev.filter(song => !songIds.includes(song.id)));
     setPlaylists(prev => prev.map(pl => ({
       ...pl,
@@ -568,10 +568,10 @@ export default function AppShell() {
 
     if (createdSongs.length) {
       handleSongsAdded(createdSongs);
-      toast.success(`Фоново додано ${createdSongs.length} треків`);
+      toast.success(`Added ${createdSongs.length} tracks in the background`);
     }
-    if (repairedCount) toast.success(`Відновлено ${repairedCount} старих треків`);
-    if (failedCount) toast.error(`Не вдалось скачати ${failedCount} треків у фоні`);
+    if (repairedCount) toast.success(`Repaired ${repairedCount} old tracks`);
+    if (failedCount) toast.error(`Could not download ${failedCount} tracks in the background`);
     if (processedIds.length) await clearCompletedYouTubeDownloads(processedIds);
   }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded]);
 
@@ -626,7 +626,7 @@ export default function AppShell() {
           <div className="flex min-h-screen items-center justify-center">
             <div className="max-w-[260px] text-center">
               <div className="mx-auto mb-4 h-8 w-8 rounded-full border-4 border-primary/25 border-t-primary animate-spin" />
-              <p className="text-sm font-semibold text-foreground">DreamTune завантажується...</p>
+              <p className="text-sm font-semibold text-foreground">DreamTune is loading...</p>
             </div>
           </div>
         )}

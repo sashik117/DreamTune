@@ -115,10 +115,10 @@ export async function resolvePlaylistSeconds(songs = [], onProgress) {
 
 export function formatPlaylistDuration(seconds) {
   const total = Math.max(0, Math.round(Number(seconds || 0)));
-  if (!total) return '0 хв';
+  if (!total) return '0 min';
   const hours = Math.floor(total / 3600);
   const minutes = Math.round((total % 3600) / 60);
-  if (hours && minutes) return `${hours} год ${minutes} хв`;
-  if (hours) return `${hours} год`;
-  return `${Math.max(1, minutes)} хв`;
+  if (hours && minutes) return `${hours}h ${minutes}m`;
+  if (hours) return `${hours}h`;
+  return `${Math.max(1, minutes)}m`;
 }

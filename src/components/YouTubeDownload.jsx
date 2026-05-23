@@ -285,7 +285,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       const found = await findYouTubeResults(cleanQuery);
       if (!found.length) {
         setResults([]);
-        setError('\u041f\u0456\u0441\u043d\u044e \u043d\u0435 \u0437\u043d\u0430\u0439\u0434\u0435\u043d\u043e. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0442\u043e\u0447\u043d\u0456\u0448\u0443 \u043d\u0430\u0437\u0432\u0443.');
+        setError('Song not found. Try a more specific title.');
         setStep('idle');
         return;
       }
@@ -293,7 +293,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       setStep('results');
     } catch (err) {
       console.error(err);
-      setError(err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u043f\u043e\u0448\u0443\u043a\u0443. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0449\u0435 \u0440\u0430\u0437.');
+      setError(err?.message || 'Search failed. Try again.');
       setStep('idle');
     }
   }
@@ -321,14 +321,14 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       const fileUrl = await getAudioUrl(result.videoId, { native: false });
 
       if (!fileUrl) {
-        setError('\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u043f\u0456\u0434\u0433\u043e\u0442\u0443\u0432\u0430\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0432\u0430\u0440\u0456\u0430\u043d\u0442 \u0437 YouTube.');
+        setError('Could not prepare the preview. Try another YouTube result.');
         return '';
       }
       setPreviewUrl(fileUrl);
       return fileUrl;
     } catch (err) {
       console.error(err);
-      setError(err?.message || '\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442.');
+      setError(err?.message || 'Could not start the preview. Try another result.');
       return '';
     } finally {
       setPreviewLoading(false);
@@ -349,7 +349,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       }
 
       if (!fileUrl) {
-        setError('\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0438\u0442\u0438 \u0430\u0443\u0434\u0456\u043e. \u0421\u043f\u0440\u043e\u0431\u0443\u0439 \u0456\u043d\u0448\u0438\u0439 \u0432\u0430\u0440\u0456\u0430\u043d\u0442 \u0430\u0431\u043e \u0434\u043e\u0434\u0430\u0439 \u0444\u0430\u0439\u043b \u0432\u0440\u0443\u0447\u043d\u0443.');
+        setError('Could not download audio. Try another result or add a file manually.');
         setStep('found');
         return;
       }
@@ -368,14 +368,14 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       const offlineSaved = await downloadSong(song, () => {});
 
       toast.success(offlineSaved
-        ? '\u041f\u0456\u0441\u043d\u044e \u0434\u043e\u0434\u0430\u043d\u043e \u0456 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043e \u043e\u0444\u043b\u0430\u0439\u043d!'
-        : '\u041f\u0456\u0441\u043d\u044e \u0434\u043e\u0434\u0430\u043d\u043e, \u0430\u043b\u0435 \u043e\u0444\u043b\u0430\u0439\u043d-\u043a\u043e\u043f\u0456\u044e \u043d\u0435 \u0437\u0431\u0435\u0440\u0435\u0436\u0435\u043d\u043e.');
+        ? 'Song added and saved offline!'
+        : 'Song added, but the offline copy was not saved.');
       onSongAdded(song);
       onClose();
     } catch (err) {
       console.error(err);
-      setError(err?.message || '\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f');
-      toast.error('\u041f\u043e\u043c\u0438\u043b\u043a\u0430 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f');
+      setError(err?.message || 'Could not add song');
+      toast.error('Could not add song');
       setStep('found');
     }
   };
@@ -397,20 +397,20 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
       {busy && (
         <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-3 text-xs text-foreground flex gap-2">
           <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <p>Не закривай сторінку і не виходь з додатка, поки йде пошук або завантаження з YouTube. Процес може перерватися.</p>
+          <p>Keep this screen open while DreamTune searches or downloads from YouTube. Leaving the app can interrupt the process.</p>
         </div>
       )}
 
       {(step === 'idle' || step === 'searching' || step === 'results') && (
         <>
           <p className="text-xs text-muted-foreground">
-            {'\u0417\u043d\u0430\u0439\u0434\u0438 \u043f\u0456\u0441\u043d\u044e \u0437\u0430 \u043d\u0430\u0437\u0432\u043e\u044e \u0430\u0431\u043e \u0432\u0438\u043a\u043e\u043d\u0430\u0432\u0446\u0435\u043c, \u043f\u043e\u0442\u0456\u043c \u0432\u0438\u0431\u0435\u0440\u0438 \u043f\u043e\u0442\u0440\u0456\u0431\u043d\u0438\u0439 \u0432\u0430\u0440\u0456\u0430\u043d\u0442.'}
+            Find a song by title or artist, then choose the right result.
           </p>
           <div className="flex gap-2">
             <Input
               value={query}
               onChange={e => { setQuery(e.target.value); setError(''); }}
-              placeholder={'\u041d\u0430\u043f\u0440\u0438\u043a\u043b\u0430\u0434: \u041e\u043a\u0435\u0430\u043d \u0415\u043b\u044c\u0437\u0438 - \u041e\u0431\u0456\u0439\u043c\u0438'}
+              placeholder="Example: The Weeknd - Blinding Lights"
               className="bg-secondary border-border"
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
             />
@@ -465,12 +465,12 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground mb-1">{'\u0412\u0438\u0431\u0440\u0430\u043d\u043e'}</p>
+              <p className="text-xs text-muted-foreground mb-1">Selected</p>
               <p className="text-sm font-semibold truncate">{editTitle}</p>
               <p className="text-xs text-muted-foreground truncate">{editArtist}</p>
               {result.videoId && (
                 <button type="button" onClick={openOnYouTube} className="text-[11px] text-primary flex items-center gap-1 mt-1">
-                  <ExternalLink className="w-3 h-3" /> {'\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u043d\u0430 YouTube'}
+                  <ExternalLink className="w-3 h-3" /> Open on YouTube
                 </button>
               )}
             </div>
@@ -480,7 +480,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
             <div className="overflow-hidden rounded-2xl border border-border bg-background/60">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
                 <PlayCircle className="w-4 h-4 text-primary" />
-                <p className="text-xs font-bold text-foreground">{'\u041f\u0440\u043e\u0441\u043b\u0443\u0445\u0430\u0439 \u043f\u0435\u0440\u0435\u0434 \u0434\u043e\u0434\u0430\u0432\u0430\u043d\u043d\u044f\u043c'}</p>
+                <p className="text-xs font-bold text-foreground">Preview before adding</p>
               </div>
               <div className="p-3 space-y-3">
                 {previewUrl ? (
@@ -497,7 +497,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
                   />
                 ) : (
                   <Button type="button" variant="outline" onClick={preparePreview} disabled={previewLoading} className="w-full rounded-2xl border-border">
-                    {previewLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{'\u0413\u043e\u0442\u0443\u044e \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445...'}</> : '\u041f\u0456\u0434\u0433\u043e\u0442\u0443\u0432\u0430\u0442\u0438 \u043f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043b\u0443\u0445'}
+                    {previewLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Preparing preview...</> : 'Prepare preview'}
                   </Button>
                 )}
               </div>
@@ -506,11 +506,11 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
 
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">{'\u041d\u0430\u0437\u0432\u0430 \u043f\u0456\u0441\u043d\u0456'}</Label>
+              <Label className="text-xs text-muted-foreground">Song title</Label>
               <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} onBlur={e => setEditTitle(repairMojibake(e.target.value))} className="bg-secondary border-border" disabled={step === 'saving'} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">{'\u0412\u0438\u043a\u043e\u043d\u0430\u0432\u0435\u0446\u044c'}</Label>
+              <Label className="text-xs text-muted-foreground">Artist</Label>
               <Input value={editArtist} onChange={e => setEditArtist(e.target.value)} onBlur={e => setEditArtist(repairMojibake(e.target.value))} className="bg-secondary border-border" disabled={step === 'saving'} />
             </div>
           </div>
@@ -523,10 +523,10 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => { setStep('results'); setResult(null); setError(''); }} className="flex-1 border-border" disabled={step === 'saving'}>
-              {'\u041d\u0430\u0437\u0430\u0434'}
+              Back
             </Button>
             <Button onClick={handleAdd} disabled={step === 'saving' || !editTitle.trim()} className="flex-1 bg-primary hover:brightness-110">
-              {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{'\u0414\u043e\u0434\u0430\u044e...'}</> : '\u0414\u043e\u0434\u0430\u0442\u0438'}
+              {step === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding...</> : 'Add'}
             </Button>
           </div>
         </>

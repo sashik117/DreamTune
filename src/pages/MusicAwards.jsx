@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 
-const MONTH_NAMES = ['Січня','Лютого','Березня','Квітня','Травня','Червня','Липня','Серпня','Вересня','Жовтня','Листопада','Грудня'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function StatCard({ icon: Icon, value, label, color, delay }) {
   return (
@@ -96,8 +96,8 @@ export default function MusicAwards({ songs }) {
     } catch {
       if (navigator.share) {
         navigator.share({
-          title: `🎶 Мій саундтрек ${monthName}`,
-          text:  `Прослухав ${stats?.total} пісень цього місяця!`,
+          title: `My ${monthName} soundtrack`,
+          text:  `Listened to ${stats?.total} songs this month!`,
         });
       }
     }
@@ -112,7 +112,7 @@ export default function MusicAwards({ songs }) {
             <ChevronLeft className="w-5 h-5" />
           </Button>
         </Link>
-        <h1 className="text-lg font-bold text-foreground">Нагороди місяця</h1>
+        <h1 className="text-lg font-bold text-foreground">Monthly awards</h1>
       </div>
 
       {loading ? (
@@ -149,15 +149,15 @@ export default function MusicAwards({ songs }) {
                 transition={{ delay: 0.4 }}
                 className="text-center mb-6"
               >
-                <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-1">Твій саундтрек</p>
+                <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-1">Your soundtrack</p>
                 <h2 className="text-3xl font-extrabold leading-tight">{monthName}</h2>
               </motion.div>
 
               <div className="grid grid-cols-2 gap-3 mb-5">
-                <StatCard icon={Music}  value={stats.total}       label="Прослухувань"       color="bg-white/15" delay={0.5} />
-                <StatCard icon={Star}   value={stats.uniqueSongs} label="Унікальних пісень"  color="bg-white/15" delay={0.6} />
-                <StatCard icon={Heart}  value={stats.favorites}   label="В улюблених"        color="bg-white/15" delay={0.7} />
-                <StatCard icon={Music}  value={stats.allTime}     label="Всього прослухано"  color="bg-white/15" delay={0.8} />
+                <StatCard icon={Music}  value={stats.total}       label="Listens"       color="bg-white/15" delay={0.5} />
+                <StatCard icon={Star}   value={stats.uniqueSongs} label="Unique songs"  color="bg-white/15" delay={0.6} />
+                <StatCard icon={Heart}  value={stats.favorites}   label="Favorites"     color="bg-white/15" delay={0.7} />
+                <StatCard icon={Music}  value={stats.allTime}     label="All-time plays" color="bg-white/15" delay={0.8} />
               </div>
 
               {stats.topArtist && (
@@ -170,9 +170,9 @@ export default function MusicAwards({ songs }) {
                     <Mic2 className="w-5 h-5 text-yellow-300" />
                   </div>
                   <div>
-                    <p className="text-white/60 text-xs font-semibold">Топ артист</p>
+                    <p className="text-white/60 text-xs font-semibold">Top artist</p>
                     <p className="text-white font-bold text-sm leading-tight">{stats.topArtist.name}</p>
-                    <p className="text-white/50 text-xs">{stats.topArtist.count} прослуховувань</p>
+                    <p className="text-white/50 text-xs">{stats.topArtist.count} listens</p>
                   </div>
                 </motion.div>
               )}
@@ -191,7 +191,7 @@ export default function MusicAwards({ songs }) {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="text-white/60 text-xs font-semibold">Хіт місяця</p>
+                    <p className="text-white/60 text-xs font-semibold">Hit of the month</p>
                     <p className="text-white font-bold text-sm truncate">{stats.topSong.title}</p>
                     <p className="text-white/50 text-xs truncate">{stats.topSong.artist}</p>
                   </div>
@@ -215,7 +215,7 @@ export default function MusicAwards({ songs }) {
             className="flex gap-3 mt-6 w-full max-w-sm"
           >
             <Button onClick={handleShare} className="flex-1 gap-2 bg-primary hover:brightness-110 rounded-2xl h-11">
-              <Share2 className="w-4 h-4" /> Поділитися
+              <Share2 className="w-4 h-4" /> Share
             </Button>
             <Button variant="outline" onClick={loadStats} className="gap-2 rounded-2xl h-11 border-border px-4">
               <RefreshCw className="w-4 h-4" />
