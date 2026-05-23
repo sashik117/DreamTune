@@ -6,6 +6,7 @@ import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMedi
 import { toast } from 'sonner';
 
 const PLAYBACK_STATE_KEY = 'dreamtune-playback-state-v1';
+const MEDIA_SESSION_POSITION_UPDATE_MS = 5000;
 
 function serializeSong(song) {
   if (!song?.id) return null;
@@ -409,6 +410,16 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     }
   }, [initAudioChain, updateMediaSession, getTrimBounds, requestMainAudioFocus]);
 
+  const resumeCurrentAudio = useCallback(() => {
+    if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
+    playbackRequestRef.current.shouldPlay = true;
+    requestMainAudioFocus();
+    audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {
+      const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+      if (song) loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+    });
+  }, [currentSongId, currentTime, loadAndPlay, queue, requestMainAudioFocus, songs]);
+
   // Keep the library queue fresh without replacing playlist queues.
   useEffect(() => {
     if (!songs.length) return;
@@ -431,10 +442,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
           return;
         }
-        if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-        playbackRequestRef.current.shouldPlay = true;
-        requestMainAudioFocus();
-        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+        resumeCurrentAudio();
       }
       return;
     }
@@ -442,7 +450,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     const libraryQueue = dedupeSongs(songs.length ? songs : [song]);
     setQueue(shuffle ? shuffleSongs(libraryQueue, song.id) : libraryQueue);
     loadAndPlay(song);
-  }, [currentSongId, currentTime, isPlaying, loadAndPlay, shuffle, songs, requestMainAudioFocus]);
+  }, [currentSongId, currentTime, isPlaying, loadAndPlay, resumeCurrentAudio, shuffle, songs]);
 
   const togglePlayPause = useCallback(() => {
     if (isPlaying) {
@@ -458,12 +466,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           return;
         }
       }
-      if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-      playbackRequestRef.current.shouldPlay = true;
-      requestMainAudioFocus();
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      resumeCurrentAudio();
     }
-  }, [currentSongId, currentTime, isPlaying, loadAndPlay, queue, requestMainAudioFocus, songs]);
+  }, [currentSongId, currentTime, isPlaying, loadAndPlay, queue, resumeCurrentAudio, songs]);
 
   const playNext = useCallback(() => {
     if (!queue.length) return;
@@ -588,10 +593,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           return;
         }
       }
-      if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-      playbackRequestRef.current.shouldPlay = true;
-      requestMainAudioFocus();
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      resumeCurrentAudio();
       navigator.mediaSession.playbackState = 'playing';
     });
     navigator.mediaSession.setActionHandler('pause', () => {
@@ -601,7 +603,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     });
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
     navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, requestMainAudioFocus, songs]);
+  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, resumeCurrentAudio, songs]);
 
   const seek = useCallback((percent) => {
     const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
@@ -692,10 +694,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
             return;
           }
         }
-        if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
-        playbackRequestRef.current.shouldPlay = true;
-        requestMainAudioFocus();
-        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+        resumeCurrentAudio();
       }
       if (action === 'pause') {
         playbackRequestRef.current.shouldPlay = false;
@@ -714,7 +713,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       mounted = false;
       handle?.remove?.();
     };
-  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, requestMainAudioFocus, seekToSeconds, songs]);
+  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, resumeCurrentAudio, seekToSeconds, songs]);
 
   useEffect(() => {
     const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
@@ -731,7 +730,10 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       previous.artist !== song.artist ||
       previous.coverUrl !== song.cover_url ||
       previous.isPlaying !== isPlaying;
-    if (!metadataChanged && now - previous.lastUpdate < 900) return;
+    if (!metadataChanged) {
+      if (!isPlaying) return;
+      if (now - previous.lastUpdate < MEDIA_SESSION_POSITION_UPDATE_MS) return;
+    }
     nativeSessionRef.current = {
       songId: song.id,
       title: song.title || '',

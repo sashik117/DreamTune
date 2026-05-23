@@ -16,7 +16,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PowerManager;
 
 import java.io.InputStream;
 import java.net.URL;
@@ -37,7 +36,6 @@ public class DreamTunePlaybackService extends Service {
     private final ExecutorService artworkExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private MediaSession mediaSession;
-    private PowerManager.WakeLock wakeLock;
     private Bitmap artwork;
     private String lastCoverUrl = "";
     private String title = "DreamTune";
@@ -60,9 +58,6 @@ public class DreamTunePlaybackService extends Service {
             @Override public void onSeekTo(long pos) { sendCommand("seek", Math.max(0, pos) / 1000.0); }
         });
 
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "DreamTune:Playback");
-        wakeLock.setReferenceCounted(false);
     }
 
     @Override
@@ -115,7 +110,6 @@ public class DreamTunePlaybackService extends Service {
 
     @Override
     public void onDestroy() {
-        releaseWakeLock();
         if (mediaSession != null) {
             mediaSession.setActive(false);
             mediaSession.release();
@@ -125,7 +119,6 @@ public class DreamTunePlaybackService extends Service {
     }
 
     private void publish() {
-        updateWakeLock();
         updateMetadata();
         updatePlaybackState();
         startForeground(NOTIFICATION_ID, buildNotification());
@@ -244,22 +237,7 @@ public class DreamTunePlaybackService extends Service {
         manager.createNotificationChannel(channel);
     }
 
-    private void updateWakeLock() {
-        if (isPlaying && !wakeLock.isHeld()) {
-            wakeLock.acquire();
-        } else if (!isPlaying) {
-            releaseWakeLock();
-        }
-    }
-
-    private void releaseWakeLock() {
-        try {
-            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
-        } catch (Exception ignored) {}
-    }
-
     private void stopPlaybackService() {
-        releaseWakeLock();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE);
         } else {

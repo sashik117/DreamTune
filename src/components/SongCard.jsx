@@ -5,9 +5,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { motion } from 'framer-motion';
@@ -136,18 +133,18 @@ export default function SongCard({
                 </DropdownMenuItem>
               )}
               {!hidePlaylistActions && playlists.length > 0 && onAddSongsToPlaylist && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="rounded-xl">
-                    <ListPlus className="w-4 h-4 mr-2" /> Додати в плейлист
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent side="left" align="start" sideOffset={8} collisionPadding={12} className="z-[150] bg-card border-border rounded-2xl shadow-xl min-w-48 max-w-[calc(100vw-1.5rem)]">
+                <div className="py-1">
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-black text-muted-foreground">
+                    <ListPlus className="w-4 h-4" /> Додати в плейлист
+                  </div>
+                  <div className="max-h-[42dvh] overflow-y-auto overscroll-contain pr-1">
                     {playlists.map(playlist => (
                       <DropdownMenuItem key={playlist.id} onClick={() => addToPlaylist(playlist)} className="rounded-xl">
-                        {playlist.name}
+                        <span className="truncate">{playlist.name}</span>
                       </DropdownMenuItem>
                     ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                  </div>
+                </div>
               )}
               {onPlayNext && (
                 <DropdownMenuItem onClick={() => { onPlayNext(song); toast.success('Грати наступною'); }} className="rounded-xl">

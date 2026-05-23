@@ -225,7 +225,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
   const busy = step === 'fetching' || step === 'searching' || step === 'importing';
   const cleanQuery = normalizeSpotifyQuery(query).trim();
   const hasQuery = Boolean(cleanQuery);
-  const canSubmit = !busy;
+  const canSubmit = hasQuery && !busy;
   const existingTrackKeys = useMemo(() => new Set(
     (existingSongs || [])
       .map(trackIdentity)
@@ -253,7 +253,7 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
   };
 
   const updateQuery = (value) => {
-    const next = normalizeSpotifyQuery(value);
+    const next = String(value || '').replace(/[\u200B-\u200D\uFEFF]/g, '');
     setQuery(next);
     sessionStorage.setItem('dreamtune-spotify-query', next);
     localStorage.setItem('dreamtune-spotify-query', next);
@@ -515,16 +515,6 @@ export default function SpotifyImport({ existingSongs = [], onSongsAdded, onPlay
             ref={queryInputRef}
             value={query}
             onChange={e => updateQuery(e.target.value)}
-            onInput={e => updateQuery(e.currentTarget.value)}
-            onPaste={e => {
-              const input = e.currentTarget;
-              window.requestAnimationFrame(() => syncInputQuery(input));
-              window.setTimeout(() => syncInputQuery(input), 80);
-            }}
-            onFocus={e => {
-              const input = e.currentTarget;
-              window.setTimeout(() => syncInputQuery(input), 0);
-            }}
             placeholder={mode === 'playlist' ? 'https://open.spotify.com/playlist/...' : 'Billie Eilish Birds of a Feather'}
             className="bg-secondary border-border"
             onKeyDown={e => {

@@ -82,7 +82,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
   };
 
   useEffect(() => {
-    if (!song) return;
+    if (!open || !song) return;
     setTitle(song.title || '');
     setArtist(song.artist || '');
     setCoverPreview(song.cover_url || '');
@@ -92,7 +92,7 @@ export default function EditSongModal({ song, open, onOpenChange, onSongUpdated 
     setAudioDuration(song.duration || 0);
     setTrimRange([Number(song.trim_start || 0), Number(song.trim_end || song.duration || 0)]);
     setWaveform([]);
-  }, [song?.id, song]);
+  }, [open, song?.id]);
 
   const buildFallbackWaveform = () =>
     Array.from({ length: 72 }, (_, i) => Math.max(0.16, Math.min(1, 0.52 + Math.sin(i * 0.29) * 0.35 + Math.sin(i * 0.91) * 0.22)));

@@ -3,6 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Search, Music, AlertCircle, ExternalLink, CheckCircle2, PlayCircle } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
 import { entities, media } from '@/api/SupabaseClient';
 import { downloadSong } from '@/utils/audioCache';
 import { persistAudioFileUrl } from '@/utils/audioPersistence';
@@ -19,6 +21,24 @@ async function findYouTubeResults(query) {
     console.warn('Server YouTube search failed, trying direct fallback:', error.message || error);
   }
   return searchYouTubeDirect(query);
+}
+
+function getVideoId(item) {
+  return String(
+    item?.video_id ||
+    item?.videoId ||
+    String(item?.url || item?.link || '').match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/)?.[1] ||
+    ''
+  ).trim();
+}
+
+async function openExternalUrl(url) {
+  if (!url) return;
+  if (Capacitor.isNativePlatform?.()) {
+    await Browser.open({ url });
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 async function getAudioUrl(videoId, { native = true } = {}) {
@@ -279,7 +299,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
   }
 
   const selectResult = (item) => {
-    const videoId = item.video_id?.trim();
+    const videoId = getVideoId(item);
     const thumbnail = item.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     setResult({ ...item, videoId, thumbnail });
     setEditTitle(repairMojibake(item.title || query));
@@ -368,7 +388,8 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
   }
 
   const openOnYouTube = () => {
-    if (result?.videoId) window.open(`https://www.youtube.com/watch?v=${result.videoId}`, '_blank');
+    const videoId = getVideoId(result);
+    if (videoId) openExternalUrl(`https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`);
   };
 
   return (
@@ -448,7 +469,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
               <p className="text-sm font-semibold truncate">{editTitle}</p>
               <p className="text-xs text-muted-foreground truncate">{editArtist}</p>
               {result.videoId && (
-                <button onClick={openOnYouTube} className="text-[11px] text-primary flex items-center gap-1 mt-1">
+                <button type="button" onClick={openOnYouTube} className="text-[11px] text-primary flex items-center gap-1 mt-1">
                   <ExternalLink className="w-3 h-3" /> {'\u0412\u0456\u0434\u043a\u0440\u0438\u0442\u0438 \u043d\u0430 YouTube'}
                 </button>
               )}
