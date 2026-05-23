@@ -2,7 +2,14 @@
 
 > A fullstack music player and Android-ready listening experience with Spotify playlist import, YouTube audio sourcing, offline playback, collaborative playlists, and a polished mobile-first UI.
 
-![DreamTune preview](screenshots/home-page.png)
+![React](https://img.shields.io/badge/React-18-111827?style=for-the-badge&logo=react)
+![Vite](https://img.shields.io/badge/Vite-6-111827?style=for-the-badge&logo=vite)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-111827?style=for-the-badge&logo=tailwindcss)
+![Node.js](https://img.shields.io/badge/Node.js-Express-111827?style=for-the-badge&logo=nodedotjs)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-111827?style=for-the-badge&logo=postgresql)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android-111827?style=for-the-badge&logo=capacitor)
+
+![DreamTune auth preview](screenshots/home-page.png)
 
 ## ✨ Overview
 
@@ -56,9 +63,9 @@ The project includes a React frontend, an Express/PostgreSQL backend, media uplo
 
 ## 📸 Screenshots
 
-| Home | Library | Mobile Player |
+| Desktop Login | Registration Flow | Mobile View |
 | --- | --- | --- |
-| ![Home page](screenshots/home-page.png) | ![Library view](screenshots/library-view.png) | ![Mobile player](screenshots/mobile-player.png) |
+| ![Desktop login](screenshots/home-page.png) | ![Registration flow](screenshots/auth-flow.png) | ![Mobile view](screenshots/mobile-view.png) |
 
 ## 🏗 Architecture
 
