@@ -68,25 +68,40 @@ async function cacheCoverBlob(url) {
 export async function saveOfflineSongMeta(song, coverBlob) {
   const db = await openDB();
   let safeCoverBlob = coverBlob;
+  let previousMeta = null;
+  const coverUrl = String(song.cover_url || '');
+  const coverIsTemporary = coverUrl.startsWith('blob:') || coverUrl.startsWith('data:');
+
+  if (safeCoverBlob === undefined || coverIsTemporary) {
+    previousMeta = await new Promise((resolve) => {
+      const tx = db.transaction(META_STORE, 'readonly');
+      const req = tx.objectStore(META_STORE).get(song.id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
   if (safeCoverBlob === undefined) {
-    if (String(song.cover_url || '').startsWith('blob:') || String(song.cover_url || '').startsWith('data:')) {
-      safeCoverBlob = await new Promise((resolve) => {
-        const tx = db.transaction(META_STORE, 'readonly');
-        const req = tx.objectStore(META_STORE).get(song.id);
-        req.onsuccess = () => resolve(req.result?.cover_blob || null);
-        req.onerror = () => resolve(null);
-      });
+    if (coverIsTemporary) {
+      safeCoverBlob = previousMeta?.cover_blob || null;
     } else {
       safeCoverBlob = await cacheCoverBlob(song.cover_url);
     }
   }
+
+  const stableCoverUrl = coverIsTemporary
+    ? (previousMeta?.cover_url && !String(previousMeta.cover_url).startsWith('blob:') && !String(previousMeta.cover_url).startsWith('data:')
+      ? previousMeta.cover_url
+      : '')
+    : song.cover_url;
+
   const tx = db.transaction(META_STORE, 'readwrite');
   tx.objectStore(META_STORE).put({
     songId: song.id,
     id: song.id,
     title: song.title,
     artist: song.artist,
-    cover_url: song.cover_url,
+    cover_url: stableCoverUrl,
     cover_blob: safeCoverBlob,
     file_url: song.file_url,
     duration: song.duration,

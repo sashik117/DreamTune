@@ -93,6 +93,7 @@ export default function AppShell() {
   const [currentUser, setCurrentUser] = useState(null);
   const [collabDetailOpen, setCollabDetailOpen] = useState(false);
   const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const songsRef = useRef([]);
   const playlistsRef = useRef([]);
   const staleAudioRepairStartedRef = useRef(false);
   const libraryOfflineSyncStartedRef = useRef(false);
@@ -100,6 +101,9 @@ export default function AppShell() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  useEffect(() => {
+    songsRef.current = songs;
+  }, [songs]);
   useEffect(() => {
     playlistsRef.current = playlists;
     if (loading && !playlists.length) return;
@@ -566,12 +570,13 @@ export default function AppShell() {
 
     const processedIds = [];
     const createdSongs = [];
+    const updatedExistingSongs = [];
     const playlistAdds = new Map();
     let failedCount = 0;
     let repairedCount = 0;
     let librarySyncedCount = 0;
 
-    for (const item of completed) {
+    for (const item of completed.slice(0, 12)) {
       if (item.status !== 'done' || !item.file_url) {
         failedCount++;
         if (item.id) processedIds.push(item.id);
@@ -580,7 +585,7 @@ export default function AppShell() {
 
       try {
         if (item.librarySync && item.songId) {
-          const existingSong = songs.find(song => song.id === item.songId) || {};
+          const existingSong = songsRef.current.find(song => song.id === item.songId) || {};
           const nativeFileUrl = item.native_file_url || item.file_url;
           const originalFileUrl = item.original_file_url || item.originalFileUrl || item.sourceFileUrl || item.source_file_url || existingSong.file_url || '';
           let stableFileUrl = originalFileUrl || existingSong.file_url || nativeFileUrl;
@@ -607,7 +612,7 @@ export default function AppShell() {
           }
 
           await downloadSong(syncedSong, () => {}, { sourceUrl: nativeFileUrl });
-          setSongs(prev => prev.map(song => song.id === item.songId ? { ...song, ...syncedSong } : song));
+          updatedExistingSongs.push(syncedSong);
           librarySyncedCount++;
           if (item.id) processedIds.push(item.id);
           continue;
@@ -622,7 +627,7 @@ export default function AppShell() {
             cover_url: updatedSong.cover_url || item.cover_url || item.coverUrl || '',
           };
           await downloadSong(repairedSong, () => {});
-          setSongs(prev => prev.map(song => song.id === item.songId ? { ...song, ...repairedSong } : song));
+          updatedExistingSongs.push(repairedSong);
           repairedCount++;
           if (item.id) processedIds.push(item.id);
           continue;
@@ -646,8 +651,15 @@ export default function AppShell() {
         }
         if (item.id) processedIds.push(item.id);
       } catch (error) {
+        failedCount++;
+        if (item.id) processedIds.push(item.id);
         console.warn('Could not import completed native download:', error);
       }
+    }
+
+    if (updatedExistingSongs.length) {
+      const updatesById = new Map(updatedExistingSongs.map(song => [song.id, song]));
+      setSongs(prev => prev.map(song => updatesById.has(song.id) ? { ...song, ...updatesById.get(song.id) } : song));
     }
 
     for (const [playlistId, group] of playlistAdds.entries()) {
@@ -673,7 +685,7 @@ export default function AppShell() {
     if (repairedCount) toast.success(`Repaired ${repairedCount} old tracks`);
     if (failedCount) toast.error(`Could not download ${failedCount} tracks in the background`);
     if (processedIds.length) await clearCompletedYouTubeDownloads(processedIds);
-  }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded, songs]);
+  }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded]);
 
   useEffect(() => {
     if (!currentUser?.id || !canUseNativeYouTube()) return undefined;
