@@ -55,7 +55,8 @@ i18n
     nonExplicitSupportedLngs: false,
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage'],
+      order: ['querystring', 'localStorage'],
+      lookupQuerystring: 'lng',
       lookupLocalStorage: 'dreamtune-language',
       caches: ['localStorage'],
     },

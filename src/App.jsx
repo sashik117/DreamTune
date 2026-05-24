@@ -19,8 +19,11 @@ import AuthPage from './pages/AuthPage';
 import FriendProfile from './pages/FriendProfile';
 import AdminPage from './pages/AdminPage';
 import ApiWakeLoader from './components/ApiWakeLoader';
+import useUiAutoTranslate from './utils/uiAutoTranslate';
 
 function App() {
+  useUiAutoTranslate();
+
   return (
     <QueryClientProvider client={queryClientInstance}>
       <Router>
