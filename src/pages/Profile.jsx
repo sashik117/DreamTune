@@ -502,6 +502,7 @@ export default function Profile({
 
   const chooseLanguage = (nextLanguage) => {
     setLanguage(nextLanguage);
+    localStorage.setItem('dreamtune-language', nextLanguage);
     i18n.changeLanguage(nextLanguage);
     toast.success(t('language.updated'));
   };

@@ -18,7 +18,7 @@
   "language.title": "Interface language",
   "language.description": "Choose the language DreamTune should use.",
   "language.updated": "Language updated",
-  "language.auto": "Automatic language detection is enabled. English is the fallback.",
+  "language.auto": "English is used by default, but your language choice is saved.",
   "language.english": "English",
   "language.spanish": "Spanish",
   "language.portugueseBR": "Portuguese (BR)",
