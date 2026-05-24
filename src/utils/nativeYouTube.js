@@ -24,7 +24,14 @@ export async function downloadYouTubeOnDevice(videoId) {
 
 export async function startYouTubeDownloadQueue(items) {
   if (!canUseNativeYouTube()) return null;
-  const safeItems = (items || []).filter(item => item?.videoId || item?.query);
+  const safeItems = (items || []).filter(item => (
+    item?.videoId ||
+    item?.query ||
+    item?.sourceFileUrl ||
+    item?.source_file_url ||
+    item?.fileUrl ||
+    item?.file_url
+  ));
   if (!safeItems.length) return null;
   return NativeYouTube.queue({ items: safeItems });
 }

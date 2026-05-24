@@ -117,8 +117,11 @@ export async function isAudioCached(url) {
 }
 
 // Download a song explicitly (with progress callback)
-export async function downloadSong(song, onProgress) {
-  const playableUrl = resolvePlayableAudioUrl(song.file_url);
+export async function downloadSong(song, onProgress, options = {}) {
+  const sourceUrl = options.sourceUrl || song.file_url;
+  const playableUrl = resolvePlayableAudioUrl(sourceUrl);
+  const canonicalUrl = song.file_url || sourceUrl;
+  const playableCanonicalUrl = resolvePlayableAudioUrl(canonicalUrl);
   try {
     const response = await fetch(playableUrl);
     if (!response.ok) throw new Error('fetch failed');
@@ -138,7 +141,12 @@ export async function downloadSong(song, onProgress) {
     const db = await openDB();
     const tx = db.transaction([STORE_NAME, META_STORE], 'readwrite');
     const audioStore = tx.objectStore(STORE_NAME);
-    const keys = Array.from(new Set([song.file_url, playableUrl].filter(Boolean)));
+    const keys = Array.from(new Set([
+      canonicalUrl,
+      playableCanonicalUrl,
+      sourceUrl,
+      playableUrl,
+    ].filter(Boolean)));
     keys.forEach(key => audioStore.put({ url: key, blob }));
     tx.objectStore(META_STORE).put({
       songId: song.id,
@@ -147,7 +155,7 @@ export async function downloadSong(song, onProgress) {
       artist: song.artist,
       cover_url: song.cover_url,
       cover_blob: coverBlob,
-      file_url: song.file_url,
+      file_url: canonicalUrl,
       duration: song.duration,
       trim_start: song.trim_start || 0,
       trim_end: song.trim_end || 0,
@@ -161,10 +169,10 @@ export async function downloadSong(song, onProgress) {
     }
     return true;
   } catch {
-    if (isNativeFileUrl(song.file_url) || isNativeFileUrl(playableUrl)) {
+    if (isNativeFileUrl(sourceUrl) || isNativeFileUrl(playableUrl) || isNativeFileUrl(canonicalUrl)) {
       try {
         const coverBlob = await cacheCoverBlob(song.cover_url);
-        await saveOfflineSongMeta(song, coverBlob);
+        await saveOfflineSongMeta({ ...song, file_url: canonicalUrl }, coverBlob);
         if (onProgress) onProgress(100);
         return true;
       } catch {}
@@ -197,6 +205,16 @@ export async function getDownloadedSongsMeta() {
       is_offline: true,
     })));
     req.onerror = () => resolve([]);
+  });
+}
+
+export async function getDownloadedSongIds() {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(META_STORE, 'readonly');
+    const req = tx.objectStore(META_STORE).getAllKeys();
+    req.onsuccess = () => resolve(new Set((req.result || []).filter(Boolean)));
+    req.onerror = () => resolve(new Set());
   });
 }
 

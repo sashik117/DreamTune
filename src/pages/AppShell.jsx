@@ -13,10 +13,11 @@ import OfflineBanner from '../components/offline/OfflineBanner';
 import ProfileDrawer from '../components/ProfileDrawer';
 import { UserCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { downloadSong, getDownloadedSongsMeta } from '../utils/audioCache';
+import { downloadSong, getDownloadedSongIds, getDownloadedSongsMeta } from '../utils/audioCache';
 import { queueBrokenSongRepairs } from '../utils/audioRepair';
 import { persistAudioFileUrl } from '../utils/audioPersistence';
-import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads } from '../utils/nativeYouTube';
+import { isNativeFileUrl } from '../utils/audioUrls';
+import { canUseNativeYouTube, clearCompletedYouTubeDownloads, getCompletedYouTubeDownloads, startYouTubeDownloadQueue } from '../utils/nativeYouTube';
 import { toast } from 'sonner';
 
 const OFFLINE_PLAYLISTS_KEY = 'dreamtune-offline-playlists-v1';
@@ -43,6 +44,33 @@ function withTimeout(promise, ms, message = 'Timeout') {
   });
 }
 
+function isHttpAudioUrl(url) {
+  return /^https?:\/\//i.test(String(url || '').trim());
+}
+
+function buildLibrarySyncItem(song, index) {
+  const title = String(song?.title || '').trim();
+  const artist = String(song?.artist || '').trim();
+  const query = `${artist} ${title}`.trim();
+  const originalFileUrl = song?.file_url || '';
+
+  return {
+    id: `library-sync-${song.id}-${Date.now()}-${index}`,
+    songId: song.id,
+    librarySync: true,
+    sourceFileUrl: isHttpAudioUrl(originalFileUrl) ? originalFileUrl : '',
+    original_file_url: originalFileUrl,
+    query: query ? `${query} audio` : '',
+    title: title || 'DreamTune track',
+    artist,
+    cover_url: song?.cover_url || '',
+    duration: song?.duration || 0,
+    trim_start: song?.trim_start || 0,
+    trim_end: song?.trim_end || 0,
+    lyrics: song?.lyrics || '',
+  };
+}
+
 export default function AppShell() {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
   const [songs, setSongs]               = useState([]);
@@ -67,6 +95,8 @@ export default function AppShell() {
   const [friendRequestCount, setFriendRequestCount] = useState(0);
   const playlistsRef = useRef([]);
   const staleAudioRepairStartedRef = useRef(false);
+  const libraryOfflineSyncStartedRef = useRef(false);
+  const libraryOfflineSyncQueuedRef = useRef(new Set());
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -379,6 +409,7 @@ export default function AppShell() {
       const data = await entities.Song.list();
       setSongs(data);
       scheduleStaleAudioRepair(data);
+      scheduleLibraryOfflineSync(data);
     } catch (err) {
       console.error('Failed to load songs:', err);
       if (!navigator.onLine) {
@@ -403,6 +434,39 @@ export default function AppShell() {
         }
       })
       .catch((error) => console.warn('Stale audio repair check failed:', error));
+  }, []);
+
+  const scheduleLibraryOfflineSync = useCallback(async (librarySongs) => {
+    if (
+      libraryOfflineSyncStartedRef.current ||
+      !canUseNativeYouTube() ||
+      !navigator.onLine ||
+      !Array.isArray(librarySongs) ||
+      !librarySongs.length
+    ) return;
+
+    libraryOfflineSyncStartedRef.current = true;
+
+    try {
+      const downloadedIds = await getDownloadedSongIds();
+      const missingSongs = librarySongs
+        .filter(song => song?.id)
+        .filter(song => !downloadedIds.has(song.id))
+        .filter(song => !libraryOfflineSyncQueuedRef.current.has(song.id))
+        .filter(song => song.file_url || song.title || song.artist);
+
+      if (!missingSongs.length) return;
+
+      missingSongs.forEach(song => libraryOfflineSyncQueuedRef.current.add(song.id));
+      const queueItems = missingSongs.map(buildLibrarySyncItem).filter(item => item.sourceFileUrl || item.query);
+      if (!queueItems.length) return;
+
+      await startYouTubeDownloadQueue(queueItems);
+      toast.success(`Saving ${queueItems.length} library tracks offline in the background`);
+    } catch (error) {
+      libraryOfflineSyncStartedRef.current = false;
+      console.warn('Library offline sync could not be queued:', error);
+    }
   }, []);
 
   const loadPlaylists = async () => {
@@ -505,6 +569,7 @@ export default function AppShell() {
     const playlistAdds = new Map();
     let failedCount = 0;
     let repairedCount = 0;
+    let librarySyncedCount = 0;
 
     for (const item of completed) {
       if (item.status !== 'done' || !item.file_url) {
@@ -514,6 +579,40 @@ export default function AppShell() {
       }
 
       try {
+        if (item.librarySync && item.songId) {
+          const existingSong = songs.find(song => song.id === item.songId) || {};
+          const nativeFileUrl = item.native_file_url || item.file_url;
+          const originalFileUrl = item.original_file_url || item.originalFileUrl || item.sourceFileUrl || item.source_file_url || existingSong.file_url || '';
+          let stableFileUrl = originalFileUrl || existingSong.file_url || nativeFileUrl;
+          let syncedSong = {
+            ...existingSong,
+            id: item.songId,
+            title: existingSong.title || item.title || 'DreamTune track',
+            artist: existingSong.artist || item.artist || '',
+            cover_url: existingSong.cover_url || item.cover_url || item.coverUrl || '',
+            file_url: stableFileUrl,
+            duration: existingSong.duration || item.duration || 0,
+            trim_start: existingSong.trim_start || item.trim_start || 0,
+            trim_end: existingSong.trim_end || item.trim_end || 0,
+            lyrics: existingSong.lyrics || item.lyrics || '',
+          };
+
+          if (!stableFileUrl || isNativeFileUrl(stableFileUrl)) {
+            stableFileUrl = await persistAudioFileUrl(nativeFileUrl, syncedSong);
+            syncedSong = { ...syncedSong, file_url: stableFileUrl || nativeFileUrl };
+            if (stableFileUrl && stableFileUrl !== existingSong.file_url) {
+              const updated = await entities.Song.update(item.songId, { file_url: stableFileUrl });
+              syncedSong = { ...syncedSong, ...updated, file_url: stableFileUrl };
+            }
+          }
+
+          await downloadSong(syncedSong, () => {}, { sourceUrl: nativeFileUrl });
+          setSongs(prev => prev.map(song => song.id === item.songId ? { ...song, ...syncedSong } : song));
+          librarySyncedCount++;
+          if (item.id) processedIds.push(item.id);
+          continue;
+        }
+
         if (item.repair && item.songId) {
           const fileUrl = await persistAudioFileUrl(item.native_file_url || item.file_url, item);
           const updatedSong = await entities.Song.update(item.songId, { file_url: fileUrl });
@@ -570,10 +669,11 @@ export default function AppShell() {
       handleSongsAdded(createdSongs);
       toast.success(`Added ${createdSongs.length} tracks in the background`);
     }
+    if (librarySyncedCount) toast.success(`${librarySyncedCount} library tracks are available offline`);
     if (repairedCount) toast.success(`Repaired ${repairedCount} old tracks`);
     if (failedCount) toast.error(`Could not download ${failedCount} tracks in the background`);
     if (processedIds.length) await clearCompletedYouTubeDownloads(processedIds);
-  }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded]);
+  }, [currentUser?.id, handlePlaylistUpdated, handleSongsAdded, songs]);
 
   useEffect(() => {
     if (!currentUser?.id || !canUseNativeYouTube()) return undefined;
