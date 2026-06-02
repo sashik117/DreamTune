@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import SongCard from '../components/SongCard';
 import { Music, User, Search, ArrowUpDown, CheckSquare, Trash2, ListPlus, X, Shuffle, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -11,15 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { normalizeSearchText } from '@/utils/text';
-
-const SORT_OPTIONS = [
-  { value: 'artist', label: 'Artist' },
-  { value: 'title', label: 'Title A-Z' },
-  { value: 'newest', label: 'Newest' },
-];
-
-const unknownArtist = 'Unknown artist';
+import { SORT_OPTIONS, useLibraryView } from '@/features/library/model/useLibraryView';
 
 export default function Library({
   songs,
@@ -37,102 +28,25 @@ export default function Library({
   onAddSongsToPlaylist,
   onPlayPlaylist,
 }) {
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState('artist');
-  const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  const visibleSongs = useMemo(() => {
-    let result = [...songs];
-    const q = normalizeSearchText(query);
-
-    if (q) {
-      const terms = q.split(' ').filter(Boolean);
-      result = result.filter(song =>
-        terms.every(term => {
-          const haystack = normalizeSearchText(`${song.title || ''} ${song.artist || ''}`);
-          return haystack.includes(term);
-        })
-      );
-    }
-
-    if (sort === 'title') result.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'uk'));
-    if (sort === 'artist') {
-      result.sort((a, b) => {
-        const artistCompare = (a.artist || unknownArtist).localeCompare(b.artist || unknownArtist, 'uk');
-        return artistCompare || (a.title || '').localeCompare(b.title || '', 'uk');
-      });
-    }
-    if (sort === 'newest') {
-      result.sort((a, b) =>
-        Number(new Date(b.created_at || b.created_date || b.downloadedAt || 0)) -
-        Number(new Date(a.created_at || a.created_date || a.downloadedAt || 0))
-      );
-    }
-
-    return result;
-  }, [songs, query, sort]);
-
-  const grouped = useMemo(() => {
-    const map = {};
-    visibleSongs.forEach(song => {
-      const key = song.artist || unknownArtist;
-      if (!map[key]) map[key] = [];
-      map[key].push(song);
-    });
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, 'uk'));
-  }, [visibleSongs]);
-
-  const selectedCount = selectedIds.length;
-  const allVisibleSelected = visibleSongs.length > 0 && selectedIds.length === visibleSongs.length;
-  const groupsToRender = sort === 'artist' ? grouped : [['', visibleSongs]];
-
-  const toggleSelectionMode = () => {
-    if (selectionMode) {
-      setSelectedIds([]);
-      setSelectionMode(false);
-      return;
-    }
-    setSelectionMode(true);
-  };
-
-  const toggleSelected = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
-
-  const selectAllVisible = () => {
-    setSelectedIds(allVisibleSelected ? [] : visibleSongs.map(song => song.id));
-  };
-
-  const clearSelection = () => {
-    setSelectedIds([]);
-    setSelectionMode(false);
-  };
-
-  const addSelectedToPlaylist = async (playlist) => {
-    if (!selectedIds.length) return;
-    try {
-      await onAddSongsToPlaylist?.(selectedIds, playlist.id);
-      toast.success(`${selectedCount} songs added to "${playlist.name}"`);
-      clearSelection();
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not add to playlist');
-    }
-  };
-
-  const deleteSelected = async () => {
-    if (!selectedIds.length) return;
-    try {
-      const deleted = await onDeleteMany?.(selectedIds);
-      if (deleted === false) return;
-      toast.success(`${selectedCount} songs deleted`);
-      clearSelection();
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not delete selected songs');
-    }
-  };
+  const {
+    addSelectedToPlaylist,
+    allVisibleSelected,
+    clearSelection,
+    deleteSelected,
+    grouped,
+    groupsToRender,
+    query,
+    selectAllVisible,
+    selectedCount,
+    selectedIds,
+    selectionMode,
+    setQuery,
+    setSort,
+    sort,
+    toggleSelected,
+    toggleSelectionMode,
+    visibleSongs,
+  } = useLibraryView({ songs, onAddSongsToPlaylist, onDeleteMany });
 
   let flatIndex = 0;
 
@@ -146,7 +60,7 @@ export default function Library({
         <div className="pl-16 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-extrabold text-foreground mb-0.5 truncate">Library</h1>
-            <p className="text-sm text-muted-foreground truncate">{songs.length} songs · {grouped.length} artists</p>
+            <p className="text-sm text-muted-foreground truncate">{songs.length} songs / {grouped.length} artists</p>
           </div>
           <Button variant="outline" size="icon" onClick={toggleSelectionMode} className="rounded-2xl border-border shrink-0" aria-label={selectionMode ? 'Done' : 'Select'}>
             {selectionMode ? <X className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}

@@ -2,6 +2,12 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replac
 const WS_URL = API_URL.replace(/^http/, 'ws');
 const AUTH_TOKEN_KEY = 'dreamtune-auth-token';
 const API_WAKE_EVENT = 'dreamtune-api-wake';
+const EXPLICIT_ENTITY_ROUTES = {
+  songs: '/api/tracks',
+  playlists: '/api/playlists',
+  listen_history: '/api/listen-history',
+  collab_playlists: '/api/collab-playlists',
+};
 let nativePreferencesPromise = null;
 
 function isNativeApp() {
@@ -115,6 +121,8 @@ async function request(path, options = {}) {
 }
 
 function makeEntity(table) {
+  const basePath = EXPLICIT_ENTITY_ROUTES[table];
+  if (!basePath) throw new Error(`Unsupported DreamTune entity: ${table}`);
   return {
     async list(filters = {}) {
       const params = new URLSearchParams();
@@ -122,15 +130,15 @@ function makeEntity(table) {
         if (value !== undefined && value !== null) params.set(key, value);
       }
       const query = params.toString();
-      return request(`/api/entities/${table}${query ? `?${query}` : ''}`);
+      return request(`${basePath}${query ? `?${query}` : ''}`);
     },
 
     async get(id) {
-      return request(`/api/entities/${table}/${id}`);
+      return request(`${basePath}/${id}`);
     },
 
     async create(payload) {
-      const row = await request(`/api/entities/${table}`, {
+      const row = await request(basePath, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
@@ -139,7 +147,7 @@ function makeEntity(table) {
     },
 
     async update(id, payload) {
-      const row = await request(`/api/entities/${table}/${id}`, {
+      const row = await request(`${basePath}/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       });
@@ -148,7 +156,7 @@ function makeEntity(table) {
     },
 
     async delete(id) {
-      const result = await request(`/api/entities/${table}/${id}`, { method: 'DELETE' });
+      const result = await request(`${basePath}/${id}`, { method: 'DELETE' });
       emitLocalEntityChange({ table, event: 'DELETE', old: { id: result?.id || id }, source: 'local' });
       return result;
     },

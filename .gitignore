@@ -16,6 +16,7 @@ node_modules
 dist
 dist-ssr
 *.local
+*.apk
 
 # Editor directories and files
 .vscode/*
@@ -30,10 +31,13 @@ dist-ssr
 
 .env
 .vite
+.tmp_uploads/
 
 # Android local build artifacts
 android/local.properties
 android/app/*.keystore
 android/app/build/
+android/.gradle/
+android/build/
 commandlinetools-win-latest.zip
 android-sdk-tools-temp/

@@ -19,7 +19,7 @@ export default function MiniPlayer({ currentSong, isPlaying, onPlayPause, onNext
         className="mini-player-shell pointer-events-none"
       >
         {/* Cozy frosted card */}
-        <div className={`bg-card/90 backdrop-blur-2xl border-t border-border/70 shadow-2xl shadow-primary/15 overflow-hidden pointer-events-auto mini-player-card ${isCircleMode ? 'circle' : 'square'}`}>
+        <div className={`app-chrome-surface border-t border-border/70 shadow-2xl shadow-primary/15 overflow-hidden pointer-events-auto mini-player-card ${isCircleMode ? 'circle' : 'square'}`}>
           {/* Gradient progress bar */}
           <div className={`mini-player-progress-line ${isCircleMode ? 'circle' : 'square'}`}>
             <motion.div

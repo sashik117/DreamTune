@@ -30,6 +30,7 @@ public class DreamTunePlaybackService extends Service {
     private static final String ACTION_PAUSE = "com.dreamtune.app.media.PAUSE";
     private static final String ACTION_NEXT = "com.dreamtune.app.media.NEXT";
     private static final String ACTION_PREVIOUS = "com.dreamtune.app.media.PREVIOUS";
+    private static final String ACTION_STOP = "com.dreamtune.app.media.STOP";
     private static final String CHANNEL_ID = "dreamtune_playback";
     private static final int NOTIFICATION_ID = 1177;
 
@@ -53,6 +54,7 @@ public class DreamTunePlaybackService extends Service {
         mediaSession.setCallback(new MediaSession.Callback() {
             @Override public void onPlay() { sendCommand("play", 0); }
             @Override public void onPause() { sendCommand("pause", 0); }
+            @Override public void onStop() { sendCommand("stop", 0); }
             @Override public void onSkipToNext() { sendCommand("next", 0); }
             @Override public void onSkipToPrevious() { sendCommand("previous", 0); }
             @Override public void onSeekTo(long pos) { sendCommand("seek", Math.max(0, pos) / 1000.0); }
@@ -76,6 +78,12 @@ public class DreamTunePlaybackService extends Service {
         if (ACTION_PAUSE.equals(action)) {
             isPlaying = false;
             sendCommand("pause", 0);
+            publish();
+            return START_STICKY;
+        }
+        if (ACTION_STOP.equals(action)) {
+            isPlaying = false;
+            sendCommand("stop", 0);
             publish();
             return START_STICKY;
         }
@@ -140,6 +148,7 @@ public class DreamTunePlaybackService extends Service {
         long actions = PlaybackState.ACTION_PLAY
             | PlaybackState.ACTION_PAUSE
             | PlaybackState.ACTION_PLAY_PAUSE
+            | PlaybackState.ACTION_STOP
             | PlaybackState.ACTION_SKIP_TO_NEXT
             | PlaybackState.ACTION_SKIP_TO_PREVIOUS
             | PlaybackState.ACTION_SEEK_TO;
@@ -174,6 +183,7 @@ public class DreamTunePlaybackService extends Service {
             .addAction(notificationAction(R.drawable.ic_media_previous, "Previous", ACTION_PREVIOUS))
             .addAction(notificationAction(isPlaying ? R.drawable.ic_media_pause : R.drawable.ic_media_play, isPlaying ? "Pause" : "Play", isPlaying ? ACTION_PAUSE : ACTION_PLAY))
             .addAction(notificationAction(R.drawable.ic_media_next, "Next", ACTION_NEXT))
+            .addAction(notificationAction(R.drawable.ic_media_pause, "Stop", ACTION_STOP))
             .setStyle(new Notification.MediaStyle()
                 .setMediaSession(mediaSession.getSessionToken())
                 .setShowActionsInCompactView(0, 1, 2));
@@ -207,7 +217,7 @@ public class DreamTunePlaybackService extends Service {
         if (coverUrl.equals(lastCoverUrl)) return;
         lastCoverUrl = coverUrl;
         artwork = null;
-        if (coverUrl.isEmpty() || !coverUrl.startsWith("http")) return;
+        if (coverUrl.isEmpty() || coverUrl.startsWith("blob:") || coverUrl.startsWith("data:") || !coverUrl.startsWith("http")) return;
 
         artworkExecutor.execute(() -> {
             Bitmap bitmap = null;

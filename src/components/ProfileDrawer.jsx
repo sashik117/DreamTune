@@ -10,7 +10,7 @@ export default function ProfileDrawer({
   songs = [],
   playlists = [],
   profileAvatar = '',
-  profileNickname = 'DreamTune',
+  profileNickname = 'Guest',
   notificationCount = 0,
   onSignOut,
   onNavigate,
@@ -52,7 +52,7 @@ export default function ProfileDrawer({
             onClick={() => onOpenChange(false)}
           />
           <motion.aside
-            className="fixed left-0 top-0 bottom-0 z-[110] w-[min(88vw,340px)] bg-card border-r border-border shadow-2xl overflow-hidden flex flex-col will-change-transform"
+            className="app-chrome-surface fixed left-0 top-0 bottom-0 z-[110] w-[min(88vw,340px)] border-r border-border shadow-2xl overflow-hidden flex flex-col will-change-transform"
             initial={{ x: '-104%' }}
             animate={{ x: 0 }}
             exit={{ x: '-104%' }}

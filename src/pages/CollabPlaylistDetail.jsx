@@ -1,14 +1,23 @@
-ï»¿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, entities, storage, social } from '@/api/SupabaseClient';
-import { ArrowLeft, Plus, Music, UserPlus, Check, Crown, X, Shuffle, Play, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Plus, Music, UserPlus, Crown, X, Shuffle, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
 import SongCard from '../components/SongCard';
 import { cacheAudio } from '../utils/audioCache';
-import ImageCropBox from '@/components/ImageCropBox';
 import { formatPlaylistDuration, getPlaylistSeconds, resolvePlaylistSeconds } from '@/utils/duration';
+import {
+  getCollabMemberCount,
+  getPlaylistDurationKey,
+  isCollabPlaylistOwner,
+  parsePlaylistCoverPosition,
+  pluralMember,
+  pluralSong,
+  resolveCollabPlaylistSongs,
+} from '@/features/playlists/model/collabPlaylistView';
+import CollabPlaylistCover from '@/features/playlists/components/CollabPlaylistCover';
+import PlaylistCoverEditorDialog from '@/features/playlists/components/PlaylistCoverEditorDialog';
 
 export default function CollabPlaylistDetail({
   playlist: initialPlaylist,
@@ -32,36 +41,20 @@ export default function CollabPlaylistDetail({
   const [sharedSongs, setSharedSongs] = useState([]);
   const [coverPreview, setCoverPreview] = useState(initialPlaylist.cover_url || '');
   const [coverFile, setCoverFile] = useState(null);
-  const [coverPosition, setCoverPosition] = useState(() => {
-    const [x = '50%', y = '50%'] = String(initialPlaylist.cover_position || '50% 50%').split(' ');
-    return { x: Number(x.replace('%', '')) || 50, y: Number(y.replace('%', '')) || 50 };
-  });
+  const [coverPosition, setCoverPosition] = useState(() => parsePlaylistCoverPosition(initialPlaylist.cover_position));
   const [coverScale, setCoverScale] = useState(Number(initialPlaylist.cover_scale || 1));
   const [savingCover, setSavingCover] = useState(false);
   const [playlistDurationSeconds, setPlaylistDurationSeconds] = useState(0);
   const coverInputRef = useRef(null);
   const previousSongIdsRef = useRef((initialPlaylist.song_ids || []).map(String));
 
-  const playlistSongs = (playlist.song_ids || [])
-    .map(id => sharedSongs.find(s => s.id === id) || songs.find(s => s.id === id))
-    .filter(Boolean);
-
-  const isOwner = playlist.owner_id === currentUser?.id || playlist.owner_email === currentUser?.email;
+  const playlistSongs = resolveCollabPlaylistSongs(playlist, sharedSongs, songs);
+  const isOwner = isCollabPlaylistOwner(playlist, currentUser);
 
   const playlistCoverSongs = playlistSongs.filter(song => song.cover_url).slice(0, 4);
-  const memberCount = ((playlist.collaborator_ids || []).length || (playlist.collaborator_emails || []).length) + 1;
-  const playlistDurationKey = playlistSongs
-    .map(song => [song.id, song.file_url, song.duration || 0, song.trim_start || 0, song.trim_end || 0].join(':'))
-    .join('|');
+  const memberCount = getCollabMemberCount(playlist);
+  const playlistDurationKey = getPlaylistDurationKey(playlistSongs);
   const playlistDuration = formatPlaylistDuration(playlistDurationSeconds);
-
-  const pluralSong = (count) => {
-    return count === 1 ? 'song' : 'songs';
-  };
-
-  const pluralMember = (count) => {
-    return count === 1 ? 'member' : 'members';
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -180,31 +173,6 @@ export default function CollabPlaylistDetail({
     warmPlaylistAudio(playable);
   };
 
-  const renderPlaylistCover = (className = 'w-12 h-12 rounded-2xl') => (
-    <div className={`${className} overflow-hidden bg-secondary flex-shrink-0 shadow-md flex items-center justify-center`}>
-      {playlist.cover_url ? (
-        <img
-          src={playlist.cover_url}
-          alt=""
-          className="w-full h-full object-cover"
-          style={{
-            objectPosition: playlist.cover_position || '50% 50%',
-            transform: `scale(${Number(playlist.cover_scale || 1)})`,
-            transformOrigin: playlist.cover_position || '50% 50%',
-          }}
-        />
-      ) : playlistCoverSongs.length >= 4 ? (
-        <div className="grid grid-cols-2 w-full h-full">
-          {playlistCoverSongs.map(song => <img key={song.id} src={song.cover_url} alt="" className="w-full h-full object-cover" />)}
-        </div>
-      ) : playlistCoverSongs.length ? (
-        <img src={playlistCoverSongs[0].cover_url} alt="" className="w-full h-full object-cover" />
-      ) : (
-        <Music className="w-5 h-5 text-muted-foreground" />
-      )}
-    </div>
-  );
-
   const handleCoverSelect = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -215,8 +183,7 @@ export default function CollabPlaylistDetail({
 
   const openCoverEditor = () => {
     setCoverPreview(playlist.cover_url || '');
-    const [x = '50%', y = '50%'] = String(playlist.cover_position || '50% 50%').split(' ');
-    setCoverPosition({ x: Number(x.replace('%', '')) || 50, y: Number(y.replace('%', '')) || 50 });
+    setCoverPosition(parsePlaylistCoverPosition(playlist.cover_position));
     setCoverScale(Number(playlist.cover_scale || 1));
     setCoverFile(null);
     setShowCoverEditor(true);
@@ -242,27 +209,6 @@ export default function CollabPlaylistDetail({
     }
   };
 
-  const renderSongCover = (song, sizeClass = 'w-10 h-10 rounded-xl') => (
-    <div className={`${sizeClass} overflow-hidden bg-secondary flex-shrink-0`}>
-      {song.cover_url ? (
-        <img
-          src={song.cover_url}
-          alt=""
-          className="w-full h-full object-cover"
-          style={{
-            objectPosition: song.cover_position || '50% 50%',
-            transform: `scale(${Number(song.cover_scale || 1)})`,
-            transformOrigin: song.cover_position || '50% 50%',
-          }}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <Music className="w-4 h-4 text-muted-foreground" />
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-w-0 overflow-x-hidden px-3 sm:px-4 pb-4">
       <div className="sticky top-0 z-[80] pt-3 pb-3 mb-4 bg-background/96 backdrop-blur-xl border-b border-border/60">
@@ -282,7 +228,7 @@ export default function CollabPlaylistDetail({
               className={`shrink-0 rounded-3xl p-1 ${isOwner ? 'cursor-pointer hover:bg-primary/10' : ''}`}
               aria-label="Playlist cover"
             >
-              {renderPlaylistCover('w-14 h-14 rounded-2xl shadow-lg shadow-primary/10')}
+              <CollabPlaylistCover playlist={playlist} coverSongs={playlistCoverSongs} className="w-14 h-14 rounded-2xl shadow-lg shadow-primary/10" />
             </button>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Collaborative playlist</p>
@@ -291,7 +237,7 @@ export default function CollabPlaylistDetail({
                 <h1 className="min-w-0 truncate text-xl sm:text-2xl font-black text-foreground">{playlist.name || 'Collaborative playlist'}</h1>
               </div>
               <p className="truncate text-sm text-muted-foreground">
-                {playlistSongs.length} {pluralSong(playlistSongs.length)} â€¢ {playlistDuration} â€¢ {memberCount} {pluralMember(memberCount)}
+                {playlistSongs.length} {pluralSong(playlistSongs.length)} • {playlistDuration} • {memberCount} {pluralMember(memberCount)}
               </p>
             </div>
           </div>
@@ -390,89 +336,35 @@ export default function CollabPlaylistDetail({
           </motion.div>
         </>
       )}
+      <CollabAddSongsDialog
+        open={showAddSongs}
+        onOpenChange={setShowAddSongs}
+        songs={songs}
+        playlistSongIds={playlist.song_ids || []}
+        onToggleSong={handleAddSong}
+      />
 
-      <Dialog open={showAddSongs} onOpenChange={setShowAddSongs}>
-        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-md mx-auto max-h-[70vh] overflow-hidden flex flex-col">
-          <DialogHeader><DialogTitle>Add songs</DialogTitle></DialogHeader>
-          <div className="overflow-y-auto flex-1 space-y-1 pt-2 -mx-1 px-1">
-            {songs.map(song => {
-              const isIn = (playlist.song_ids || []).includes(song.id);
-              return (
-                <div
-                  key={song.id}
-                  onClick={() => handleAddSong(song)}
-                  className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${isIn ? 'bg-primary/10' : 'hover:bg-secondary/60'}`}
-                >
-                  {renderSongCover(song, 'w-10 h-10 rounded-lg')}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{song.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{song.artist || 'Unknown artist'}</p>
-                  </div>
-                  {isIn && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
-                </div>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CollabInviteDialog
+        open={showInvite}
+        onOpenChange={setShowInvite}
+        friends={friends}
+        collaboratorIds={playlist.collaborator_ids || []}
+        onInvite={handleInvite}
+      />
 
-      <Dialog open={showInvite} onOpenChange={setShowInvite}>
-        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary" /> Invite member
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-1">
-            {friends.filter(friend => !(playlist.collaborator_ids || []).includes(friend.id)).length ? friends.filter(friend => !(playlist.collaborator_ids || []).includes(friend.id)).map(friend => {
-              const selected = (playlist.collaborator_ids || []).includes(friend.id);
-              return (
-                <button
-                  key={friend.id}
-                  type="button"
-                  onClick={() => handleInvite(friend)}
-                  disabled={selected}
-                  className={`w-full rounded-2xl px-3 py-3 text-left flex items-center gap-3 ${selected ? 'bg-primary/10 text-primary' : 'bg-secondary/70 hover:bg-secondary text-foreground'}`}
-                >
-                  <UserPlus className="w-4 h-4 shrink-0" />
-                  <span className="flex-1 min-w-0 truncate font-bold">{friend.nickname}</span>
-                  {selected && <Check className="w-4 h-4" />}
-                </button>
-              );
-            }) : (
-              <p className="text-sm text-muted-foreground">No friends available to invite. Friends already added are hidden here.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showCoverEditor} onOpenChange={setShowCoverEditor}>
-        <DialogContent className="bg-card border-border rounded-3xl w-[calc(100vw-2rem)] max-w-sm mx-auto max-h-[85dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Playlist cover</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <ImageCropBox
-              preview={coverPreview}
-              position={coverPosition}
-              scale={coverScale}
-              onPositionChange={setCoverPosition}
-              onScaleChange={setCoverScale}
-              onPick={() => coverInputRef.current?.click()}
-              emptyLabel="Add photo"
-              className="mx-auto w-full max-w-[240px] rounded-3xl"
-            />
-            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverSelect} />
-            <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()} className="w-full rounded-2xl border-border">
-              <ImagePlus className="w-4 h-4 mr-2" /> Choose photo
-            </Button>
-            {coverPreview && <p className="text-center text-[11px] text-muted-foreground">Drag the photo or pinch to zoom</p>}
-            <Button onClick={saveCover} disabled={savingCover} className="w-full rounded-2xl">
-              {savingCover ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+      <PlaylistCoverEditorDialog
+        open={showCoverEditor}
+        onOpenChange={setShowCoverEditor}
+        coverPreview={coverPreview}
+        coverPosition={coverPosition}
+        coverScale={coverScale}
+        coverInputRef={coverInputRef}
+        savingCover={savingCover}
+        onPositionChange={setCoverPosition}
+        onScaleChange={setCoverScale}
+        onCoverSelect={handleCoverSelect}
+        onSave={saveCover}
+      />
+</div>
   );
 }

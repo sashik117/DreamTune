@@ -1,31 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
-import { admin } from '@/api/SupabaseClient';
 import { Button } from '@/components/ui/button';
 import {
-  Activity,
   Ban,
   Crown,
   ListMusic,
   MailCheck,
   MailWarning,
   MoreVertical,
-  Music,
-  RefreshCw,
   Search,
-  Shield,
   ShieldAlert,
   Trash2,
   UserCheck,
-  Users,
 } from 'lucide-react';
-import { toast } from 'sonner';
-
-const statCards = [
-  { key: 'users', label: 'Users', hint: 'active accounts', Icon: Users },
-  { key: 'tracks', label: 'Tracks', hint: 'in DreamTune database', Icon: Music },
-  { key: 'active_today', label: 'Active today', hint: 'listened today', Icon: Activity },
-  { key: 'collab_playlists', label: 'Shared', hint: 'friend playlists', Icon: ListMusic },
-];
+import AdminHeader from '@/features/admin/components/AdminHeader';
+import AdminStats from '@/features/admin/components/AdminStats';
+import StatusPill from '@/features/admin/components/StatusPill';
+import { useAdminPanel } from '@/features/admin/model/useAdminPanel';
 
 function formatDate(value) {
   if (!value) return 'No date';
@@ -36,115 +25,26 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function StatusPill({ children, tone = 'neutral' }) {
-  const tones = {
-    neutral: 'bg-secondary text-foreground border-border',
-    good: 'bg-emerald-500/14 text-emerald-200 border-emerald-400/25',
-    warn: 'bg-amber-500/14 text-amber-200 border-amber-400/25',
-    danger: 'bg-red-500/14 text-red-200 border-red-400/25',
-    admin: 'bg-primary/16 text-primary border-primary/30',
-  };
-
-  return (
-    <span className={`inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-black ${tones[tone] || tones.neutral}`}>
-      {children}
-    </span>
-  );
-}
-
 export default function AdminPage() {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [forbidden, setForbidden] = useState(false);
-  const [overview, setOverview] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [playlists, setPlaylists] = useState([]);
-  const [query, setQuery] = useState('');
-  const [tab, setTab] = useState('users');
-
-  const loadAdmin = async ({ quiet = false } = {}) => {
-    if (quiet) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const [stats, userRows, playlistRows] = await Promise.all([
-        admin.overview(),
-        admin.listUsers(),
-        admin.listCollabPlaylists(),
-      ]);
-      setOverview(stats);
-      setUsers(userRows);
-      setPlaylists(playlistRows);
-      setForbidden(false);
-    } catch (error) {
-      if (String(error.message || '').toLowerCase().includes('forbidden')) setForbidden(true);
-      else toast.error('Could not load admin panel');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAdmin();
-  }, []);
-
-  const filteredUsers = useMemo(() => {
-    const value = query.trim().toLowerCase();
-    if (!value) return users;
-    return users.filter((user) => (
-      String(user.nickname || '').toLowerCase().includes(value)
-      || String(user.email || '').toLowerCase().includes(value)
-      || String(user.role || '').toLowerCase().includes(value)
-    ));
-  }, [query, users]);
-
-  const filteredPlaylists = useMemo(() => {
-    const value = query.trim().toLowerCase();
-    if (!value) return playlists;
-    return playlists.filter((playlist) => (
-      String(playlist.name || '').toLowerCase().includes(value)
-      || String(playlist.owner_nickname || playlist.owner_email || '').toLowerCase().includes(value)
-    ));
-  }, [query, playlists]);
-
-  const blockedCount = users.filter((user) => user.blocked_at).length;
-  const unverifiedCount = users.filter((user) => !user.email_verified && !user.is_verified).length;
-
-  const updateUser = async (id, action) => {
-    try {
-      const next = await admin.updateUser(id, action);
-      setUsers((prev) => prev.map((user) => (user.id === id ? next : user)));
-      toast.success(action === 'block' ? 'User blocked' : action === 'unblock' ? 'User unblocked' : 'Role updated');
-      loadAdmin({ quiet: true });
-    } catch (error) {
-      toast.error(error.message || 'Could not update user');
-    }
-  };
-
-  const deleteUser = async (user) => {
-    if (!window.confirm(`Delete account "${user.nickname || user.email}"? This will permanently remove all their data.`)) return;
-    try {
-      await admin.deleteUser(user.id);
-      setUsers((prev) => prev.filter((item) => item.id !== user.id));
-      toast.success('Account deleted');
-      loadAdmin({ quiet: true });
-    } catch (error) {
-      toast.error(error.message || 'Could not delete account');
-    }
-  };
-
-  const deletePlaylist = async (playlist) => {
-    if (!window.confirm(`Delete collaborative playlist "${playlist.name}"?`)) return;
-    try {
-      await admin.deleteCollabPlaylist(playlist.id);
-      setPlaylists((prev) => prev.filter((item) => item.id !== playlist.id));
-      toast.success('Playlist deleted');
-      loadAdmin({ quiet: true });
-    } catch (error) {
-      toast.error(error.message || 'Could not delete playlist');
-    }
-  };
+  const {
+    blockedCount,
+    deletePlaylist,
+    deleteUser,
+    filteredPlaylists,
+    filteredUsers,
+    forbidden,
+    loadAdmin,
+    loading,
+    overview,
+    query,
+    refreshing,
+    setQuery,
+    setTab,
+    tab,
+    unverifiedCount,
+    updateUser,
+    users,
+  } = useAdminPanel();
 
   if (loading) {
     return (
@@ -170,58 +70,14 @@ export default function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
-      <header className="sticky top-0 z-50 -mx-4 border-b border-border/60 bg-background/90 px-4 py-3 backdrop-blur-2xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Shield className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">DreamTune Control</p>
-            <h1 className="truncate text-2xl font-black text-foreground sm:text-3xl">Admin panel</h1>
-          </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="h-11 w-11 rounded-2xl bg-secondary/70"
-            onClick={() => loadAdmin({ quiet: true })}
-            disabled={refreshing}
-            aria-label="Refresh"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-      </header>
+      <AdminHeader refreshing={refreshing} onRefresh={() => loadAdmin({ quiet: true })} />
 
-      <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {statCards.map(({ key, label, hint, Icon }) => (
-          <div key={key} className="rounded-[24px] border border-border/70 bg-card/90 p-4 shadow-xl shadow-black/5 backdrop-blur-xl sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/14 text-primary">
-                <Icon className="h-5 w-5" />
-              </div>
-              <p className="text-3xl font-black text-foreground">{overview?.[key] || 0}</p>
-            </div>
-            <p className="truncate text-sm font-black text-foreground">{label}</p>
-            <p className="truncate text-xs font-bold text-muted-foreground">{hint}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-[22px] border border-border/60 bg-card/80 p-4">
-          <p className="text-xs font-bold text-muted-foreground">Unverified email</p>
-          <p className="mt-1 text-2xl font-black text-foreground">{unverifiedCount}</p>
-        </div>
-        <div className="rounded-[22px] border border-border/60 bg-card/80 p-4">
-          <p className="text-xs font-bold text-muted-foreground">Blocked</p>
-          <p className="mt-1 text-2xl font-black text-foreground">{blockedCount}</p>
-        </div>
-        <div className="rounded-[22px] border border-border/60 bg-card/80 p-4">
-          <p className="text-xs font-bold text-muted-foreground">Total accounts</p>
-          <p className="mt-1 text-2xl font-black text-foreground">{users.length}</p>
-        </div>
-      </section>
+      <AdminStats
+        overview={overview}
+        unverifiedCount={unverifiedCount}
+        blockedCount={blockedCount}
+        totalAccounts={users.length}
+      />
 
       <div className="mt-5 rounded-[28px] border border-border/70 bg-card/92 p-3 shadow-2xl shadow-black/10 backdrop-blur-xl sm:p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -355,7 +211,7 @@ export default function AdminPage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-base font-black text-foreground">{playlist.name || 'Untitled'}</p>
                     <p className="truncate text-xs font-bold text-muted-foreground">
-                      {playlist.owner_nickname || playlist.owner_email || 'Owner'} · {(playlist.song_ids || []).length} songs
+                      {playlist.owner_nickname || playlist.owner_email || 'Owner'} / {(playlist.song_ids || []).length} songs
                     </p>
                     <p className="mt-1 text-xs font-bold text-muted-foreground">Created: {formatDate(playlist.created_at)}</p>
                   </div>

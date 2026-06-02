@@ -359,7 +359,7 @@ html:not(.dark) .app-background-layer {
 }
 
 .capacitor-native .mini-player-card {
-  background-color: hsl(var(--card) / 0.98) !important;
+  background-color: hsl(var(--card)) !important;
 }
 
 .capacitor-native .mini-player-shell,
@@ -383,6 +383,29 @@ html:not(.dark) .app-background-layer {
   padding-bottom: var(--safe-bottom);
   border-radius: 0;
   overflow: hidden;
+  background-color: hsl(var(--card));
+}
+
+.app-chrome-surface {
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(135deg, hsl(var(--primary) / 0.12), transparent 38%),
+    linear-gradient(180deg, hsl(var(--card)), hsl(var(--secondary)));
+  color: hsl(var(--foreground));
+}
+
+html[data-theme-surface="light"] .app-chrome-surface {
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(135deg, hsl(var(--primary) / 0.10), transparent 42%),
+    linear-gradient(180deg, hsl(var(--card)), hsl(var(--secondary)));
+}
+
+.dark .app-chrome-surface {
+  background-color: hsl(var(--card));
+  background-image:
+    linear-gradient(135deg, hsl(var(--primary) / 0.16), transparent 42%),
+    linear-gradient(180deg, hsl(var(--card)), hsl(var(--secondary)));
 }
 
 .mini-player-shell {
@@ -906,7 +929,13 @@ html[data-theme-surface="light"] .bg-background\/90,
 html[data-theme-surface="light"] .bg-background\/92,
 html[data-theme-surface="light"] .bg-background\/96,
 html[data-theme-surface="light"] .bottom-navbar {
-  background-color: hsl(var(--background) / 0.88) !important;
+  background-color: hsl(var(--background)) !important;
+}
+
+html[data-theme-surface="light"] .bottom-navbar .app-chrome-surface,
+.bottom-navbar .app-chrome-surface,
+.mini-player-card.app-chrome-surface {
+  background-color: hsl(var(--card)) !important;
 }
 
 .sticky[class*="bg-background"] {

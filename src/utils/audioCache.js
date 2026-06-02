@@ -4,6 +4,7 @@ const DB_NAME = 'MusicPlayerCache';
 const STORE_NAME = 'audioFiles';
 const META_STORE = 'cachedMeta';
 const DB_VERSION = 3;
+const DEFAULT_AUDIO_CACHE_LIMIT_BYTES = 768 * 1024 * 1024;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -23,6 +24,7 @@ function openDB() {
 }
 
 export async function getCachedAudio(url) {
+  if (isNativeFileUrl(url)) return resolvePlayableAudioUrl(url);
   const db = await openDB();
   const keys = Array.from(new Set([url, resolvePlayableAudioUrl(url)].filter(Boolean)));
   for (const key of keys) {
@@ -34,11 +36,27 @@ export async function getCachedAudio(url) {
     });
     if (cached?.blob) return URL.createObjectURL(cached.blob);
   }
+  const metas = await getAllMetaRows(db);
+  const matchingMeta = metas.find(row => {
+    const rowKeys = [
+      row.file_url,
+      resolvePlayableAudioUrl(row.file_url),
+      row.offline_file_url,
+      resolvePlayableAudioUrl(row.offline_file_url),
+      row.source_file_url,
+      resolvePlayableAudioUrl(row.source_file_url),
+    ].filter(Boolean);
+    return rowKeys.some(key => keys.includes(key));
+  });
+  const offlineUrl = matchingMeta?.offline_file_url || matchingMeta?.source_file_url || '';
+  if (isNativeFileUrl(offlineUrl)) return resolvePlayableAudioUrl(offlineUrl);
   return null;
 }
 
 export async function cacheAudio(url) {
   const playableUrl = resolvePlayableAudioUrl(url);
+  if (!playableUrl) return url || '';
+  if (isNativeFileUrl(url) || isNativeFileUrl(playableUrl)) return playableUrl || url;
   try {
     const response = await fetch(playableUrl);
     if (!response.ok) return playableUrl || url;
@@ -47,7 +65,8 @@ export async function cacheAudio(url) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     const keys = Array.from(new Set([url, playableUrl].filter(Boolean)));
-    keys.forEach(key => store.put({ url: key, blob }));
+    const savedAt = Date.now();
+    keys.forEach(key => store.put({ url: key, blob, size: blob.size || 0, savedAt }));
     return URL.createObjectURL(blob);
   } catch {
     return playableUrl || url;
@@ -65,21 +84,53 @@ async function cacheCoverBlob(url) {
   }
 }
 
-export async function saveOfflineSongMeta(song, coverBlob) {
+function getAllMetaRows(db) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(META_STORE, 'readonly');
+    const req = tx.objectStore(META_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+function getAllAudioRows(db) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+function metaAudioKeys(row) {
+  return [
+    row.file_url,
+    resolvePlayableAudioUrl(row.file_url),
+    row.source_file_url,
+    resolvePlayableAudioUrl(row.source_file_url),
+    row.offline_file_url,
+    resolvePlayableAudioUrl(row.offline_file_url),
+  ].filter(Boolean);
+}
+
+function metaHasOfflineAudio(row, audioKeys) {
+  if (isNativeFileUrl(row.offline_file_url)) return true;
+  return metaAudioKeys(row).some(key => audioKeys.has(key));
+}
+
+export async function saveOfflineSongMeta(song, coverBlob, options = {}) {
   const db = await openDB();
   let safeCoverBlob = coverBlob;
   let previousMeta = null;
   const coverUrl = String(song.cover_url || '');
   const coverIsTemporary = coverUrl.startsWith('blob:') || coverUrl.startsWith('data:');
 
-  if (safeCoverBlob === undefined || coverIsTemporary) {
-    previousMeta = await new Promise((resolve) => {
-      const tx = db.transaction(META_STORE, 'readonly');
-      const req = tx.objectStore(META_STORE).get(song.id);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-  }
+  previousMeta = await new Promise((resolve) => {
+    const tx = db.transaction(META_STORE, 'readonly');
+    const req = tx.objectStore(META_STORE).get(song.id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => resolve(null);
+  });
 
   if (safeCoverBlob === undefined) {
     if (coverIsTemporary) {
@@ -94,6 +145,8 @@ export async function saveOfflineSongMeta(song, coverBlob) {
       ? previousMeta.cover_url
       : '')
     : song.cover_url;
+  const offlineFileUrl = options.offlineFileUrl || song.offline_file_url || previousMeta?.offline_file_url || (isNativeFileUrl(song.file_url) ? song.file_url : '');
+  const sourceFileUrl = options.sourceFileUrl || song.source_file_url || previousMeta?.source_file_url || '';
 
   const tx = db.transaction(META_STORE, 'readwrite');
   tx.objectStore(META_STORE).put({
@@ -104,6 +157,8 @@ export async function saveOfflineSongMeta(song, coverBlob) {
     cover_url: stableCoverUrl,
     cover_blob: safeCoverBlob,
     file_url: song.file_url,
+    offline_file_url: offlineFileUrl,
+    source_file_url: sourceFileUrl,
     duration: song.duration,
     trim_start: song.trim_start || 0,
     trim_end: song.trim_end || 0,
@@ -137,6 +192,26 @@ export async function downloadSong(song, onProgress, options = {}) {
   const playableUrl = resolvePlayableAudioUrl(sourceUrl);
   const canonicalUrl = song.file_url || sourceUrl;
   const playableCanonicalUrl = resolvePlayableAudioUrl(canonicalUrl);
+  const nativeSourceUrl = [sourceUrl, playableUrl, options.offlineFileUrl]
+    .find(value => isNativeFileUrl(value)) || '';
+
+  if (nativeSourceUrl) {
+    try {
+      const coverBlob = await cacheCoverBlob(song.cover_url);
+      await saveOfflineSongMeta(
+        { ...song, file_url: canonicalUrl },
+        coverBlob,
+        { offlineFileUrl: nativeSourceUrl, sourceFileUrl: sourceUrl }
+      );
+      if (onProgress) onProgress(100);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  if (!playableUrl) return false;
+
   try {
     const response = await fetch(playableUrl);
     if (!response.ok) throw new Error('fetch failed');
@@ -162,7 +237,8 @@ export async function downloadSong(song, onProgress, options = {}) {
       sourceUrl,
       playableUrl,
     ].filter(Boolean)));
-    keys.forEach(key => audioStore.put({ url: key, blob }));
+    const savedAt = Date.now();
+    keys.forEach(key => audioStore.put({ url: key, blob, size: blob.size || 0, savedAt }));
     tx.objectStore(META_STORE).put({
       songId: song.id,
       id: song.id,
@@ -171,6 +247,8 @@ export async function downloadSong(song, onProgress, options = {}) {
       cover_url: song.cover_url,
       cover_blob: coverBlob,
       file_url: canonicalUrl,
+      offline_file_url: '',
+      source_file_url: sourceUrl,
       duration: song.duration,
       trim_start: song.trim_start || 0,
       trim_end: song.trim_end || 0,
@@ -187,7 +265,7 @@ export async function downloadSong(song, onProgress, options = {}) {
     if (isNativeFileUrl(sourceUrl) || isNativeFileUrl(playableUrl) || isNativeFileUrl(canonicalUrl)) {
       try {
         const coverBlob = await cacheCoverBlob(song.cover_url);
-        await saveOfflineSongMeta({ ...song, file_url: canonicalUrl }, coverBlob);
+        await saveOfflineSongMeta({ ...song, file_url: canonicalUrl }, coverBlob, { offlineFileUrl: sourceUrl, sourceFileUrl: sourceUrl });
         if (onProgress) onProgress(100);
         return true;
       } catch {}
@@ -200,7 +278,8 @@ export async function downloadSong(song, onProgress, options = {}) {
 export async function removeSongFromCache(songId, fileUrl) {
   const db = await openDB();
   const tx = db.transaction([STORE_NAME, META_STORE], 'readwrite');
-  tx.objectStore(STORE_NAME).delete(fileUrl);
+  const keys = Array.from(new Set([fileUrl, resolvePlayableAudioUrl(fileUrl)].filter(Boolean)));
+  keys.forEach(key => tx.objectStore(STORE_NAME).delete(key));
   tx.objectStore(META_STORE).delete(songId);
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('dreamtune-offline-cache-change', { detail: { songId, downloaded: false } }));
@@ -210,6 +289,8 @@ export async function removeSongFromCache(songId, fileUrl) {
 // Get all downloaded songs meta
 export async function getDownloadedSongsMeta() {
   const db = await openDB();
+  const audioRows = await getAllAudioRows(db);
+  const audioKeys = new Set(audioRows.map(row => row.url).filter(Boolean));
   return new Promise((resolve) => {
     const tx = db.transaction(META_STORE, 'readonly');
     const req = tx.objectStore(META_STORE).getAll();
@@ -217,29 +298,86 @@ export async function getDownloadedSongsMeta() {
       ...row,
       id: row.id || row.songId,
       cover_url: row.cover_blob ? URL.createObjectURL(row.cover_blob) : row.cover_url,
-      is_offline: true,
+      native_cover_url: row.cover_url || '',
+      offline_file_url: row.offline_file_url || '',
+      is_offline: metaHasOfflineAudio(row, audioKeys),
     })));
     req.onerror = () => resolve([]);
   });
 }
 
+export async function cleanupAudioCache(options = {}) {
+  const maxBytes = Number(options.maxBytes || DEFAULT_AUDIO_CACHE_LIMIT_BYTES);
+  const db = await openDB();
+  const metas = await getAllMetaRows(db);
+  const nativeDuplicateKeys = new Set();
+
+  for (const row of metas) {
+    if (!isNativeFileUrl(row.offline_file_url)) continue;
+    [
+      row.file_url,
+      resolvePlayableAudioUrl(row.file_url),
+      row.source_file_url,
+      resolvePlayableAudioUrl(row.source_file_url),
+      row.offline_file_url,
+      resolvePlayableAudioUrl(row.offline_file_url),
+    ].filter(Boolean).forEach(key => nativeDuplicateKeys.add(key));
+  }
+
+  const entries = await new Promise((resolve) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+
+  let totalBytes = entries.reduce((sum, entry) => sum + Number(entry.size || entry.blob?.size || 0), 0);
+  const keysToDelete = new Set();
+
+  for (const entry of entries) {
+    if (nativeDuplicateKeys.has(entry.url)) {
+      keysToDelete.add(entry.url);
+      totalBytes -= Number(entry.size || entry.blob?.size || 0);
+    }
+  }
+
+  if (totalBytes > maxBytes) {
+    const removable = entries
+      .filter(entry => !keysToDelete.has(entry.url))
+      .sort((a, b) => Number(a.savedAt || 0) - Number(b.savedAt || 0));
+
+    for (const entry of removable) {
+      if (totalBytes <= maxBytes) break;
+      keysToDelete.add(entry.url);
+      totalBytes -= Number(entry.size || entry.blob?.size || 0);
+    }
+  }
+
+  if (keysToDelete.size) {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    keysToDelete.forEach(key => store.delete(key));
+  }
+
+  return { deleted: keysToDelete.size, remainingBytes: Math.max(0, totalBytes) };
+}
+
 export async function getDownloadedSongIds() {
   const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(META_STORE, 'readonly');
-    const req = tx.objectStore(META_STORE).getAllKeys();
-    req.onsuccess = () => resolve(new Set((req.result || []).filter(Boolean)));
-    req.onerror = () => resolve(new Set());
-  });
+  const [metas, audioRows] = await Promise.all([getAllMetaRows(db), getAllAudioRows(db)]);
+  const audioKeys = new Set(audioRows.map(row => row.url).filter(Boolean));
+  return new Set(
+    metas
+      .filter(row => metaHasOfflineAudio(row, audioKeys))
+      .map(row => row.id || row.songId)
+      .filter(Boolean)
+  );
 }
 
 // Check if a specific song is downloaded
 export async function isSongDownloaded(songId) {
   const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction(META_STORE, 'readonly');
-    const req = tx.objectStore(META_STORE).count(songId);
-    req.onsuccess = () => resolve(req.result > 0);
-    req.onerror = () => resolve(false);
-  });
+  const [metas, audioRows] = await Promise.all([getAllMetaRows(db), getAllAudioRows(db)]);
+  const audioKeys = new Set(audioRows.map(row => row.url).filter(Boolean));
+  return metas.some(row => (row.id || row.songId) === songId && metaHasOfflineAudio(row, audioKeys));
 }

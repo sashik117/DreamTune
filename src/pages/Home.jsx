@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Heart, Music, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Recommendations from '../components/Recommendations';
@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import YouTubeDownload from '../components/YouTubeDownload';
 import SongCard from '../components/SongCard';
 import CoverArt from '../components/CoverArt';
-import { media } from '../api/SupabaseClient';
+import { useHomePage } from '@/features/home/model/useHomePage';
 
 function useHorizontalOverflow(items) {
   const ref = useRef(null);
@@ -48,70 +48,29 @@ export default function Home({
   onAddSongsToPlaylist,
 }) {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
-  const [recDownload, setRecDownload] = useState(null);
-  const [showAllRecent, setShowAllRecent] = useState(false);
-  const [showAllFavorites, setShowAllFavorites] = useState(false);
-  const [showAllGlobal, setShowAllGlobal] = useState(false);
-  const [showAllSpotify, setShowAllSpotify] = useState(false);
-  const [globalChart, setGlobalChart] = useState([]);
-  const [spotifyChart, setSpotifyChart] = useState([]);
-  const [chartError, setChartError] = useState('');
-  const [spotifyChartError, setSpotifyChartError] = useState('');
-  const [favoriteOverlay, setFavoriteOverlay] = useState({});
-
-  const allRecent = useMemo(
-    () => [...songs].sort((a, b) => Number(new Date(b.created_at || b.created_date || 0)) - Number(new Date(a.created_at || a.created_date || 0))),
-    [songs]
-  );
-  const favoriteSongs = useMemo(
-    () => songs
-      .map(song => favoriteOverlay[song.id] ? { ...song, ...favoriteOverlay[song.id] } : song)
-      .filter(song => song.is_favorite)
-      .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'uk')),
-    [songs, favoriteOverlay]
-  );
+  const {
+    allRecent,
+    chartError,
+    favoriteSongs,
+    globalChart,
+    openDownload,
+    recDownload,
+    setRecDownload,
+    setShowAllFavorites,
+    setShowAllGlobal,
+    setShowAllRecent,
+    setShowAllSpotify,
+    showAllFavorites,
+    showAllGlobal,
+    showAllRecent,
+    showAllSpotify,
+    spotifyChart,
+    spotifyChartError,
+  } = useHomePage({ songs });
   const [favoritesRef] = useHorizontalOverflow(favoriteSongs);
   const [recentRef] = useHorizontalOverflow(recentSongs);
   const globalRef = useRef(null);
   const spotifyRef = useRef(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    media.getGlobalChart(20)
-      .then(data => {
-        if (!cancelled) setGlobalChart(data.tracks || []);
-      })
-      .catch(() => {
-        if (!cancelled) setChartError('The chart is temporarily unavailable');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleFavoriteChange = (event) => {
-      const song = event.detail?.song;
-      if (!song?.id) return;
-      setFavoriteOverlay(prev => ({ ...prev, [song.id]: song }));
-    };
-    window.addEventListener('dreamtune-favorite-change', handleFavoriteChange);
-    return () => window.removeEventListener('dreamtune-favorite-change', handleFavoriteChange);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    media.getSpotifyChart(20)
-      .then(data => {
-        if (!cancelled) setSpotifyChart(data.tracks || []);
-      })
-      .catch(() => {
-        if (!cancelled) setSpotifyChartError('Spotify Top 20 is temporarily unavailable');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const renderShelfCard = (song, i) => (
     <motion.button
@@ -167,10 +126,6 @@ export default function Home({
       </DialogContent>
     </Dialog>
   );
-
-  const openDownload = (track) => {
-    setRecDownload({ title: track.title, youtube_query: track.youtube_query || `${track.title} ${track.artist}` });
-  };
 
   const scrollRow = (ref, direction) => {
     const row = ref?.current;

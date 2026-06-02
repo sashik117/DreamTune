@@ -16,7 +16,7 @@ export default function BottomNav({ onAddClick, notificationCount = 0 }) {
 
   return (
     <nav className="bottom-navbar">
-      <div className="h-full w-full bg-card/95 backdrop-blur-2xl border-t border-border shadow-2xl shadow-primary/10">
+      <div className="app-chrome-surface h-full w-full border-t border-border shadow-2xl shadow-primary/10">
         <div className="flex h-[var(--bottom-nav-height)] items-center justify-around px-2 max-w-screen-lg mx-auto">
           {tabs.map(tab => {
             const isActive = location.pathname === tab.path || (tab.path !== '/' && location.pathname.startsWith(`${tab.path}/`));

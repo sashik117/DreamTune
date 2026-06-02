@@ -1,61 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { getCachedAudio, cacheAudio, getDownloadedSongsMeta, saveOfflineSongMeta } from '../utils/audioCache';
-import { resolvePlayableAudioUrl } from '../utils/audioUrls';
+import { getCachedAudio, cacheAudio, getDownloadedSongIds, saveOfflineSongMeta } from '../utils/audioCache';
+import { isNativeFileUrl, resolvePlayableAudioUrl } from '../utils/audioUrls';
 import { repairSongAudio } from '../utils/audioRepair';
-import { addNativeMediaActionListener, clearNativeMediaSession, updateNativeMediaSession } from '../utils/nativeMediaSession';
 import { toast } from 'sonner';
-
-const PLAYBACK_STATE_KEY = 'dreamtune-playback-state-v1';
-const MEDIA_SESSION_POSITION_UPDATE_MS = 5000;
-
-function serializeSong(song) {
-  if (!song?.id) return null;
-  return {
-    id: song.id,
-    title: song.title || '',
-    artist: song.artist || '',
-    cover_url: song.cover_url || '',
-    cover_position: song.cover_position || '50% 50%',
-    cover_scale: song.cover_scale || 1,
-    file_url: song.file_url || '',
-    duration: song.duration || 0,
-    trim_start: song.trim_start || 0,
-    trim_end: song.trim_end || 0,
-    lyrics: song.lyrics || '',
-    is_offline: Boolean(song.is_offline),
-  };
-}
-
-function dedupeSongs(items = []) {
-  const seen = new Set();
-  return items.filter(item => {
-    if (!item?.id || seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
-
-function shuffleSongs(items = [], currentSongId = null) {
-  const deduped = dedupeSongs(items);
-  const current = currentSongId ? deduped.find(song => song.id === currentSongId) : null;
-  const rest = deduped.filter(song => song.id !== currentSongId);
-  for (let i = rest.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [rest[i], rest[j]] = [rest[j], rest[i]];
-  }
-  return current ? [current, ...rest] : rest;
-}
+import { dedupeSongs, PLAYBACK_STATE_KEY, serializeSong, shuffleSongs } from '@/features/player/model/playbackQueue';
+import { useAudioPulse } from '@/features/player/model/useAudioPulse';
+import { updateBrowserMediaSessionMetadata, useBrowserMediaSession } from '@/features/player/model/useBrowserMediaSession';
+import { useNativePlayerSession } from '@/features/player/model/useNativePlayerSession';
+import { useSleepTimer } from '@/features/player/model/useSleepTimer';
 
 export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const audioRef = useRef(null);
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
   const filtersRef = useRef({ sub: null, bass: null, low: null, mid: null, high: null, treble: null });
-  const bassRafRef = useRef(null);
-  const sleepTimerRef = useRef({ timeout: null, ticker: null, fade: null, originalVolume: 0.8 });
   const repeatHitsRef = useRef({ songId: null, count: 0 });
   const manualQueueRef = useRef(false);
-  const nativeSessionRef = useRef({ songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 });
   const loadingAudioRef = useRef(false);
   const repairingSongIdRef = useRef(null);
   const repairAttemptsRef = useRef(new Set());
@@ -63,6 +23,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const restorePositionRef = useRef(0);
   const lastSavedPlaybackRef = useRef(0);
   const playbackRequestRef = useRef({ id: 0, shouldPlay: false });
+  const lastAudioErrorToastRef = useRef(0);
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -75,10 +36,20 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const [cachedSongs, setCachedSongs] = useState(new Set());
   const [eq, setEqState] = useState({ sub: 0, bass: 0, low: 0, mid: 0, high: 0, treble: 0 });
   const [queue, setQueue] = useState([]); // ordered play queue
-  const [bassLevel, setBassLevel] = useState(0);
-  const [voiceLevel, setVoiceLevel] = useState(0);
-  const [sleepRemaining, setSleepRemaining] = useState(0);
-  const [sleepDimming, setSleepDimming] = useState(false);
+  const { bassLevel, voiceLevel } = useAudioPulse({
+    analyserRef,
+    audioCtxRef,
+    isPlaying,
+    currentSongId,
+    enabled: visualPulseEnabled,
+  });
+  const { sleepRemaining, sleepDimming, setSleepTimer } = useSleepTimer({
+    audioRef,
+    playbackRequestRef,
+    volume,
+    setVolumeState,
+    setIsPlaying,
+  });
 
   if (!audioRef.current) {
     audioRef.current = new Audio();
@@ -88,8 +59,8 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
 
   useEffect(() => {
     const refreshCachedSongs = () => {
-      getDownloadedSongsMeta()
-        .then(rows => setCachedSongs(new Set(rows.map(row => row.id || row.songId).filter(Boolean))))
+      getDownloadedSongIds()
+        .then(ids => setCachedSongs(ids))
         .catch(() => {});
     };
     refreshCachedSongs();
@@ -156,63 +127,6 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!visualPulseEnabled || !analyserRef.current || !isPlaying) {
-      setBassLevel(0);
-      setVoiceLevel(0);
-      document.documentElement.style.setProperty('--music-pulse-scale', '1');
-      document.documentElement.style.setProperty('--music-pulse-intensity', '0');
-      document.documentElement.style.setProperty('--music-voice-intensity', '0');
-      return;
-    }
-
-    const analyser = analyserRef.current;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const nyquist = audioCtxRef.current ? audioCtxRef.current.sampleRate / 2 : 24000;
-    let smoothedBass = 0;
-    let smoothedVoice = 0;
-    let lastUiUpdate = 0;
-    const binFor = (hz) => Math.min(data.length - 1, Math.max(0, Math.round((hz / nyquist) * data.length)));
-    const averageBand = (fromHz, toHz) => {
-      const from = binFor(fromHz);
-      const to = Math.max(from + 1, binFor(toHz));
-      let sum = 0;
-      for (let i = from; i <= to; i++) sum += data[i] || 0;
-      return sum / (to - from + 1) / 255;
-    };
-
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
-      const rawBass = averageBand(45, 180);
-      const rawVoice = (averageBand(250, 1200) * 0.65) + (averageBand(1200, 3600) * 0.35);
-      const bassIntensity = Math.min(1, Math.max(0, (rawBass - 0.06) * 3.2));
-      const voiceIntensity = Math.min(1, Math.max(0, (rawVoice - 0.04) * 2.4));
-
-      smoothedBass = smoothedBass * 0.62 + bassIntensity * 0.38;
-      smoothedVoice = smoothedVoice * 0.72 + voiceIntensity * 0.28;
-
-      document.documentElement.style.setProperty('--music-pulse-scale', (1 + smoothedBass * 0.15).toFixed(4));
-      document.documentElement.style.setProperty('--music-pulse-intensity', smoothedBass.toFixed(4));
-      document.documentElement.style.setProperty('--music-voice-intensity', smoothedVoice.toFixed(4));
-
-      const now = performance.now();
-      if (now - lastUiUpdate > 120) {
-        lastUiUpdate = now;
-        setBassLevel(smoothedBass);
-        setVoiceLevel(smoothedVoice);
-      }
-      bassRafRef.current = requestAnimationFrame(tick);
-    };
-
-    tick();
-    return () => {
-      if (bassRafRef.current) cancelAnimationFrame(bassRafRef.current);
-      document.documentElement.style.setProperty('--music-pulse-scale', '1');
-      document.documentElement.style.setProperty('--music-pulse-intensity', '0');
-      document.documentElement.style.setProperty('--music-voice-intensity', '0');
-    };
-  }, [isPlaying, currentSongId, visualPulseEnabled]);
-
   const setEq = useCallback((band, value) => {
     if (filtersRef.current[band]) filtersRef.current[band].gain.value = value;
     setEqState(prev => ({ ...prev, [band]: value }));
@@ -244,6 +158,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       const activeEnd = end || audio.duration || 0;
       const span = Math.max(0.1, activeEnd - start);
       const localTime = Math.min(span, Math.max(0, audio.currentTime - start));
+      restorePositionRef.current = localTime;
       setCurrentTime(localTime);
       setDuration(span);
       if (audio.duration) setProgress(Math.min(100, Math.max(0, ((audio.currentTime - start) / span) * 100)));
@@ -262,7 +177,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     };
     const handleError = () => {
       if (loadingAudioRef.current || repairingSongIdRef.current) return;
-      toast.error('Could not load audio. Try again.');
+      const now = Date.now();
+      if (now - lastAudioErrorToastRef.current > 5000) {
+        lastAudioErrorToastRef.current = now;
+        toast.error('Could not load audio. Try again.');
+      }
       setIsPlaying(false);
     };
     const handlePause = () => setIsPlaying(false);
@@ -296,15 +215,6 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     setProgress(Math.min(100, Math.max(0, ((audioRef.current.currentTime - start) / span) * 100)));
   }, [currentSongId, songs, queue, getTrimBounds]);
 
-  const updateMediaSession = useCallback((song) => {
-    if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: song.title || 'Unknown song',
-      artist: song.artist || 'Unknown artist',
-      artwork: song.cover_url ? [{ src: song.cover_url, sizes: '512x512', type: 'image/jpeg' }] : []
-    });
-  }, []);
-
   const loadAndPlay = useCallback(async (song, options = {}) => {
     const startAt = Number.isFinite(options.startAt) ? Math.max(0, Number(options.startAt)) : null;
     const requestId = playbackRequestRef.current.id + 1;
@@ -316,8 +226,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
 
     const prepareAndPlay = async (targetSong) => {
-      const playableUrl = resolvePlayableAudioUrl(targetSong.file_url);
-      const cached = await getCachedAudio(targetSong.file_url);
+      const sourceUrl = targetSong.file_url || targetSong.offline_file_url;
+      const playableUrl = resolvePlayableAudioUrl(sourceUrl);
+      const cached = await getCachedAudio(sourceUrl);
       const src = cached || playableUrl;
       loadingAudioRef.current = true;
 
@@ -338,7 +249,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         loadingAudioRef.current = false;
         setCurrentSongId(targetSong.id);
         setIsPlaying(false);
-        updateMediaSession(targetSong);
+        updateBrowserMediaSessionMetadata(targetSong);
         return { cached, src, skipped: true };
       }
 
@@ -352,7 +263,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       setCurrentSongId(targetSong.id);
       repeatHitsRef.current = { songId: targetSong.id, count: 0 };
       setIsPlaying(true);
-      updateMediaSession(targetSong);
+      updateBrowserMediaSessionMetadata(targetSong);
       return { cached, src };
     };
 
@@ -365,7 +276,15 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       loadingAudioRef.current = false;
       console.warn('Audio playback failed:', { fileUrl: activeSong.file_url, error: e });
 
-      if (activeSong?.id && !repairAttemptsRef.current.has(activeSong.id)) {
+      const canTryRepair = Boolean(
+        navigator.onLine &&
+        activeSong?.id &&
+        !isNativeFileUrl(activeSong.file_url) &&
+        !isNativeFileUrl(activeSong.offline_file_url) &&
+        !repairAttemptsRef.current.has(activeSong.id)
+      );
+
+      if (canTryRepair) {
         repairAttemptsRef.current.add(activeSong.id);
         repairingSongIdRef.current = activeSong.id;
         toast.loading('Audio is unavailable, repairing this track...', { id: `repair-${activeSong.id}` });
@@ -393,13 +312,22 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
           return;
         }
       } else {
-        toast.error('Could not load audio. Try again.');
+        const now = Date.now();
+        if (now - lastAudioErrorToastRef.current > 5000) {
+          lastAudioErrorToastRef.current = now;
+          toast.error(navigator.onLine ? 'Could not load audio. Try again.' : 'This track is not ready offline yet.');
+        }
         setIsPlaying(false);
         return;
       }
     }
-    
-    if (!cached) {
+
+    if (isNativeFileUrl(activeSong.file_url) || isNativeFileUrl(activeSong.offline_file_url)) {
+      setCachedSongs(prev => new Set([...prev, activeSong.id]));
+      saveOfflineSongMeta(activeSong, undefined, {
+        offlineFileUrl: activeSong.offline_file_url || activeSong.file_url,
+      }).catch(() => {});
+    } else if (!cached && navigator.onLine) {
       cacheAudio(activeSong.file_url).then(() => {
         setCachedSongs(prev => new Set([...prev, activeSong.id]));
         saveOfflineSongMeta(activeSong).catch(() => {});
@@ -408,17 +336,31 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       setCachedSongs(prev => new Set([...prev, activeSong.id]));
       saveOfflineSongMeta(activeSong).catch(() => {});
     }
-  }, [initAudioChain, updateMediaSession, getTrimBounds, requestMainAudioFocus]);
+  }, [initAudioChain, getTrimBounds, requestMainAudioFocus]);
 
   const resumeCurrentAudio = useCallback(() => {
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
     playbackRequestRef.current.shouldPlay = true;
     requestMainAudioFocus();
-    audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {
-      const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
-      if (song) loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+    const audio = audioRef.current;
+    const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
+    const resumeAt = Math.max(0, Number(currentTime || restorePositionRef.current || 0));
+
+    if (song && (!audio.src || audio.error || audio.readyState === 0)) {
+      loadAndPlay(song, { startAt: resumeAt });
+      return;
+    }
+
+    if (song && Number.isFinite(audio.duration) && resumeAt > 0) {
+      const { start, end } = getTrimBounds(song);
+      const target = Math.min(end || audio.duration, start + resumeAt);
+      if (Math.abs(audio.currentTime - target) > 1.5) audio.currentTime = target;
+    }
+
+    audio.play().then(() => setIsPlaying(true)).catch(() => {
+      if (song) loadAndPlay(song, { startAt: resumeAt });
     });
-  }, [currentSongId, currentTime, loadAndPlay, queue, requestMainAudioFocus, songs]);
+  }, [currentSongId, currentTime, getTrimBounds, loadAndPlay, queue, requestMainAudioFocus, songs]);
 
   // Keep the library queue fresh without replacing playlist queues.
   useEffect(() => {
@@ -438,8 +380,8 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
         setIsPlaying(false);
       }
       else {
-        if (!audioRef.current.src) {
-          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+        if (!audioRef.current.src || audioRef.current.error) {
+          loadAndPlay(song, { startAt: currentTime || restorePositionRef.current || 0 });
           return;
         }
         resumeCurrentAudio();
@@ -459,10 +401,10 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       setIsPlaying(false);
     }
     else {
-      if (currentSongId && !audioRef.current.src) {
+      if (currentSongId && (!audioRef.current.src || audioRef.current.error)) {
         const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
         if (song) {
-          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
+          loadAndPlay(song, { startAt: currentTime || restorePositionRef.current || 0 });
           return;
         }
       }
@@ -499,6 +441,17 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       return [...filtered.slice(0, insertAt), song, ...filtered.slice(insertAt)];
     });
   }, [currentSongId]);
+
+  const playQueueSong = useCallback((song) => {
+    if (!song?.id) return;
+    manualQueueRef.current = true;
+    if (currentSongId === song.id) {
+      if (!isPlaying) resumeCurrentAudio();
+      return;
+    }
+    setQueue(prev => prev.some(item => item.id === song.id) ? prev : [...prev, song]);
+    loadAndPlay(song);
+  }, [currentSongId, isPlaying, loadAndPlay, resumeCurrentAudio]);
 
   const removeFromQueue = useCallback((songId) => {
     setQueue(prev => prev.filter(s => s.id !== songId));
@@ -581,35 +534,15 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     } catch {}
   }, [currentSongId, currentTime, duration, isPlaying, queue, repeat, shuffle, songs, volume]);
 
-  // Media Session
-  useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.setActionHandler('play', () => {
-      if (currentSongId && !audioRef.current.src) {
-        const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
-        if (song) {
-          loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
-          navigator.mediaSession.playbackState = 'playing';
-          return;
-        }
-      }
-      resumeCurrentAudio();
-      navigator.mediaSession.playbackState = 'playing';
-    });
-    navigator.mediaSession.setActionHandler('pause', () => {
-      playbackRequestRef.current.shouldPlay = false;
-      audioRef.current.pause(); setIsPlaying(false);
-      navigator.mediaSession.playbackState = 'paused';
-    });
-    navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-    navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, resumeCurrentAudio, songs]);
-
   const seek = useCallback((percent) => {
     const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
     const { start, end } = getTrimBounds(song);
     const activeEnd = end || audioRef.current.duration || 0;
-    if (audioRef.current.duration) audioRef.current.currentTime = start + (percent / 100) * Math.max(0, activeEnd - start);
+    if (audioRef.current.duration) {
+      const nextLocalTime = (percent / 100) * Math.max(0, activeEnd - start);
+      restorePositionRef.current = Math.max(0, nextLocalTime);
+      audioRef.current.currentTime = start + nextLocalTime;
+    }
   }, [songs, queue, currentSongId, getTrimBounds]);
 
   const seekToSeconds = useCallback((seconds) => {
@@ -617,7 +550,10 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     const { start, end } = getTrimBounds(song);
     const activeEnd = end || audioRef.current.duration || 0;
     const nextTime = start + Math.max(0, Number(seconds) || 0);
-    if (audioRef.current.duration) audioRef.current.currentTime = Math.min(activeEnd || audioRef.current.duration, nextTime);
+    if (audioRef.current.duration) {
+      restorePositionRef.current = Math.max(0, Number(seconds) || 0);
+      audioRef.current.currentTime = Math.min(activeEnd || audioRef.current.duration, nextTime);
+    }
   }, [songs, queue, currentSongId, getTrimBounds]);
 
   const setVolume = useCallback((v) => {
@@ -625,132 +561,38 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     setVolumeState(v);
   }, []);
 
-  const clearSleepTimer = useCallback(() => {
-    const timers = sleepTimerRef.current;
-    if (timers.timeout) clearTimeout(timers.timeout);
-    if (timers.ticker) clearInterval(timers.ticker);
-    if (timers.fade) clearInterval(timers.fade);
-    sleepTimerRef.current = { ...timers, timeout: null, ticker: null, fade: null };
-    setSleepRemaining(0);
-    setSleepDimming(false);
-  }, []);
+  useBrowserMediaSession({
+    audioRef,
+    playbackRequestRef,
+    restorePositionRef,
+    currentSongId,
+    currentTime,
+    queue,
+    songs,
+    loadAndPlay,
+    playNext,
+    playPrev,
+    resumeCurrentAudio,
+    setIsPlaying,
+  });
 
-  const startSleepFade = useCallback(() => {
-    const timers = sleepTimerRef.current;
-    if (timers.fade) clearInterval(timers.fade);
-    if (timers.ticker) clearInterval(timers.ticker);
-
-    const originalVolume = audioRef.current.volume || volume;
-    timers.originalVolume = originalVolume;
-    setSleepDimming(true);
-
-    const steps = 40;
-    let step = 0;
-    timers.fade = setInterval(() => {
-      step += 1;
-      const nextVolume = Math.max(0, originalVolume * (1 - step / steps));
-      audioRef.current.volume = nextVolume;
-      setVolumeState(nextVolume);
-
-      if (step >= steps) {
-        clearInterval(timers.fade);
-        timers.fade = null;
-        playbackRequestRef.current.shouldPlay = false;
-        audioRef.current.pause();
-        audioRef.current.volume = originalVolume;
-        setVolumeState(originalVolume);
-        setIsPlaying(false);
-        setSleepRemaining(0);
-        setSleepDimming(false);
-      }
-    }, 250);
-  }, [volume]);
-
-  const setSleepTimer = useCallback((minutes) => {
-    clearSleepTimer();
-    const safeMinutes = Number(minutes);
-    if (!Number.isFinite(safeMinutes) || safeMinutes <= 0) return;
-
-    const totalSeconds = Math.round(safeMinutes * 60);
-    setSleepRemaining(totalSeconds);
-    sleepTimerRef.current.timeout = setTimeout(startSleepFade, totalSeconds * 1000);
-    sleepTimerRef.current.ticker = setInterval(() => {
-      setSleepRemaining(prev => Math.max(0, prev - 1));
-    }, 1000);
-  }, [clearSleepTimer, startSleepFade]);
-
-  useEffect(() => clearSleepTimer, [clearSleepTimer]);
-
-  useEffect(() => {
-    let mounted = true;
-    let handle = null;
-    Promise.resolve(addNativeMediaActionListener((event) => {
-      const action = event?.action;
-      if (action === 'play') {
-        if (currentSongId && !audioRef.current.src) {
-          const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
-          if (song) {
-            loadAndPlay(song, { startAt: restorePositionRef.current || currentTime || 0 });
-            return;
-          }
-        }
-        resumeCurrentAudio();
-      }
-      if (action === 'pause') {
-        playbackRequestRef.current.shouldPlay = false;
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-      if (action === 'next') playNext();
-      if (action === 'previous') playPrev();
-      if (action === 'seek') seekToSeconds(Number(event?.position || 0));
-    })).then((listener) => {
-      if (!mounted) listener?.remove?.();
-      else handle = listener;
-    });
-
-    return () => {
-      mounted = false;
-      handle?.remove?.();
-    };
-  }, [currentSongId, currentTime, loadAndPlay, playNext, playPrev, queue, resumeCurrentAudio, seekToSeconds, songs]);
-
-  useEffect(() => {
-    const song = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId);
-    if (!song) {
-      nativeSessionRef.current = { songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 };
-      clearNativeMediaSession();
-      return;
-    }
-    const now = Date.now();
-    const previous = nativeSessionRef.current;
-    const metadataChanged =
-      previous.songId !== song.id ||
-      previous.title !== song.title ||
-      previous.artist !== song.artist ||
-      previous.coverUrl !== song.cover_url ||
-      previous.isPlaying !== isPlaying;
-    if (!metadataChanged) {
-      if (!isPlaying) return;
-      if (now - previous.lastUpdate < MEDIA_SESSION_POSITION_UPDATE_MS) return;
-    }
-    nativeSessionRef.current = {
-      songId: song.id,
-      title: song.title || '',
-      artist: song.artist || '',
-      coverUrl: song.cover_url || '',
-      isPlaying,
-      lastUpdate: now,
-    };
-    updateNativeMediaSession({
-      title: song.title || 'DreamTune',
-      artist: song.artist || '',
-      coverUrl: song.cover_url || '',
-      isPlaying,
-      position: currentTime || 0,
-      duration: duration || 0,
-    });
-  }, [songs, queue, currentSongId, isPlaying, currentTime, duration]);
+  useNativePlayerSession({
+    audioRef,
+    playbackRequestRef,
+    restorePositionRef,
+    currentSongId,
+    currentTime,
+    duration,
+    isPlaying,
+    queue,
+    songs,
+    loadAndPlay,
+    playNext,
+    playPrev,
+    resumeCurrentAudio,
+    seekToSeconds,
+    setIsPlaying,
+  });
 
   return {
     currentSong: songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId) || null,
@@ -758,7 +600,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     analyser: analyserRef.current,
     bassLevel, voiceLevel, sleepRemaining, sleepDimming,
     cachedSongs, eq, queue,
-    playSong, playPlaylist, togglePlayPause, playNext, playPrev, seek, setVolume,
+    playSong, playQueueSong, playPlaylist, togglePlayPause, playNext, playPrev, seek, setVolume,
     setEq, addToQueue, playNextInQueue: playNext_queue, removeFromQueue, reorderQueue,
     setSleepTimer,
     setShuffle: () => {
