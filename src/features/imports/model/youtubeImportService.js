@@ -78,6 +78,14 @@ export async function getAudioUrl(videoId, { native = true } = {}) {
   return resolveDirectAudioUrl(videoId);
 }
 
+export async function getPreviewAudioUrl(videoId, { forceServer = false } = {}) {
+  if (!forceServer) {
+    const directUrl = await resolveDirectAudioUrl(videoId);
+    if (directUrl) return directUrl;
+  }
+  return getAudioUrl(videoId, { native: false });
+}
+
 async function fetchJson(url, timeout = 9000) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeout);

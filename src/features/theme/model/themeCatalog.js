@@ -39,23 +39,3 @@ export const BACKGROUNDS = [
   { key: 'wine', name: 'Wine', preview: 'radial-gradient(circle at 18% 0%,#e11d4866,transparent 35%),radial-gradient(circle at 82% 18%,#7f1d1d66,transparent 35%),linear-gradient(145deg,#140407,#2a0f14)' },
   { key: 'deepsea', name: 'Deep sea', preview: 'radial-gradient(circle at 84% 8%,#0ea5e966,transparent 35%),radial-gradient(circle at 12% 18%,#14b8a666,transparent 35%),linear-gradient(145deg,#021018,#08202d)' },
 ];
-
-export const ACCENT_BACKGROUNDS = {
-  rose: 'pastel-rose',
-  violet: 'pastel-lilac',
-  blue: 'pastel-sky',
-  ruby: 'pastel-peach',
-  mint: 'pastel-mint',
-  peach: 'pastel-peach',
-  ice: 'light-sky',
-  gold: 'pastel-peach',
-  graphite: 'noir',
-  sage: 'pastel-mint',
-  velvet: 'velvet',
-  burgundy: 'wine',
-  midnight: 'midnight',
-  ember: 'sunset',
-  neon: 'cyber',
-  citrus: 'pastel-mint',
-  berry: 'pastel-lilac',
-};

@@ -18,7 +18,7 @@ import { cropImageToDataUrl, dataUrlToFile } from '../utils/imageCrop';
 import { useTranslation } from 'react-i18next';
 import i18n, { supportedLanguages } from '../i18n';
 import { readPendingHistory } from '@/features/listen-history/model/pendingListenHistory';
-import { ACCENT_BACKGROUNDS, ACCENTS, BACKGROUNDS } from '@/features/theme/model/themeCatalog';
+import { ACCENTS, BACKGROUNDS } from '@/features/theme/model/themeCatalog';
 import { PROFILE_SECTION_TITLES } from '@/features/users/model/profileSections';
 import { buildPeriodStats, getProfileCounts, getTopTrack } from '@/features/users/model/profileStats';
 import { useProfileFriends } from '@/features/users/model/useProfileFriends';
@@ -265,9 +265,6 @@ export default function Profile({
 
   const chooseAccent = (accent) => {
     onThemeAccentChange?.(accent);
-    if (localThemeMode === 'custom' && themeBackground !== 'photo') {
-      onThemeBackgroundChange?.(ACCENT_BACKGROUNDS[accent] || 'pastel-lilac');
-    }
   };
 
   const setCustomSleepTimer = () => {
@@ -350,7 +347,7 @@ export default function Profile({
                     </Button>
                   </div>
                 )}
-                <p className="text-sm text-muted-foreground">{songs.length} songs · {favoriteCount} favorites · {artistCount} artists</p>
+                <p className="text-sm text-muted-foreground">{songs.length} songs Â· {favoriteCount} favorites Â· {artistCount} artists</p>
                 <div className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-secondary/70 px-3 py-1 text-xs font-bold text-foreground">
                   <Mail className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="truncate">{email}</span>

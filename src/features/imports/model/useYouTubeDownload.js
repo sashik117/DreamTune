@@ -9,6 +9,7 @@ import {
   findSpotifyCover,
   findYouTubeResults,
   getAudioUrl,
+  getPreviewAudioUrl,
   getVideoId,
   getYouTubeThumbnail,
   normalizeYouTubeResult,
@@ -25,6 +26,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewFallbackTried, setPreviewFallbackTried] = useState(false);
   const busy = step === 'searching' || step === 'saving' || previewLoading;
 
   const runSearch = useCallback(async (searchQuery) => {
@@ -34,6 +36,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     setResult(null);
     setPreviewUrl('');
     setPreviewLoading(false);
+    setPreviewFallbackTried(false);
     setStep('searching');
 
     try {
@@ -82,24 +85,31 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     setEditArtist(repairMojibake(item.artist || item.uploader || ''));
     setPreviewUrl('');
     setPreviewLoading(false);
+    setPreviewFallbackTried(false);
     setStep('found');
     setError('');
   }, [query]);
 
   const handleSearch = useCallback(async () => runSearch(query), [query, runSearch]);
 
-  const preparePreview = useCallback(async () => {
-    if (!result?.videoId || previewLoading || previewUrl) return previewUrl;
+  const preparePreview = useCallback(async ({ forceServer = false } = {}) => {
+    if (!result?.videoId || previewLoading) return previewUrl;
+    if (previewUrl && !forceServer) return previewUrl;
+    if (forceServer && previewFallbackTried) {
+      setError('Could not play this preview. Try another YouTube result.');
+      return '';
+    }
     setPreviewLoading(true);
     setError('');
 
     try {
-      const fileUrl = await getAudioUrl(result.videoId, { native: false });
+      const fileUrl = await getPreviewAudioUrl(result.videoId, { forceServer });
 
       if (!fileUrl) {
         setError('Could not prepare the preview. Try another YouTube result.');
         return '';
       }
+      if (forceServer) setPreviewFallbackTried(true);
       setPreviewUrl(fileUrl);
       return fileUrl;
     } catch (err) {
@@ -109,7 +119,16 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     } finally {
       setPreviewLoading(false);
     }
-  }, [previewLoading, previewUrl, result?.videoId]);
+  }, [previewFallbackTried, previewLoading, previewUrl, result?.videoId]);
+
+  const handlePreviewError = useCallback(() => {
+    if (!result?.videoId || previewLoading || previewFallbackTried) {
+      setError('Could not play this preview. Try another YouTube result.');
+      return;
+    }
+    setPreviewUrl('');
+    preparePreview({ forceServer: true });
+  }, [preparePreview, previewFallbackTried, previewLoading, result?.videoId]);
 
   const fetchLyrics = useCallback(async (artist, title, songId) => {
     try {
@@ -180,6 +199,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     handleSearch,
     openOnYouTube,
     preparePreview,
+    handlePreviewError,
     previewLoading,
     previewUrl,
     query,

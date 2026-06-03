@@ -14,6 +14,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
     error,
     handleAdd,
     handleSearch,
+    handlePreviewError,
     openOnYouTube,
     preparePreview,
     previewLoading,
@@ -133,6 +134,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
                       const stop = () => audio.pause();
                       window.addEventListener('dreamtune-main-play', stop, { once: true });
                     }}
+                    onError={handlePreviewError}
                   />
                 ) : (
                   <Button type="button" variant="outline" onClick={preparePreview} disabled={previewLoading} className="w-full rounded-2xl border-border">
