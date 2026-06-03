@@ -8,9 +8,6 @@ import http from 'node:http';
 import dns from 'node:dns';
 import multer from 'multer';
 import pg from 'pg';
-import youtubedlExec from 'youtube-dl-exec';
-import ytdl from '@distube/ytdl-core';
-import spotifyUrlInfo from 'spotify-url-info';
 import { WebSocketServer } from 'ws';
 import nodemailer from 'nodemailer';
 import { v2 as cloudinary } from 'cloudinary';
@@ -29,7 +26,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dns.setDefaultResultOrder?.('ipv4first');
 const rootDir = path.resolve(__dirname, '..');
-const youtubedl = process.env.YT_DLP_PATH ? youtubedlExec.create(process.env.YT_DLP_PATH) : youtubedlExec;
 dotenv.config({ path: path.join(rootDir, '.env'), override: true });
 const uploadRoot = path.join(rootDir, 'public', 'uploads');
 const mediaRoot = path.join(rootDir, 'public', 'media');
@@ -60,7 +56,19 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 const upload = multer({ dest: path.join(rootDir, '.tmp_uploads') });
-const spotify = spotifyUrlInfo(fetch);
+let ytdl = null;
+let youtubedl = null;
+let spotify = null;
+if (process.env.MEDIA_INTEGRATION_MODE === 'real') {
+  const [{ default: ytdlModule }, { default: youtubedlExec }, { default: spotifyUrlInfo }] = await Promise.all([
+    import('@distube/ytdl-core'),
+    import('youtube-dl-exec'),
+    import('spotify-url-info'),
+  ]);
+  ytdl = ytdlModule;
+  youtubedl = process.env.YT_DLP_PATH ? youtubedlExec.create(process.env.YT_DLP_PATH) : youtubedlExec;
+  spotify = spotifyUrlInfo(fetch);
+}
 const mailer = SMTP_PASS
   ? nodemailer.createTransport({
     host: SMTP_HOST,
@@ -325,7 +333,7 @@ app.use('/api/users', createUserRouter(featureDependencies));
 app.use(createSocialRouter(featureDependencies));
 app.use('/api/admin', createAdminRouter(featureDependencies));
 app.use(createUploadRouter(featureDependencies));
-app.use(createMediaRouter(featureDependencies));
+app.use(await createMediaRouter(featureDependencies));
 
 app.use((err, _req, res, _next) => {
   console.error(err);

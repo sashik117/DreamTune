@@ -32,6 +32,7 @@ dist-ssr
 .env
 .vite
 .tmp_uploads/
+server/private/
 
 # Android local build artifacts
 android/local.properties

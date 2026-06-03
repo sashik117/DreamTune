@@ -10,9 +10,9 @@ export async function findYouTubeResults(query) {
     const serverResults = data.results?.length ? data.results : data.video_id ? [data] : [];
     if (serverResults.length) return serverResults;
   } catch (error) {
-    console.warn('Server YouTube search failed, trying direct fallback:', error.message || error);
+    console.warn('Server YouTube search failed:', error.message || error);
   }
-  return searchYouTubeDirect(query);
+  return [];
 }
 
 export function getVideoId(item) {
@@ -73,153 +73,14 @@ export async function getAudioUrl(videoId, { native = true } = {}) {
     const data = await media.downloadYouTube(videoId);
     if (data.file_url) return data.file_url;
   } catch (error) {
-    console.warn('Server YouTube download failed, trying direct stream fallback:', error.message || error);
+    console.warn('Server YouTube download failed:', error.message || error);
   }
-  return resolveDirectAudioUrl(videoId);
+  return '';
 }
 
 export async function getPreviewAudioUrl(videoId, { forceServer = false } = {}) {
-  if (!forceServer) {
-    const directUrl = await resolveDirectAudioUrl(videoId);
-    if (directUrl) return directUrl;
-  }
+  void forceServer;
   return getAudioUrl(videoId, { native: false });
-}
-
-async function fetchJson(url, timeout = 9000) {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { accept: 'application/json' },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-async function searchYouTubeDirect(query) {
-  const pipedInstances = [
-    'https://api.piped.private.coffee',
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi-libre.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://pipedapi.syncpundit.io',
-  ];
-  for (const base of pipedInstances) {
-    try {
-      const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
-      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      const results = items
-        .map(item => {
-          const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
-          if (!id) return null;
-          return {
-            title: repairMojibake(item.title || query),
-            artist: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
-            uploader: repairMojibake(item.uploaderName || item.uploader || 'YouTube'),
-            video_id: id,
-            thumbnail: item.thumbnail || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
-            duration: item.duration || null,
-          };
-        })
-        .filter(Boolean)
-        .slice(0, 8);
-      if (results.length) return results;
-    } catch {}
-  }
-
-  const invidiousInstances = [
-    'https://inv.thepixora.com',
-    'https://yt.chocolatemoo53.com',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://yewtu.be',
-  ];
-  for (const base of invidiousInstances) {
-    try {
-      const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-      const results = (Array.isArray(data) ? data : [])
-        .filter(item => item?.type === 'video' && item?.videoId)
-        .map(item => {
-          const thumb =
-            item.videoThumbnails?.find?.(image => image?.quality === 'medium')?.url ||
-            item.videoThumbnails?.[0]?.url ||
-            `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
-          return {
-            title: repairMojibake(item.title || query),
-            artist: repairMojibake(item.author || 'YouTube'),
-            uploader: repairMojibake(item.author || 'YouTube'),
-            video_id: item.videoId,
-            thumbnail: thumb.startsWith('//') ? `https:${thumb}` : thumb,
-            duration: item.lengthSeconds || null,
-          };
-        })
-        .slice(0, 8);
-      if (results.length) return results;
-    } catch {}
-  }
-  try {
-    const data = await fetchJson(`https://yt.lemnoslife.com/search?part=snippet&q=${encodeURIComponent(query)}&type=video`);
-    const results = (data.items || [])
-      .map(item => {
-        const id = item?.id?.videoId || item?.videoId;
-        if (!id) return null;
-        return {
-          title: repairMojibake(item.snippet?.title || query),
-          artist: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
-          uploader: repairMojibake(item.snippet?.channelTitle || 'YouTube'),
-          video_id: id,
-          thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
-          duration: null,
-        };
-      })
-      .filter(Boolean)
-      .slice(0, 8);
-    if (results.length) return results;
-  } catch {}
-  return [];
-}
-
-async function resolveDirectAudioUrl(videoId) {
-  const pipedInstances = [
-    'https://api.piped.private.coffee',
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi-libre.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://pipedapi.syncpundit.io',
-  ];
-  for (const base of pipedInstances) {
-    try {
-      const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
-      const audio = (data.audioStreams || [])
-        .filter(item => item?.url)
-        .sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
-      if (audio?.url) return audio.url;
-    } catch {}
-  }
-
-  const invidiousInstances = [
-    'https://inv.thepixora.com',
-    'https://yt.chocolatemoo53.com',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://yewtu.be',
-  ];
-  for (const base of invidiousInstances) {
-    try {
-      const data = await fetchJson(`${base}/api/v1/videos/${videoId}`, 10000);
-      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
-      const audio = formats
-        .filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio'))
-        .sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
-      if (audio?.url) return audio.url;
-    } catch {}
-  }
-  return '';
 }
 
 export function formatDuration(seconds) {

@@ -33,79 +33,6 @@ export function trackIdentity(track) {
   return `${normalizeTrackText(track?.artist)}::${normalizeTrackText(track?.title)}`;
 }
 
-async function fetchJson(url, timeout = 9000) {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { signal: controller.signal, headers: { accept: 'application/json' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-async function searchYouTubeDirect(query) {
-  const bases = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
-  for (const base of bases) {
-    try {
-      const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
-      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      const found = items.map(item => {
-        const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
-        return id ? { video_id: id, title: item.title, thumbnail: item.thumbnail } : null;
-      }).filter(Boolean).slice(0, 8);
-      if (found.length) return found;
-    } catch {}
-  }
-  const invidious = ['https://inv.thepixora.com', 'https://yt.chocolatemoo53.com', 'https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be'];
-  for (const base of invidious) {
-    try {
-      const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-      const found = (Array.isArray(data) ? data : []).filter(item => item?.type === 'video' && item.videoId).map(item => ({
-        video_id: item.videoId,
-        title: item.title,
-        thumbnail: item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`,
-      })).slice(0, 8);
-      if (found.length) return found;
-    } catch {}
-  }
-  try {
-    const data = await fetchJson(`https://yt.lemnoslife.com/search?part=snippet&q=${encodeURIComponent(query)}&type=video`);
-    const found = (data.items || []).map(item => {
-      const id = item?.id?.videoId || item?.videoId;
-      return id ? {
-        video_id: id,
-        title: item.snippet?.title,
-        thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
-      } : null;
-    }).filter(Boolean).slice(0, 8);
-    if (found.length) return found;
-  } catch {}
-  return [];
-}
-
-async function resolveDirectAudioUrl(videoId) {
-  const bases = ['https://api.piped.private.coffee', 'https://pipedapi.kavin.rocks', 'https://pipedapi-libre.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://pipedapi.syncpundit.io'];
-  for (const base of bases) {
-    try {
-      const data = await fetchJson(`${base}/streams/${videoId}`, 10000);
-      const audio = (data.audioStreams || []).filter(item => item?.url).sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
-      if (audio?.url) return audio.url;
-    } catch {}
-  }
-  const invidious = ['https://inv.thepixora.com', 'https://yt.chocolatemoo53.com', 'https://inv.nadeko.net', 'https://invidious.nerdvpn.de', 'https://yewtu.be'];
-  for (const base of invidious) {
-    try {
-      const data = await fetchJson(`${base}/api/v1/videos/${videoId}`, 10000);
-      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
-      const audio = formats.filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio')).sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
-      if (audio?.url) return audio.url;
-    } catch {}
-  }
-  return '';
-}
-
 async function findYouTubeCandidatesForTrack(track) {
   const baseQuery = `${track.artist || ''} ${track.title || ''}`.trim();
   const queries = Array.from(new Set([
@@ -127,12 +54,6 @@ async function findYouTubeCandidatesForTrack(track) {
       }
     } catch (error) {
       console.warn('YouTube search failed:', query, error);
-      const directResults = await searchYouTubeDirect(query);
-      for (const result of directResults) {
-        if (result?.video_id && !candidates.some(item => item.video_id === result.video_id)) {
-          candidates.push(result);
-        }
-      }
     }
     if (candidates.length >= 6) break;
   }
@@ -162,12 +83,6 @@ export async function getAudioForTrack(track) {
       break;
     } catch (error) {
       console.warn('YouTube candidate failed:', candidate.title || candidate.video_id, error);
-      const directUrl = await resolveDirectAudioUrl(candidate.video_id);
-      if (directUrl) {
-        audio = { file_url: directUrl, cover_url: candidate.thumbnail };
-        result = candidate;
-        break;
-      }
     }
   }
   if (!audio?.file_url && track.preview_url) {

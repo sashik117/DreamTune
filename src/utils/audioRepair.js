@@ -4,69 +4,6 @@ import { isNativeFileUrl } from './audioUrls';
 import { persistAudioFileUrl } from './audioPersistence';
 import { canUseNativeYouTube, downloadYouTubeOnDevice, startYouTubeDownloadQueue } from './nativeYouTube';
 
-async function fetchJson(url, timeout = 9000) {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { accept: 'application/json' },
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-async function searchYouTubeDirect(query) {
-  const pipedInstances = [
-    'https://api.piped.private.coffee',
-    'https://pipedapi.kavin.rocks',
-    'https://pipedapi-libre.kavin.rocks',
-    'https://pipedapi.adminforge.de',
-    'https://pipedapi.syncpundit.io',
-  ];
-
-  for (const base of pipedInstances) {
-    try {
-      const data = await fetchJson(`${base}/search?q=${encodeURIComponent(query)}&filter=videos`);
-      const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
-      const results = items
-        .map(item => {
-          const id = String(item.url || '').match(/[?&]v=([\w-]{11})/)?.[1];
-          return id ? { video_id: id, title: item.title, thumbnail: item.thumbnail } : null;
-        })
-        .filter(Boolean);
-      if (results.length) return results;
-    } catch {}
-  }
-
-  const invidiousInstances = [
-    'https://inv.thepixora.com',
-    'https://yt.chocolatemoo53.com',
-    'https://inv.nadeko.net',
-    'https://invidious.nerdvpn.de',
-    'https://yewtu.be',
-  ];
-
-  for (const base of invidiousInstances) {
-    try {
-      const data = await fetchJson(`${base}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-      const results = (Array.isArray(data) ? data : [])
-        .filter(item => item?.type === 'video' && item?.videoId)
-        .map(item => ({
-          video_id: item.videoId,
-          title: item.title,
-          thumbnail: item.videoThumbnails?.[0]?.url || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`,
-        }));
-      if (results.length) return results;
-    } catch {}
-  }
-
-  return [];
-}
-
 async function findYouTubeCandidates(song) {
   const title = String(song?.title || '').trim();
   const artist = String(song?.artist || '').trim();
@@ -82,26 +19,15 @@ async function findYouTubeCandidates(song) {
 
   const candidates = [];
   for (const query of queries) {
-    let foundForQuery = false;
     try {
       const meta = await media.searchYouTube(query);
       const results = meta?.results?.length ? meta.results : meta?.video_id ? [meta] : [];
       for (const result of results) {
         if (result?.video_id && !candidates.some(item => item.video_id === result.video_id)) {
           candidates.push(result);
-          foundForQuery = true;
         }
       }
     } catch {}
-
-    if (!foundForQuery) {
-      const direct = await searchYouTubeDirect(query);
-      for (const result of direct) {
-        if (result?.video_id && !candidates.some(item => item.video_id === result.video_id)) {
-          candidates.push(result);
-        }
-      }
-    }
 
     if (candidates.length >= 6) break;
   }
