@@ -79,6 +79,9 @@ export async function getAudioUrl(videoId, { native = true } = {}) {
 }
 
 export async function getPreviewAudioUrl(videoId, { forceServer = false } = {}) {
+  const previewProxyUrl = media.getYouTubePreviewUrl?.(videoId);
+  if (!forceServer && previewProxyUrl) return previewProxyUrl;
+
   if (!forceServer) {
     const directUrl = await resolvePreviewStreamUrl(videoId);
     if (directUrl) return directUrl;

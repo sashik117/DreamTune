@@ -109,7 +109,7 @@ export default function ProfileDrawer({
             <div className="mt-auto p-3 border-t border-border">
               <button onClick={isGuest ? signIn : signOut} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-foreground hover:bg-secondary">
                 {isGuest ? <LogIn className="w-5 h-5" /> : <LogOut className="w-5 h-5" />}
-                {isGuest ? 'Sign in' : t('profile.signOut')}
+                {isGuest ? t('profile.signIn') : t('profile.signOut')}
               </button>
             </div>
           </motion.aside>

@@ -332,6 +332,10 @@ export const media = {
   async searchYouTube(query) {
     return request(`/api/youtube/search?q=${encodeURIComponent(query)}`);
   },
+  getYouTubePreviewUrl(videoId) {
+    const cleanId = String(videoId || '').trim();
+    return cleanId ? `${API_URL}/api/youtube/preview/${encodeURIComponent(cleanId)}` : '';
+  },
   async downloadYouTube(videoId) {
     return request('/api/youtube/download', {
       method: 'POST',

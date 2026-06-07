@@ -1,5 +1,6 @@
 import { AlertTriangle, ChevronDown, Info, LifeBuoy, LogIn, LogOut, Shield, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 function SettingCard({ id, icon: Icon, title, description, children, danger = false, settingOpen, toggleSetting }) {
   return (
@@ -33,6 +34,7 @@ export default function ProfileSettingsSection({
   onAskDelete,
   currentUser,
 }) {
+  const { t } = useTranslation();
   const cardProps = { settingOpen, toggleSetting };
   const isGuest = !currentUser?.id;
 
@@ -91,7 +93,7 @@ export default function ProfileSettingsSection({
         <div className="space-y-2">
           <Button variant="outline" className="w-full rounded-2xl border-border justify-start" onClick={isGuest ? onSignIn : onSignOut}>
             {isGuest ? <LogIn className="w-4 h-4 mr-2" /> : <LogOut className="w-4 h-4 mr-2" />}
-            {isGuest ? 'Sign in' : 'Sign out'}
+            {isGuest ? t('profile.signIn') : t('profile.signOut')}
           </Button>
           {!isGuest && (confirmDelete ? (
             <div className="rounded-2xl bg-destructive/10 border border-destructive/30 p-3 space-y-3">
