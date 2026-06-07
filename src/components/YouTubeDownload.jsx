@@ -17,6 +17,7 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
     handlePreviewError,
     openOnYouTube,
     preparePreview,
+    previewEmbedFallback,
     previewLoading,
     previewUrl,
     query,
@@ -123,7 +124,17 @@ export default function YouTubeDownload({ prefillQuery = '', onSongAdded, onClos
                 <p className="text-xs font-bold text-foreground">Preview before adding</p>
               </div>
               <div className="p-3 space-y-3">
-                {previewUrl ? (
+                {previewEmbedFallback ? (
+                  <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
+                    <iframe
+                      title="YouTube preview"
+                      src={`https://www.youtube.com/embed/${encodeURIComponent(result.videoId)}?rel=0&modestbranding=1`}
+                      className="h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : previewUrl ? (
                   <audio
                     src={previewUrl}
                     controls

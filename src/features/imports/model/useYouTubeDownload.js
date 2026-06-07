@@ -25,6 +25,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
   const [editArtist, setEditArtist] = useState('');
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
+  const [previewEmbedFallback, setPreviewEmbedFallback] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewFallbackTried, setPreviewFallbackTried] = useState(false);
   const busy = step === 'searching' || step === 'saving' || previewLoading;
@@ -35,6 +36,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     setError('');
     setResult(null);
     setPreviewUrl('');
+    setPreviewEmbedFallback(false);
     setPreviewLoading(false);
     setPreviewFallbackTried(false);
     setStep('searching');
@@ -84,6 +86,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     setEditTitle(repairMojibake(item.title || query));
     setEditArtist(repairMojibake(item.artist || item.uploader || ''));
     setPreviewUrl('');
+    setPreviewEmbedFallback(false);
     setPreviewLoading(false);
     setPreviewFallbackTried(false);
     setStep('found');
@@ -100,6 +103,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
       return '';
     }
     setPreviewLoading(true);
+    setPreviewEmbedFallback(false);
     setError('');
 
     try {
@@ -123,12 +127,16 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
 
   const handlePreviewError = useCallback(() => {
     if (!result?.videoId || previewLoading || previewFallbackTried) {
-      setError('Could not play this preview. Try another YouTube result.');
+      setPreviewUrl('');
+      setPreviewEmbedFallback(Boolean(result?.videoId));
+      setError('');
       return;
     }
     setPreviewUrl('');
-    preparePreview({ forceServer: true });
-  }, [preparePreview, previewFallbackTried, previewLoading, result?.videoId]);
+    setPreviewEmbedFallback(true);
+    setPreviewFallbackTried(true);
+    setError('');
+  }, [previewFallbackTried, previewLoading, result?.videoId]);
 
   const fetchLyrics = useCallback(async (artist, title, songId) => {
     try {
@@ -201,6 +209,7 @@ export function useYouTubeDownload({ prefillQuery = '', onSongAdded, onClose }) 
     preparePreview,
     handlePreviewError,
     previewLoading,
+    previewEmbedFallback,
     previewUrl,
     query,
     result,
