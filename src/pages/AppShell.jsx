@@ -413,6 +413,7 @@ export default function AppShell() {
         playlists={playlists}
         profileAvatar={profileAvatar}
         profileNickname={profileNickname}
+        currentUser={currentUser}
         notificationCount={friendRequestCount}
         themeMode={themeMode}
         themeAccent={themeAccent}

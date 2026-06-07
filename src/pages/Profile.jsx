@@ -447,6 +447,8 @@ export default function Profile({
           settingOpen={settingOpen}
           toggleSetting={toggleSetting}
           onOpenSupport={openSupport}
+          currentUser={currentUser}
+          onSignIn={() => navigate('/auth', { replace: false })}
           onSignOut={async () => {
             await onSignOut?.();
             toast.success('Signed out');

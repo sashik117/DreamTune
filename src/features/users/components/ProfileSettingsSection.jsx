@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronDown, Info, LifeBuoy, LogOut, Shield, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Info, LifeBuoy, LogIn, LogOut, Shield, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 function SettingCard({ id, icon: Icon, title, description, children, danger = false, settingOpen, toggleSetting }) {
@@ -27,11 +27,14 @@ export default function ProfileSettingsSection({
   toggleSetting,
   onOpenSupport,
   onSignOut,
+  onSignIn,
   onDeleteProfile,
   onCancelDelete,
   onAskDelete,
+  currentUser,
 }) {
   const cardProps = { settingOpen, toggleSetting };
+  const isGuest = !currentUser?.id;
 
   return (
     <div className="space-y-3">
@@ -82,14 +85,15 @@ export default function ProfileSettingsSection({
         id="account"
         icon={AlertTriangle}
         title="Account"
-        description="Sign out or delete your account if you no longer want to keep data here."
+        description={isGuest ? 'Sign in to load your saved tracks, playlists, and account settings.' : 'Sign out or delete your account if you no longer want to keep data here.'}
         danger
       >
         <div className="space-y-2">
-          <Button variant="outline" className="w-full rounded-2xl border-border justify-start" onClick={onSignOut}>
-            <LogOut className="w-4 h-4 mr-2" /> Sign out
+          <Button variant="outline" className="w-full rounded-2xl border-border justify-start" onClick={isGuest ? onSignIn : onSignOut}>
+            {isGuest ? <LogIn className="w-4 h-4 mr-2" /> : <LogOut className="w-4 h-4 mr-2" />}
+            {isGuest ? 'Sign in' : 'Sign out'}
           </Button>
-          {confirmDelete ? (
+          {!isGuest && (confirmDelete ? (
             <div className="rounded-2xl bg-destructive/10 border border-destructive/30 p-3 space-y-3">
               <p className="text-sm font-bold text-foreground">Are you sure? This will delete all your data forever.</p>
               <div className="flex gap-2">
@@ -103,7 +107,7 @@ export default function ProfileSettingsSection({
             <Button variant="destructive" className="w-full rounded-2xl justify-start" onClick={onAskDelete}>
               <Trash2 className="w-4 h-4 mr-2" /> Delete account
             </Button>
-          )}
+          ))}
         </div>
       </SettingCard>
     </div>

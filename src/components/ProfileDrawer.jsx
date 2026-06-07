@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, ChevronRight, Languages, LogOut, Moon, Palette, Settings, UserCircle, Users, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { BarChart3, ChevronRight, Languages, LogIn, LogOut, Moon, Palette, Settings, UserCircle, Users, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -11,12 +11,15 @@ export default function ProfileDrawer({
   playlists = [],
   profileAvatar = '',
   profileNickname = 'Guest',
+  currentUser = null,
   notificationCount = 0,
   onSignOut,
   onNavigate,
 }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
+  const isGuest = !currentUser?.id;
   const publicPlaylists = playlists.filter(playlist => playlist.is_public);
   const menu = [
     { path: '/profile', labelKey: 'profile.title', icon: UserCircle },
@@ -36,6 +39,11 @@ export default function ProfileDrawer({
     } catch (err) {
       toast.error(err.message || 'Could not sign out');
     }
+  };
+
+  const signIn = () => {
+    onOpenChange(false);
+    navigate('/auth', { replace: false });
   };
 
   return (
@@ -99,9 +107,9 @@ export default function ProfileDrawer({
             </nav>
 
             <div className="mt-auto p-3 border-t border-border">
-              <button onClick={signOut} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-foreground hover:bg-secondary">
-                <LogOut className="w-5 h-5" />
-                {t('profile.signOut')}
+              <button onClick={isGuest ? signIn : signOut} className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-foreground hover:bg-secondary">
+                {isGuest ? <LogIn className="w-5 h-5" /> : <LogOut className="w-5 h-5" />}
+                {isGuest ? 'Sign in' : t('profile.signOut')}
               </button>
             </div>
           </motion.aside>
