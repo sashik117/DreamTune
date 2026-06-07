@@ -8,6 +8,28 @@ import { buildLibrarySyncItem, mergeTracksWithOfflineMeta } from '../../tracks/m
 import { readCachedUser } from '../../users/model/sessionStorage';
 import { toast } from 'sonner';
 
+const LIBRARY_CACHE_KEY = 'dreamtune-library-cache-v1';
+
+function libraryCacheKey() {
+  const user = readCachedUser();
+  return user?.id ? `${LIBRARY_CACHE_KEY}:${user.id}` : LIBRARY_CACHE_KEY;
+}
+
+function readCachedLibrary() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(libraryCacheKey()) || '[]');
+    return Array.isArray(cached) ? cached : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCachedLibrary(songs) {
+  try {
+    if (Array.isArray(songs)) localStorage.setItem(libraryCacheKey(), JSON.stringify(songs));
+  } catch {}
+}
+
 export function useLibraryLoader({ isNativeApp, setSongs, setPlaylists, setLoading, applyCurrentUser, setCurrentUser }) {
   const staleAudioRepairStartedRef = useRef(false);
   const libraryOfflineSyncStartedRef = useRef(false);
@@ -66,7 +88,8 @@ export function useLibraryLoader({ isNativeApp, setSongs, setPlaylists, setLoadi
     if (getAuthToken() && cachedUser?.id) applyCurrentUser(cachedUser);
     else setCurrentUser(null);
     const offlineSongs = await getDownloadedSongsMeta();
-    setSongs(offlineSongs);
+    const cachedLibrary = readCachedLibrary();
+    setSongs(cachedLibrary.length ? mergeTracksWithOfflineMeta(cachedLibrary, offlineSongs) : offlineSongs);
     setPlaylists(readOfflinePlaylists());
     setLoading(false);
   }, [applyCurrentUser, setCurrentUser, setLoading, setPlaylists, setSongs]);
@@ -78,14 +101,22 @@ export function useLibraryLoader({ isNativeApp, setSongs, setPlaylists, setLoadi
         getDownloadedSongsMeta().catch(() => []),
       ]);
       const merged = mergeTracksWithOfflineMeta(data, offlineSongs);
+      writeCachedLibrary(merged);
       setSongs(merged);
       scheduleStaleAudioRepair(merged);
       scheduleLibraryOfflineSync(merged);
     } catch (err) {
       console.error('Failed to load songs:', err);
       const offlineSongs = await getDownloadedSongsMeta();
+      const cachedLibrary = readCachedLibrary();
       if (offlineSongs.length) {
-        setSongs(offlineSongs);
+        setSongs(prev => {
+          if (prev?.length) return mergeTracksWithOfflineMeta(prev, offlineSongs);
+          if (cachedLibrary.length) return mergeTracksWithOfflineMeta(cachedLibrary, offlineSongs);
+          return offlineSongs;
+        });
+      } else if (cachedLibrary.length) {
+        setSongs(prev => prev?.length ? prev : cachedLibrary);
       } else if (navigator.onLine) {
         toast.error('Could not load tracks from your account. Check your connection and try again.');
       }

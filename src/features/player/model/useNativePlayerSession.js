@@ -69,6 +69,7 @@ export function useNativePlayerSession({
   useEffect(() => {
     const song = songs.find(item => item.id === currentSongId) || queue.find(item => item.id === currentSongId);
     if (!song) {
+      if (currentSongId) return;
       sessionRef.current = { songId: null, title: '', artist: '', coverUrl: '', isPlaying: null, lastUpdate: 0 };
       clearNativeMediaSession();
       return;

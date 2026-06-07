@@ -22,6 +22,7 @@ export default function FullPlayer({
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [showInlineQueue, setShowInlineQueue] = useState(false);
   const queueScrollRef = useRef(null);
+  const wasInlineQueueOpenRef = useRef(false);
   const currentQueueIndex = currentSong ? (queue?.findIndex(item => item.id === currentSong.id) ?? -1) : -1;
   const smallCoverRadius = coverShape === 'circle' ? 'rounded-full' : 'rounded-xl';
 
@@ -35,7 +36,9 @@ export default function FullPlayer({
   }, [duration, onSeek]);
 
   useEffect(() => {
-    if (!showInlineQueue || !currentSong) return undefined;
+    const wasOpen = wasInlineQueueOpenRef.current;
+    wasInlineQueueOpenRef.current = showInlineQueue;
+    if (!showInlineQueue || wasOpen || !currentSong) return undefined;
     const timer = window.setTimeout(() => {
       const container = queueScrollRef.current;
       const active = container?.querySelector?.('[data-current="true"]');
@@ -44,7 +47,7 @@ export default function FullPlayer({
       container.scrollTo({ top: Math.max(0, top), behavior: 'auto' });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [showInlineQueue, currentSong?.id, currentQueueIndex, queue?.length]);
+  }, [showInlineQueue, currentSong?.id]);
 
   if (!currentSong) return null;
 

@@ -24,8 +24,9 @@ export function serializeSong(song) {
 export function dedupeSongs(items = []) {
   const seen = new Set();
   return items.filter(item => {
-    if (!item?.id || seen.has(item.id)) return false;
-    seen.add(item.id);
+    const id = String(item?.id || '').trim();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
     return true;
   });
 }

@@ -5,7 +5,7 @@ import { MediaService as PublicMockMediaService } from './media.service.js';
 import { createMediaAuthGuard, createMediaRateLimit } from './media.security.js';
 
 async function resolveMediaService() {
-  if (process.env.MEDIA_INTEGRATION_MODE !== 'real') {
+  if (process.env.MEDIA_INTEGRATION_MODE === 'mock') {
     return PublicMockMediaService;
   }
 

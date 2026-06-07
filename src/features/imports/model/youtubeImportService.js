@@ -79,8 +79,70 @@ export async function getAudioUrl(videoId, { native = true } = {}) {
 }
 
 export async function getPreviewAudioUrl(videoId, { forceServer = false } = {}) {
-  void forceServer;
-  return getAudioUrl(videoId, { native: false });
+  if (!forceServer) {
+    const directUrl = await resolvePreviewStreamUrl(videoId);
+    if (directUrl) return directUrl;
+  }
+  return getAudioUrl(videoId, { native: !forceServer });
+}
+
+async function fetchJson(url, timeout = 9000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { accept: 'application/json' },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function resolvePreviewStreamUrl(videoId) {
+  const id = String(videoId || '').trim();
+  if (!/^[\w-]{11}$/.test(id)) return '';
+
+  const pipedInstances = [
+    'https://api.piped.private.coffee',
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi-libre.kavin.rocks',
+    'https://pipedapi.adminforge.de',
+    'https://pipedapi.syncpundit.io',
+  ];
+
+  for (const base of pipedInstances) {
+    try {
+      const data = await fetchJson(`${base}/streams/${id}`, 9000);
+      const audio = (data.audioStreams || [])
+        .filter(item => item?.url)
+        .sort((a, b) => Number(b.bitrate || b.quality || 0) - Number(a.bitrate || a.quality || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+
+  const invidiousInstances = [
+    'https://inv.thepixora.com',
+    'https://yt.chocolatemoo53.com',
+    'https://inv.nadeko.net',
+    'https://invidious.nerdvpn.de',
+    'https://yewtu.be',
+  ];
+
+  for (const base of invidiousInstances) {
+    try {
+      const data = await fetchJson(`${base}/api/v1/videos/${id}`, 9000);
+      const formats = [...(data.adaptiveFormats || []), ...(data.formatStreams || [])];
+      const audio = formats
+        .filter(item => item?.url && String(item.type || item.mimeType || '').toLowerCase().includes('audio'))
+        .sort((a, b) => Number(b.bitrate || 0) - Number(a.bitrate || 0))[0];
+      if (audio?.url) return audio.url;
+    } catch {}
+  }
+
+  return '';
 }
 
 export function formatDuration(seconds) {

@@ -40,7 +40,8 @@ function withTimeout(promise, ms, message = 'Timeout') {
 }
 
 export default function AppShell() {
-  const isNativeApp = isNativePlatform();
+  const isLocalPreview = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const isNativeApp = isNativePlatform() || isLocalPreview;
   const [loading, setLoading]           = useState(true);
   const { songs, setSongs, playlists, setPlaylists, songsRef, playlistsRef } = useLibraryState({ loading });
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);

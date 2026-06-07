@@ -4,8 +4,14 @@ import App from '@/App.jsx'
 import '@/index.css'
 import '@/i18n'
 
-if (window.Capacitor?.isNativePlatform?.()) {
+const isLocalPreview = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+if (window.Capacitor?.isNativePlatform?.() || isLocalPreview) {
   document.documentElement.classList.add('capacitor-native');
+}
+
+if (isLocalPreview) {
+  document.documentElement.classList.add('dreamtune-local-preview');
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

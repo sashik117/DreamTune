@@ -24,6 +24,7 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const lastSavedPlaybackRef = useRef(0);
   const playbackRequestRef = useRef({ id: 0, shouldPlay: false });
   const lastAudioErrorToastRef = useRef(0);
+  const lastCurrentSongRef = useRef(null);
 
   const [currentSongId, setCurrentSongId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -226,10 +227,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
 
     const prepareAndPlay = async (targetSong) => {
-      const sourceUrl = targetSong.file_url || targetSong.offline_file_url;
+      const sourceUrl = targetSong.offline_file_url || targetSong.file_url;
       const playableUrl = resolvePlayableAudioUrl(sourceUrl);
       const cached = await getCachedAudio(sourceUrl);
       const src = cached || playableUrl;
+      if (!src) throw new Error('Audio source is empty');
       loadingAudioRef.current = true;
 
       // Only change src if different to avoid reload
@@ -276,9 +278,11 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       loadingAudioRef.current = false;
       console.warn('Audio playback failed:', { fileUrl: activeSong.file_url, error: e });
 
+      const hasOfflineSource = Boolean(activeSong?.offline_file_url || isNativeFileUrl(activeSong?.file_url));
       const canTryRepair = Boolean(
         navigator.onLine &&
         activeSong?.id &&
+        !hasOfflineSource &&
         !isNativeFileUrl(activeSong.file_url) &&
         !isNativeFileUrl(activeSong.offline_file_url) &&
         !repairAttemptsRef.current.has(activeSong.id)
@@ -415,7 +419,13 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
   const playNext = useCallback(() => {
     if (!queue.length) return;
     const idx = queue.findIndex(s => s.id === currentSongId);
-    const nextIdx = (idx + 1) % queue.length;
+    if (queue.length <= 1 || idx < 0 || idx >= queue.length - 1) {
+      playbackRequestRef.current.shouldPlay = false;
+      audioRef.current.pause();
+      setIsPlaying(false);
+      return;
+    }
+    const nextIdx = idx + 1;
     loadAndPlay(queue[nextIdx]);
   }, [queue, currentSongId, loadAndPlay]);
 
@@ -425,7 +435,8 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     const { start } = getTrimBounds(song);
     if (audioRef.current.currentTime - start > 3) { audioRef.current.currentTime = start; return; }
     const idx = queue.findIndex(s => s.id === currentSongId);
-    loadAndPlay(queue[(idx - 1 + queue.length) % queue.length]);
+    if (idx <= 0) return;
+    loadAndPlay(queue[idx - 1]);
   }, [queue, currentSongId, loadAndPlay, songs, getTrimBounds]);
 
   // Queue management
@@ -437,8 +448,9 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     setQueue(prev => {
       const idx = prev.findIndex(s => s.id === currentSongId);
       const filtered = prev.filter(s => s.id !== song.id);
-      const insertAt = idx >= 0 ? idx + 1 : 0;
-      return [...filtered.slice(0, insertAt), song, ...filtered.slice(insertAt)];
+      const adjustedIdx = filtered.findIndex(s => s.id === currentSongId);
+      const insertAt = adjustedIdx >= 0 ? adjustedIdx + 1 : Math.max(0, idx);
+      return dedupeSongs([...filtered.slice(0, insertAt), song, ...filtered.slice(insertAt)]);
     });
   }, [currentSongId]);
 
@@ -449,16 +461,16 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
       if (!isPlaying) resumeCurrentAudio();
       return;
     }
-    setQueue(prev => prev.some(item => item.id === song.id) ? prev : [...prev, song]);
+    setQueue(prev => dedupeSongs(prev.some(item => item.id === song.id) ? prev : [...prev, song]));
     loadAndPlay(song);
   }, [currentSongId, isPlaying, loadAndPlay, resumeCurrentAudio]);
 
   const removeFromQueue = useCallback((songId) => {
-    setQueue(prev => prev.filter(s => s.id !== songId));
+    setQueue(prev => dedupeSongs(prev.filter(s => s.id !== songId)));
   }, []);
 
   const reorderQueue = useCallback((newQueue) => {
-    setQueue(newQueue);
+    setQueue(dedupeSongs(newQueue));
   }, []);
 
   const playPlaylist = useCallback((playlistSongs, { shuffle: shouldShuffle = false, startSongId = null } = {}) => {
@@ -594,8 +606,14 @@ export default function useAudioPlayer(songs, visualPulseEnabled = false) {
     setIsPlaying,
   });
 
+  const liveCurrentSong = songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId) || null;
+
+  useEffect(() => {
+    if (liveCurrentSong) lastCurrentSongRef.current = liveCurrentSong;
+  }, [liveCurrentSong]);
+
   return {
-    currentSong: songs.find(s => s.id === currentSongId) || queue.find(s => s.id === currentSongId) || null,
+    currentSong: liveCurrentSong || (currentSongId ? lastCurrentSongRef.current : null),
     isPlaying, progress, currentTime, duration, volume, shuffle, repeat,
     analyser: analyserRef.current,
     bassLevel, voiceLevel, sleepRemaining, sleepDimming,

@@ -47,7 +47,7 @@ export default function PlayerQueueSheet({
                 <Reorder.Group axis="y" values={queue} onReorder={onQueueReorder || (() => {})} className="space-y-1">
                   {queue.map((song, index) => (
                     <QueueTrackItem
-                      key={`${song.id}-${index}`}
+                      key={song.id}
                       song={song}
                       index={index}
                       currentSong={currentSong}

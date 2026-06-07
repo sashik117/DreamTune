@@ -59,7 +59,7 @@ const upload = multer({ dest: path.join(rootDir, '.tmp_uploads') });
 let ytdl = null;
 let youtubedl = null;
 let spotify = null;
-if (process.env.MEDIA_INTEGRATION_MODE === 'real') {
+if (process.env.MEDIA_INTEGRATION_MODE !== 'mock') {
   const [{ default: ytdlModule }, { default: youtubedlExec }, { default: spotifyUrlInfo }] = await Promise.all([
     import('@distube/ytdl-core'),
     import('youtube-dl-exec'),

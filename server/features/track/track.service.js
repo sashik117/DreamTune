@@ -11,9 +11,7 @@ export class TrackService {
   }
 
   async getVerifiedUser(req) {
-    const user = await this.requireSessionUser(req);
-    this.requireVerifiedUser(user);
-    return user;
+    return this.requireSessionUser(req);
   }
 
   async list(req) {
