@@ -4,7 +4,7 @@ import { ChevronLeft, Music } from 'lucide-react';
 import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 
-export default function AlbumDetail({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs }) {
+export default function AlbumDetail({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs, onExportSong }) {
   const { id } = useParams();
   const albumId = decodeURIComponent(id);
 
@@ -61,6 +61,7 @@ export default function AlbumDetail({ songs, currentSongId, isPlaying, onPlay, o
             onToggleFavorite={onToggleFavorite}
             onDelete={onDelete}
             isCached={cachedSongs?.has(song.id)}
+            onExport={onExportSong}
           />
         ))}
       </motion.div>

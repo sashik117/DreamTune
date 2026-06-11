@@ -1,4 +1,4 @@
-import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, ListMinus, CheckSquare, Square } from 'lucide-react';
+import { Play, Pause, MoreVertical, Trash2, WifiOff, Pencil, ListEnd, ListStart, ListPlus, ListMinus, CheckSquare, Square, Download } from 'lucide-react';
 import CoverArt from './CoverArt';
 import FavoriteButton from './FavoriteButton';
 import {
@@ -22,6 +22,7 @@ export default function SongCard({
   onEdit,
   onAddToQueue,
   onPlayNext,
+  onExport,
   onRemoveFromPlaylist,
   staggerIndex,
   playlists = [],
@@ -154,6 +155,11 @@ export default function SongCard({
               {onAddToQueue && (
                 <DropdownMenuItem onClick={() => { onAddToQueue(song); toast.success('Added to queue'); }} className="rounded-xl">
                   <ListEnd className="w-4 h-4 mr-2" /> Add to queue
+                </DropdownMenuItem>
+              )}
+              {onExport && (
+                <DropdownMenuItem onClick={() => onExport(song)} className="rounded-xl">
+                  <Download className="w-4 h-4 mr-2" /> Download to phone
                 </DropdownMenuItem>
               )}
               {onRemoveFromPlaylist && (

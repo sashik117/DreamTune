@@ -9,7 +9,7 @@ const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
 ];
 
-export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs }) {
+export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs, onExportSong }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('title');
 
@@ -85,6 +85,7 @@ export default function SearchPage({ songs, currentSongId, isPlaying, onPlay, on
             onToggleFavorite={onToggleFavorite}
             onDelete={onDelete}
             isCached={cachedSongs?.has(song.id)}
+            onExport={onExportSong}
           />
         ))}
       </div>

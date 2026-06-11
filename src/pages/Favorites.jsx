@@ -2,7 +2,7 @@ import SongCard from '../components/SongCard';
 import { Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function Favorites({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs, onEdit, onAddToQueue, onPlayNext }) {
+export default function Favorites({ songs, currentSongId, isPlaying, onPlay, onToggleFavorite, onDelete, cachedSongs, onEdit, onAddToQueue, onPlayNext, onExportSong }) {
   const favoriteSongs = songs.filter(s => s.is_favorite);
 
   return (
@@ -36,6 +36,7 @@ export default function Favorites({ songs, currentSongId, isPlaying, onPlay, onT
               onEdit={onEdit}
               onAddToQueue={onAddToQueue}
               onPlayNext={onPlayNext}
+              onExport={onExportSong}
             />
           ))}
         </motion.div>

@@ -1,5 +1,5 @@
 import SongCard from '../components/SongCard';
-import { Music, User, Search, ArrowUpDown, CheckSquare, Trash2, ListPlus, X, Shuffle, Square } from 'lucide-react';
+import { Music, User, Search, ArrowUpDown, CheckSquare, Trash2, ListPlus, X, Shuffle, Square, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,8 @@ export default function Library({
   onAddToQueue,
   onPlayNext,
   onAddSongsToPlaylist,
+  onExportSong,
+  onExportSongs,
   onPlayPlaylist,
 }) {
   const {
@@ -134,6 +136,16 @@ export default function Library({
               size="icon"
               variant="outline"
               disabled={!selectedCount}
+              onClick={() => onExportSongs?.(selectedIds)}
+              className="rounded-2xl border-border"
+              aria-label="Download selected to phone"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              disabled={!selectedCount}
               onClick={deleteSelected}
               className="rounded-2xl border-border text-destructive"
               aria-label="Delete"
@@ -200,6 +212,7 @@ export default function Library({
                       onEdit={onEdit}
                       onAddToQueue={onAddToQueue}
                       onPlayNext={onPlayNext}
+                      onExport={onExportSong}
                       playlists={playlists}
                       onAddSongsToPlaylist={onAddSongsToPlaylist}
                       selectionMode={selectionMode}

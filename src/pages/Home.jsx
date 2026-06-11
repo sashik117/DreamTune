@@ -45,6 +45,7 @@ export default function Home({
   onEdit,
   onAddToQueue,
   onPlayNext,
+  onExportSong,
   onAddSongsToPlaylist,
 }) {
   const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
@@ -118,6 +119,7 @@ export default function Home({
               onEdit={onEdit}
               onAddToQueue={onAddToQueue}
               onPlayNext={onPlayNext}
+              onExport={onExportSong}
               playlists={playlists}
               onAddSongsToPlaylist={onAddSongsToPlaylist}
             />

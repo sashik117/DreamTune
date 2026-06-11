@@ -20,6 +20,7 @@ export default function PlaylistDetail({
   onEdit,
   onAddToQueue,
   onPlayNext,
+  onExportSong,
   onPlayPlaylist,
 }) {
   const { id } = useParams();
@@ -282,6 +283,7 @@ export default function PlaylistDetail({
                 onEdit={onEdit}
                 onAddToQueue={onAddToQueue}
                 onPlayNext={onPlayNext}
+                onExport={onExportSong}
                 hidePlaylistActions
               />
             ))}

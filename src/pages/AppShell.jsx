@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { auth, getAuthToken, hydrateAuthToken, setAuthToken, social } from '@/api/SupabaseClient';
 import useAudioPlayer from '../hooks/useAudioPlayer';
 import MiniPlayer from '../components/player/MiniPlayer';
@@ -24,6 +25,7 @@ import { useProfileSession } from '../features/users/model/useProfileSession';
 import { useSocialNotificationsRealtime } from '../features/users/model/useSocialNotificationsRealtime';
 import { isNativePlatform } from '../features/theme/model/themePreferences';
 import { useThemeSettings } from '../features/theme/model/useThemeSettings';
+import { exportSongToDevice, exportSongsToDevice } from '../utils/nativeFileExport';
 
 function withTimeout(promise, ms, message = 'Timeout') {
   let timeout = null;
@@ -272,6 +274,36 @@ export default function AppShell() {
     if (player.currentSong) handleToggleFavorite(player.currentSong, forcedFavorite);
   }, [player.currentSong, handleToggleFavorite]);
 
+  const handleExportSong = useCallback(async (song) => {
+    if (!song) return;
+    const label = `${song.artist ? `${song.artist} - ` : ''}${song.title || 'DreamTune track'}`;
+    const toastId = toast.loading(`Saving to phone: ${label}`);
+    try {
+      const result = await exportSongToDevice(song);
+      toast.success(result?.trimmed ? 'Trimmed song saved to Music/DreamTune' : 'Song saved to Music/DreamTune', { id: toastId });
+    } catch (error) {
+      console.error('Song export failed:', error);
+      toast.error(error?.message || 'Could not save song to phone', { id: toastId });
+    }
+  }, []);
+
+  const handleExportSongs = useCallback(async (songIds) => {
+    const idSet = new Set(songIds || []);
+    const selectedSongs = songs.filter(song => idSet.has(song.id));
+    if (!selectedSongs.length) return;
+
+    const toastId = toast.loading(`Saving ${selectedSongs.length} songs to phone...`);
+    const result = await exportSongsToDevice(selectedSongs, ({ done, failed, total }) => {
+      toast.loading(`Saving to phone: ${done + failed}/${total}`, { id: toastId });
+    });
+
+    if (result.failed) {
+      toast.error(`Saved ${result.done}, failed ${result.failed}`, { id: toastId });
+    } else {
+      toast.success(`${result.done} songs saved to Music/DreamTune`, { id: toastId });
+    }
+  }, [songs]);
+
   if (loading) {
     return <AppLoadingScreen visible={showLoadingScreen} />;
   }
@@ -298,6 +330,8 @@ export default function AppShell() {
     onPlayNext: player.playNextInQueue,
     onPlayPlaylist: player.playPlaylist,
     onAddSongsToPlaylist: handleAddSongsToPlaylist,
+    onExportSong: handleExportSong,
+    onExportSongs: handleExportSongs,
     themeMode,
     themeAccent,
     themeBackground,
