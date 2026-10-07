@@ -58,6 +58,10 @@ export class MediaService {
     throw createError('Media download is disabled in the public demo build.', 403);
   }
 
+  async previewYouTube() {
+    throw createError('Media preview is disabled in the public demo build.', 403);
+  }
+
   async spotifyPlaylist(req) {
     const url = normalizeQuery(req.query.url);
     if (!url) throw createError('Spotify playlist URL is required', 400);

@@ -1,6 +1,7 @@
 export class MediaController {
-  constructor(mediaService) {
+  constructor(mediaService, exportService) {
     this.mediaService = mediaService;
+    this.exportService = exportService;
   }
 
   globalChart = async (req, res) => {
@@ -13,6 +14,10 @@ export class MediaController {
 
   downloadYouTube = async (req, res) => {
     res.json(await this.mediaService.downloadYouTube(req));
+  };
+
+  previewYouTube = async (req, res) => {
+    await this.mediaService.previewYouTube(req, res);
   };
 
   spotifyPlaylist = async (req, res) => {
@@ -29,6 +34,10 @@ export class MediaController {
 
   spotifyChart = async (req, res) => {
     res.json(await this.mediaService.spotifyChart(req));
+  };
+
+  exportMp3 = async (req, res) => {
+    await this.exportService.exportMp3(req, res);
   };
 
   lyrics = async (req, res) => {

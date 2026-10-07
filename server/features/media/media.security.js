@@ -40,6 +40,22 @@ export function createMediaRateLimit({ name, limit = DEFAULT_LIMIT, windowMs = D
   };
 }
 
+export function requireLocalhostExport(req, _res, next) {
+  const host = String(req.hostname || '').toLowerCase();
+  const remote = String(req.socket?.remoteAddress || '');
+  const localHost = host === 'localhost' || host === '127.0.0.1';
+  const localRemote = remote === '127.0.0.1'
+    || remote === '::1'
+    || remote === '::ffff:127.0.0.1';
+  if (!localHost || !localRemote) {
+    const err = new Error('MP3 export is only available on localhost');
+    err.status = 403;
+    next(err);
+    return;
+  }
+  next();
+}
+
 export function createMediaAuthGuard({ requireSessionUser }) {
   return async (req, _res, next) => {
     try {

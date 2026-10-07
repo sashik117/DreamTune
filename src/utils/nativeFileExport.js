@@ -1,10 +1,18 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
+import { getAuthToken } from '@/api/SupabaseClient';
 import { resolvePlayableAudioUrl } from './audioUrls';
 
 const NativeFileExport = registerPlugin('NativeFileExport');
 
+const LOCAL_API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+
 function isAndroidApp() {
   return Capacitor.isNativePlatform?.() && Capacitor.getPlatform?.() === 'android';
+}
+
+function isLocalWebsite() {
+  if (typeof window === 'undefined' || isAndroidApp()) return false;
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname);
 }
 
 function cleanFilePart(value, fallback) {
@@ -46,9 +54,58 @@ function hasTrim(song) {
   return trimEnd > trimStart + 0.05 && (!duration || trimEnd < duration - 0.25);
 }
 
+async function saveBlob(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+}
+
+async function readErrorMessage(response) {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await response.json().catch(() => null);
+    return data?.error || data?.message || '';
+  }
+  return '';
+}
+
+async function browserDownloadMp3(song, sourceUrl) {
+  const artist = cleanFilePart(song?.artist, '');
+  const title = cleanFilePart(song?.title, 'DreamTune track');
+  const fileName = `${artist ? `${artist} - ` : ''}${title}.mp3`;
+  const token = getAuthToken();
+  const response = await fetch(`${LOCAL_API_URL}/api/export/mp3`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      sourceUrl,
+      title: song?.title || title,
+      artist: song?.artist || artist,
+      fileName,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response) || 'Could not download MP3');
+  }
+  await saveBlob(await response.blob(), fileName);
+  return { file_name: fileName, trimmed: false };
+}
+
 async function browserDownload(song, sourceUrl) {
   if (hasTrim(song)) {
     throw new Error('Trimmed export is available in the Android app.');
+  }
+
+  if (isLocalWebsite()) {
+    return browserDownloadMp3(song, sourceUrl);
   }
 
   const playableUrl = resolvePlayableAudioUrl(sourceUrl);
@@ -59,14 +116,7 @@ async function browserDownload(song, sourceUrl) {
   const artist = cleanFilePart(song?.artist, '');
   const title = cleanFilePart(song?.title, 'DreamTune track');
   const fileName = `${artist ? `${artist} - ` : ''}${title}.${extensionFromUrl(playableUrl)}`;
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+  await saveBlob(blob, fileName);
   return { file_name: fileName, trimmed: false };
 }
 
